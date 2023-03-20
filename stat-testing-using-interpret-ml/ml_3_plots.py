@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
-Plot results of machine learning based data analysis
-v218
+Plot results of statistical testing using interpretable machine-learning
+v219
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 import matplotlib.pyplot as plt

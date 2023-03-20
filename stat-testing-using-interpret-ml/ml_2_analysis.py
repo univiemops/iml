@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
-Machine learning based data analysis
-v645
+Statistical testing using interpretable machine-learning
+v662
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -220,33 +220,33 @@ def prepare(task):
                 l1_ratio=0.5,
                 fit_intercept=True,
                 precompute=False,
-                max_iter=10000,
+                max_iter=1000,
                 copy_X=True,
-                tol=0.0001,
+                tol=0.001,
                 warm_start=True,
                 positive=False,
                 random_state=None,
-                selection='random')
+                selection='cyclic')
             # Search space
             space = {
-                'estimator__regressor__alpha': loguniform(0.001, 10),
-                'estimator__regressor__l1_ratio': uniform(0.011, 0.989),
+                'estimator__regressor__alpha': loguniform(0.0001, 1),
+                'estimator__regressor__l1_ratio': uniform(0.01, 0.99),
                 }
         # Gradient boosting model
         elif task['ESTIMATOR_NAME'] == 'GB':
             # Estimator
             estimator = LGBMRegressor(
-                boosting_type='gbdt',
-                num_leaves=31,
+                boosting_type='goss',
+                num_leaves=200,
                 max_depth=-1,
                 learning_rate=0.1,
                 n_estimators=100,
                 subsample_for_bin=100000,
-                objective=None,
+                objective='regression_l2',
                 class_weight=None,
-                min_split_gain=0,
+                min_split_gain=0.0,
                 min_child_weight=0.001,
-                min_child_samples=0,
+                min_child_samples=2,
                 subsample=1.0,
                 subsample_freq=0,
                 colsample_bytree=1.0,
@@ -254,18 +254,17 @@ def prepare(task):
                 reg_lambda=0.0,
                 random_state=None,
                 n_jobs=1,
-                importance_type='gain')
+                importance_type='gain',
+                **{'top_rate': 0.5,
+                   'feature_pre_filter': False,
+                   'max_bin': 1000,
+                   'min_data_in_bin': 1})
             # Search space
             space = {
-                'estimator__regressor__num_leaves': randint(2, 500),
-                'estimator__regressor__max_depth': randint(1, 500),
                 'estimator__regressor__learning_rate': loguniform(0.01, 0.1),
-                'estimator__regressor__n_estimators': randint(100, 1000),
-                'estimator__regressor__min_child_weight': uniform(0.1, 100),
-                'estimator__regressor__subsample': uniform(0.5, 0.5),
+                'estimator__regressor__n_estimators': randint(100, 1001),
                 'estimator__regressor__colsample_bytree': uniform(0.5, 0.5),
-                'estimator__regressor__reg_alpha': loguniform(0.001, 10),
-                'estimator__regressor__reg_lambda': loguniform(0.001, 10),
+                'estimator__regressor__path_smooth': uniform(0, 1001),
                 'estimator__regressor__extra_trees': [True, False],
                 }
         # Other
@@ -287,38 +286,40 @@ def prepare(task):
             # Estimator
             estimator = LogisticRegression(
                 penalty='elasticnet',
-                tol=0.0001,
+                dual=False,
+                tol=0.001,
                 C=1.0,
                 fit_intercept=True,
+                intercept_scaling=1,
                 class_weight=None,
                 random_state=None,
                 solver='saga',
-                max_iter=10000,
+                max_iter=1000,
                 multi_class='multinomial',
                 verbose=0,
                 warm_start=True,
-                n_jobs=1,
-                l1_ratio=0.5)
+                n_jobs=None,
+                l1_ratio=None)
             # Search space
             space = {
-                'estimator__C': loguniform(0.001, 10),
-                'estimator__l1_ratio': uniform(0, 1),
+                'estimator__C': loguniform(1, 10000),
+                'estimator__l1_ratio': uniform(0.01, 0.99),
                 }
         # Gradient boosting model
         elif task['ESTIMATOR_NAME'] == 'GB':
             # Estimator
             estimator = LGBMClassifier(
-                boosting_type='gbdt',
-                num_leaves=31,
+                boosting_type='goss',
+                num_leaves=200,
                 max_depth=-1,
                 learning_rate=0.1,
                 n_estimators=100,
                 subsample_for_bin=100000,
-                objective=None,
+                objective='cross_entropy',
                 class_weight=None,
                 min_split_gain=0.0,
                 min_child_weight=0.001,
-                min_child_samples=0,
+                min_child_samples=2,
                 subsample=1.0,
                 subsample_freq=0,
                 colsample_bytree=1.0,
@@ -326,19 +327,18 @@ def prepare(task):
                 reg_lambda=0.0,
                 random_state=None,
                 n_jobs=1,
-                importance_type='gain')
+                importance_type='gain',
+                **{'top_rate': 0.5,
+                   'feature_pre_filter': False,
+                   'max_bin': 1000,
+                   'min_data_in_bin': 1})
             # Search space
             space = {
-                'estimator__regressor__num_leaves': randint(2, 500),
-                'estimator__regressor__max_depth': randint(1, 500),
-                'estimator__regressor__learning_rate': loguniform(0.01, 0.1),
-                'estimator__regressor__n_estimators': randint(100, 1000),
-                'estimator__regressor__min_child_weight': uniform(0.1, 100),
-                'estimator__regressor__subsample': uniform(0.5, 0.5),
-                'estimator__regressor__colsample_bytree': uniform(0.5, 0.5),
-                'estimator__regressor__reg_alpha': loguniform(0.001, 10),
-                'estimator__regressor__reg_lambda': loguniform(0.001, 10),
-                'estimator__regressor__extra_trees': [True, False],
+                'estimator__learning_rate': loguniform(0.01, 0.1),
+                'estimator__n_estimators': randint(100, 1001),
+                'estimator__colsample_bytree': uniform(0.5, 0.5),
+                'estimator__path_smooth': uniform(0, 1001),
+                'estimator__extra_trees': [True, False],
                 }
         # Other
         else:
@@ -1105,13 +1105,13 @@ def main():
     # Number parallel processing jobs. int (-1=all, -2=all-1)
     N_JOBS = -2
     # CV: Number of outer CV repetitions. int (default: 100)
-    N_REP_OUTER_CV = 100
+    N_REP_OUTER_CV = 50
     # CV & TT: Total number of predictions in inner CV. int (default: 20000)
     N_SAMPLES_INNER_CV = 20000
     # CV & TT: Test size fraction of groups in CV. float (]0,1], default: 0.2)
     TST_SIZE_FRAC = 0.2
-    # Number of samples in random search. int (default: 100)
-    N_SAMPLES_RS = 100
+    # Number of samples in random search. int (default: 500)
+    N_SAMPLES_RS = 500
     # Estimator. string (LM linear model, GB gradient boosting, default: GB)
     ESTIMATOR_NAME = 'GB'
     # Limit number of samples for SHAP. int (default: 10).
@@ -1179,39 +1179,39 @@ def main():
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 569, size=114))
 
-    # Diabetes data - regression
-    # Specifiy an analysis name
-    ANALYSIS_NAME = 'diabetes'+'_'+TYPE
-    # Specify task KIND. string (clf, reg)
-    KIND = 'reg'
-    # Specify path to data. string
-    PATH_TO_DATA = 'data/diabetes_20220824.xlsx'
-    # Specify sheet name. string
-    SHEET_NAME = 'data'
-    # Specify grouping for CV split. list of string
-    G_NAME = [
-        'sample_id']
-    # Specify continous predictor names. list of string or []
-    X_CON_NAMES = [
-        'age',
-        'bmi',
-        'bp',
-        's1',
-        's2',
-        's3',
-        's4',
-        's5',
-        's6']
-    # Specify categorical predictor names. list of string or []
-    X_CAT_NAMES = [
-        'sex']
-    # Specify target name(s). list of strings or []
-    Y_NAMES = [
-        'target']
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
-    # Specify index of rows for test set if TT. list of int or []
-    TEST_SET_IND = list(randint.rvs(0, 441, size=88))
+    # # Diabetes data - regression
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'diabetes'+'_'+TYPE
+    # # Specify task KIND. string (clf, reg)
+    # KIND = 'reg'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/diabetes_20220824.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id']
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'age',
+    #     'bmi',
+    #     'bp',
+    #     's1',
+    #     's2',
+    #     's3',
+    #     's4',
+    #     's5',
+    #     's6']
+    # # Specify categorical predictor names. list of string or []
+    # X_CAT_NAMES = [
+    #     'sex']
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'target']
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 441, size=88))
 
     # # Housing data - regression, 20k samples, categorical predictor
     # # Specifiy an analysis name
@@ -1246,32 +1246,32 @@ def main():
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 20639, size=4128))
 
-    # # Radon data - regression, high cardial categorical predictors
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'radon'+'_'+TYPE
-    # # Specify task KIND. string (clf, reg)
-    # KIND = 'reg'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'data/radon_20220824.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id']
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'Uppm']
-    # # Specify categorical predictors names. list of string or []
-    # X_CAT_NAMES = [
-    #     'county_code',
-    #     'floor']
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'log_radon']
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-    # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 918, size=184))
+    # Radon data - regression, high cardial categorical predictors
+    # Specifiy an analysis name
+    ANALYSIS_NAME = 'radon'+'_'+TYPE
+    # Specify task KIND. string (clf, reg)
+    KIND = 'reg'
+    # Specify path to data. string
+    PATH_TO_DATA = 'data/radon_20220824.xlsx'
+    # Specify sheet name. string
+    SHEET_NAME = 'data'
+    # Specify grouping for CV split. list of string
+    G_NAME = [
+        'sample_id']
+    # Specify continous predictor names. list of string or []
+    X_CON_NAMES = [
+        'Uppm']
+    # Specify categorical predictors names. list of string or []
+    X_CAT_NAMES = [
+        'county_code',
+        'floor']
+    # Specify target name(s). list of strings or []
+    Y_NAMES = [
+        'log_radon']
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
+    # Specify index of rows for test set if TT. list of int or []
+    TEST_SET_IND = list(randint.rvs(0, 918, size=184))
 
     # # Wine data - classification, 3 classes
     # # Specifiy an analysis name
