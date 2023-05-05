@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Exploratory data analysis
-v109
+v111
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -115,8 +115,8 @@ def eda(task, x, y):
         # x names count
         x_names_count = len(task['x_names'])
         # Create a figure
-        fig, ax = plt.subplots(figsize=(x_names_max_len*.1+6,
-                                        x_names_count*.4+1))
+        fig, ax = plt.subplots(figsize=(x_names_max_len*.1+4,
+                                        x_names_count*.7+1))
         # Violinplot all data
         sns.violinplot(data=z_sc, bw='scott', cut=2, scale='width',
                        gridsize=100, width=0.8, inner='box', orient='h',
@@ -261,23 +261,52 @@ def eda(task, x, y):
         # x names count
         x_names_count = len(task['x_names'])
         # Make figure
-        fig, ax = plt.subplots(figsize=(max((1+x_names_count*.25), 8),
-                                        4))
+        fig, ax = plt.subplots(figsize=(max((1+x_names_count*.25), 8), 4))
         # Plot data
         ax.plot(pca.explained_variance_ratio_,
                 label='Explained variance per component')
-        # Plot cum sum of explained variance
-        ax.plot(np.cumsum(pca.explained_variance_ratio_),
-                label='Cumulative explained variance')
+        # Add dots
+        ax.plot(pca.explained_variance_ratio_,
+                color='black',
+                marker='.',
+                linestyle='None')
         # Remove top, right and left frame elements
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         # Add x label
         ax.set_xlabel('PCA-component')
         # Add y label
-        ax.set_ylabel('Relative Variance')
+        ax.set_ylabel('Explained Variance')
+        # Create twin x axis
+        ax2 = ax.twinx()
+        # Plot cum sum of explained variance
+        ax2.plot(np.cumsum(pca.explained_variance_ratio_),
+                 color='orange',
+                 label='Cumulative explained variance')
+        # Add dots
+        ax2.plot(np.cumsum(pca.explained_variance_ratio_),
+                 color='black',
+                 marker='.',
+                 linestyle='None')
+        # Remove top, right and left frame elements
+        ax2.spines['top'].set_visible(False)
+        ax2.spines['left'].set_visible(False)
+        # Add y label
+        ax2.set_ylabel('Cumulative Variance')
+        # Add labels to ax
+        for comp, t in enumerate(
+                pca.explained_variance_ratio_.round(decimals=2)):
+            # Add current label
+            ax.text(comp, t, t, fontsize=8)
+        # Add cum sum labels
+        for comp, t in enumerate(
+                np.cumsum(pca.explained_variance_ratio_).round(decimals=2)):
+            # Add current cumsum label
+            ax2.text(comp, t, t, fontsize=8)
         # Add legend
-        ax.legend()
+        fig.legend(loc='center right',
+                   bbox_to_anchor=(1, 0.5),
+                   bbox_transform=ax.transAxes)
         # Make title string
         title_str = (
             task['ANALYSIS_NAME']+' ' +
