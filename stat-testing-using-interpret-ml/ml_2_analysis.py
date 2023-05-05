@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Statistical testing using interpretable machine-learning
-v662
+v666
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -220,9 +220,9 @@ def prepare(task):
                 l1_ratio=0.5,
                 fit_intercept=True,
                 precompute=False,
-                max_iter=1000,
+                max_iter=10000,
                 copy_X=True,
-                tol=0.001,
+                tol=0.0001,
                 warm_start=True,
                 positive=False,
                 random_state=None,
@@ -237,7 +237,7 @@ def prepare(task):
             # Estimator
             estimator = LGBMRegressor(
                 boosting_type='goss',
-                num_leaves=200,
+                num_leaves=100,
                 max_depth=-1,
                 learning_rate=0.1,
                 n_estimators=100,
@@ -255,17 +255,18 @@ def prepare(task):
                 random_state=None,
                 n_jobs=1,
                 importance_type='gain',
-                **{'top_rate': 0.5,
-                   'feature_pre_filter': False,
+                **{'feature_pre_filter': False,
                    'max_bin': 1000,
-                   'min_data_in_bin': 1})
+                   'min_data_in_bin': 1,
+                   'top_rate': 0.5,
+                   })
             # Search space
             space = {
+                'estimator__regressor__colsample_bytree': uniform(0.5, 0.5),
+                'estimator__regressor__extra_trees': [True, False],
                 'estimator__regressor__learning_rate': loguniform(0.01, 0.1),
                 'estimator__regressor__n_estimators': randint(100, 1001),
-                'estimator__regressor__colsample_bytree': uniform(0.5, 0.5),
-                'estimator__regressor__path_smooth': uniform(0, 1001),
-                'estimator__regressor__extra_trees': [True, False],
+                'estimator__regressor__path_smooth': loguniform(1, 1001),
                 }
         # Other
         else:
@@ -274,7 +275,9 @@ def prepare(task):
         # Add scaler to the estimator
         estimator = TransformedTargetRegressor(
             regressor=estimator,
-            transformer=StandardScaler(),
+            transformer=StandardScaler(copy=True,
+                                       with_mean=True,
+                                       with_std=True),
             func=None,
             inverse_func=None,
             check_inverse=True)
@@ -287,14 +290,14 @@ def prepare(task):
             estimator = LogisticRegression(
                 penalty='elasticnet',
                 dual=False,
-                tol=0.001,
+                tol=0.0001,
                 C=1.0,
                 fit_intercept=True,
                 intercept_scaling=1,
                 class_weight=None,
                 random_state=None,
                 solver='saga',
-                max_iter=1000,
+                max_iter=10000,
                 multi_class='multinomial',
                 verbose=0,
                 warm_start=True,
@@ -310,7 +313,7 @@ def prepare(task):
             # Estimator
             estimator = LGBMClassifier(
                 boosting_type='goss',
-                num_leaves=200,
+                num_leaves=100,
                 max_depth=-1,
                 learning_rate=0.1,
                 n_estimators=100,
@@ -328,17 +331,18 @@ def prepare(task):
                 random_state=None,
                 n_jobs=1,
                 importance_type='gain',
-                **{'top_rate': 0.5,
-                   'feature_pre_filter': False,
+                **{'feature_pre_filter': False,
                    'max_bin': 1000,
-                   'min_data_in_bin': 1})
+                   'min_data_in_bin': 1,
+                   'top_rate': 0.5,
+                   })
             # Search space
             space = {
+                'estimator__colsample_bytree': uniform(0.5, 0.5),
+                'estimator__extra_trees': [True, False],
                 'estimator__learning_rate': loguniform(0.01, 0.1),
                 'estimator__n_estimators': randint(100, 1001),
-                'estimator__colsample_bytree': uniform(0.5, 0.5),
-                'estimator__path_smooth': uniform(0, 1001),
-                'estimator__extra_trees': [True, False],
+                'estimator__path_smooth': loguniform(1, 1001),
                 }
         # Other
         else:
@@ -477,7 +481,7 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
               'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
               'n rep inner cv: '+str(n_splits)+' | ' +
               str(task['ESTIMATOR_NAME'])+' | ' +
-              'best R2: '+str(np.round(hp_score, decimals=4)))
+              'best neg MSE: '+str(np.round(hp_score, decimals=4)))
         # Print best hyperparameter and related score for regression task
         print(str(hp_params))
     # Classification
@@ -533,11 +537,11 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
         Best hyperparameters of the pipe.
 
     '''
-    # Regression use R²
+    # Regression
     if task['KIND'] == 'reg':
-        # R2 score for regression
-        scorer = 'r2'
-    # Classification use weighted accuracy
+        # neg_mean_squared_error
+        scorer = 'neg_mean_squared_error'
+    # Classification
     elif task['KIND'] == 'clf':
         # Weighted accuracy for classification
         scorer = make_scorer(weighted_accuracy_score,
@@ -1105,13 +1109,13 @@ def main():
     # Number parallel processing jobs. int (-1=all, -2=all-1)
     N_JOBS = -2
     # CV: Number of outer CV repetitions. int (default: 100)
-    N_REP_OUTER_CV = 50
-    # CV & TT: Total number of predictions in inner CV. int (default: 20000)
-    N_SAMPLES_INNER_CV = 20000
+    N_REP_OUTER_CV = 100
+    # CV & TT: Total number of predictions in inner CV. int (default: 10000)
+    N_SAMPLES_INNER_CV = 10000
     # CV & TT: Test size fraction of groups in CV. float (]0,1], default: 0.2)
     TST_SIZE_FRAC = 0.2
-    # Number of samples in random search. int (default: 500)
-    N_SAMPLES_RS = 500
+    # Number of samples in random search. int (default: 100)
+    N_SAMPLES_RS = 100
     # Estimator. string (LM linear model, GB gradient boosting, default: GB)
     ESTIMATOR_NAME = 'GB'
     # Limit number of samples for SHAP. int (default: 10).
@@ -1125,59 +1129,59 @@ def main():
 
     # 2. Specify data ---------------------------------------------------------
 
-    # # Cancer data - classification, 2 classes
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'cancer'+'_'+TYPE
-    # # Specify task KIND. string (clf, reg)
-    # KIND = 'clf'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'data/cancer_20221123.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id']
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'mean_radius',
-    #     'mean_texture',
-    #     'mean_perimeter',
-    #     'mean_area',
-    #     'mean_smoothness',
-    #     'mean_compactness',
-    #     'mean_concavity',
-    #     'mean_concave_points',
-    #     'mean_symmetry',
-    #     'mean_fractal_dimension',
-    #     'radius_error',
-    #     'texture_error',
-    #     'perimeter_error',
-    #     'area_error',
-    #     'smoothness_error',
-    #     'compactness_error',
-    #     'concavity_error',
-    #     'concave_points_error',
-    #     'symmetry_error',
-    #     'fractal_dimension_error',
-    #     'worst_radius',
-    #     'worst_texture',
-    #     'worst_perimeter',
-    #     'worst_area',
-    #     'worst_smoothness',
-    #     'worst_compactness',
-    #     'worst_concavity',
-    #     'worst_concave_points',
-    #     'worst_symmetry',
-    #     'worst_fractal_dimension']
-    # # Specify categorical predictor names. list of string or []
-    # X_CAT_NAMES = []
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'target']
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-    # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 569, size=114))
+    # Cancer data - classification, 2 classes
+    # Specifiy an analysis name
+    ANALYSIS_NAME = 'cancer'+'_'+TYPE
+    # Specify task KIND. string (clf, reg)
+    KIND = 'clf'
+    # Specify path to data. string
+    PATH_TO_DATA = 'data/cancer_20221123.xlsx'
+    # Specify sheet name. string
+    SHEET_NAME = 'data'
+    # Specify grouping for CV split. list of string
+    G_NAME = [
+        'sample_id']
+    # Specify continous predictor names. list of string or []
+    X_CON_NAMES = [
+        'mean_radius',
+        'mean_texture',
+        'mean_perimeter',
+        'mean_area',
+        'mean_smoothness',
+        'mean_compactness',
+        'mean_concavity',
+        'mean_concave_points',
+        'mean_symmetry',
+        'mean_fractal_dimension',
+        'radius_error',
+        'texture_error',
+        'perimeter_error',
+        'area_error',
+        'smoothness_error',
+        'compactness_error',
+        'concavity_error',
+        'concave_points_error',
+        'symmetry_error',
+        'fractal_dimension_error',
+        'worst_radius',
+        'worst_texture',
+        'worst_perimeter',
+        'worst_area',
+        'worst_smoothness',
+        'worst_compactness',
+        'worst_concavity',
+        'worst_concave_points',
+        'worst_symmetry',
+        'worst_fractal_dimension']
+    # Specify categorical predictor names. list of string or []
+    X_CAT_NAMES = []
+    # Specify target name(s). list of strings or []
+    Y_NAMES = [
+        'target']
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
+    # Specify index of rows for test set if TT. list of int or []
+    TEST_SET_IND = list(randint.rvs(0, 569, size=114))
 
     # # Diabetes data - regression
     # # Specifiy an analysis name
@@ -1246,32 +1250,32 @@ def main():
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 20639, size=4128))
 
-    # Radon data - regression, high cardial categorical predictors
-    # Specifiy an analysis name
-    ANALYSIS_NAME = 'radon'+'_'+TYPE
-    # Specify task KIND. string (clf, reg)
-    KIND = 'reg'
-    # Specify path to data. string
-    PATH_TO_DATA = 'data/radon_20220824.xlsx'
-    # Specify sheet name. string
-    SHEET_NAME = 'data'
-    # Specify grouping for CV split. list of string
-    G_NAME = [
-        'sample_id']
-    # Specify continous predictor names. list of string or []
-    X_CON_NAMES = [
-        'Uppm']
-    # Specify categorical predictors names. list of string or []
-    X_CAT_NAMES = [
-        'county_code',
-        'floor']
-    # Specify target name(s). list of strings or []
-    Y_NAMES = [
-        'log_radon']
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
-    # Specify index of rows for test set if TT. list of int or []
-    TEST_SET_IND = list(randint.rvs(0, 918, size=184))
+    # # Radon data - regression, high cardial categorical predictors
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'radon'+'_'+TYPE
+    # # Specify task KIND. string (clf, reg)
+    # KIND = 'reg'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/radon_20220824.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id']
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'Uppm']
+    # # Specify categorical predictors names. list of string or []
+    # X_CAT_NAMES = [
+    #     'county_code',
+    #     'floor']
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'log_radon']
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 918, size=184))
 
     # # Wine data - classification, 3 classes
     # # Specifiy an analysis name
