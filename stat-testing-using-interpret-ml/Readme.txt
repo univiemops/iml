@@ -1,27 +1,29 @@
-How to install with conda step-by-step (20230505)
-(1)  Install anaconda or miniconda
-(Bugfix) Go to anaconda3>Library>bin, search and copy following dll files libcrypto-1_1-x64.dll libssl-1_1-x64.dll and paste to anaconda3>DLLs
-(2)  Open a anaconda prompt with admin rights
-(3)  Setup a new environment: conda create -n mlenv
-(4)  Activate the new environment: conda activate mlenv
-(5)  Install Python: conda install -c conda-forge python=3.10
-(6)  Install Spyder IDE: conda install -c conda-forge spyder
-(7)  Install ipywidgets: conda install -c conda-forge ipywidgets
-(8)  Install matplotlib version 3.5: conda install -c conda-forge matplotlib=3.5
-(9)  Install seaborn: conda install -c conda-forge seaborn
-(10) Install openpyxl: conda install -c conda-forge openpyxl
-(11) Install more-itertools: conda install -c conda-forge more-itertools
-(12) Install SHAP: conda install -c conda-forge shap
-(13) Install lightgbm: conda install -c conda-forge lightgbm
+How to install with conda step-by-step (20230920)
+(1)  Install anaconda (tested with 2023.03-1)
+(2)  Open a anaconda prompt
+(3)  Update conda: conda update conda
+(4)  Setup a new environment: conda create -n mlenv
+(5)  Activate the new environment: conda activate mlenv
+(6)  Install python: conda install -c conda-forge python=3.11
+(7)  Install spyder: conda install -c conda-forge spyder
+(8)  Install ipywidgets: conda install -c conda-forge ipywidgets
+(9)  Install matplotlib: conda install -c conda-forge matplotlib=3.7
+(10) Install seaborn: conda install -c conda-forge seaborn
+(11) Install openpyxl: conda install -c conda-forge openpyxl
+(12) Install lightgbm: conda install -c conda-forge lightgbm
+(13) Install shap: conda install -c conda-forge shap
 
-How to install with conda one command (20230505)
-(1)  Install anaconda or miniconda
-(Bugfix) Go to anaconda3>Library>bin, search and copy following dll files libcrypto-1_1-x64.dll libssl-1_1-x64.dll and paste to anaconda3>DLLs
-(2)  Open a anaconda prompt with admin rights
-(3)  Setup a new environment: conda create -n mlenv
-(4)  Activate the new environment: conda activate mlenv
-(5)  Install: conda install -c conda-forge python=3.10 spyder ipywidgets matplotlib=3.5 seaborn openpyxl more-itertools shap lightgbm
+How to install with less commands (20230920)
+(1)  Install anaconda (tested with 2023.03-1)
+(2)  Open a anaconda prompt
+(3)  Update conda: conda update conda
+(4)  Setup a new environment: conda create -n mlenv
+(5)  Activate the new environment: conda activate mlenv
+(6)  Install: conda install -c conda-forge python=3.11 spyder ipywidgets matplotlib=3.7 seaborn openpyxl lightgbm shap
 
-How to update environment with conda (20230505)
-(1) Open a anaconda prompt with admin rights
-(2) Update all packages in env: conda update -c conda-forge -n mlenv --all
+How to update environment with conda (20230920)
+(1)  Open a anaconda prompt
+(2)  Update all packages in env: conda update -c conda-forge -n mlenv --all
+
+How to get developer version of shap (20230920)
+(1) Install: pip install git+https://github.com/shap/shap

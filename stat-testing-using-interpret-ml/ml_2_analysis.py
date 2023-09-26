@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
-Statistical testing using interpretable machine-learning
-v666
+Statistical Analysis using Interpretable Machine-Learning (SAIML)
+v707
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -10,45 +10,28 @@ import os
 import pandas as pd
 import pickle
 import shutil
-import warnings
 from collections import Counter
 from lightgbm import LGBMClassifier
 from lightgbm import LGBMRegressor
 from scipy.stats import loguniform
 from scipy.stats import randint
 from scipy.stats import uniform
-from shap.explainers import Exact as ExactExplainer
-from shap.explainers import Linear as LinearExplainer
-from shap.explainers import Partition as PartitionExplainer
 from shap.explainers import Tree as TreeExplainer
-from shap.maskers import Impute as ImputeMasker
-from shap.maskers import Independent as IndependentMasker
-from shap.maskers import Partition as PartitionMasker
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.compose import TransformedTargetRegressor
-from sklearn.impute import KNNImputer
-from sklearn.linear_model import ElasticNet
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import make_scorer
 from sklearn.metrics import r2_score
-from sklearn.model_selection import GroupShuffleSplit
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import TargetEncoder
 from sklearn.utils import shuffle
+from sklearn_repeated_group_k_fold import RepeatedGroupKFold
 from time import time
-
-# Create warning string
-warnings_string = ('ignore:X does not have valid feature names:::')
-# Ignore warning string
-os.environ['PYTHONWARNINGS'] = warnings_string
-# Filter out specific warnings
-warnings.filterwarnings('ignore', 'X does not have valid feature names')
 
 
 def create_dir(path):
@@ -63,47 +46,16 @@ def create_dir(path):
     Returns
     -------
     None.
-
     '''
+
+    # Create dir of not existing ----------------------------------------------
     # Check if dir exists
     if not os.path.isdir(path):
         # Create dir
         os.mkdir(path)
 
-
-def drop_nan_rows(g, x, y):
-    '''
-    Identify and drop rows containing nans from dataframes.
-
-    Parameters
-    ----------
-    g : dataframe
-        Groups dataframe.
-    x : dataframe
-        Predictors dataframe.
-    y : dataframe
-        Targets dataframe.
-
-    Returns
-    -------
-    g : dataframe
-        Groups dataframe.
-    x : dataframe
-        Predictors dataframe.
-    y : dataframe
-        Targets dataframe.
-
-    '''
-    # Search for nans in predictors
-    rows_nans = list(x.loc[x.isna().any(axis=1).to_numpy(), :].index)
-    # Drop rows from cv groups
-    g = g.drop(rows_nans).reset_index(drop=True)
-    # Drop rows from predictors
-    x = x.drop(rows_nans).reset_index(drop=True)
-    # Drop rows from targets
-    y = y.drop(rows_nans).reset_index(drop=True)
-    # Return results
-    return g, x, y
+    # Return None -------------------------------------------------------------
+    return
 
 
 def prepare(task):
@@ -121,41 +73,22 @@ def prepare(task):
         Prepared pipe object.
     space : dict
         Space that should be searched for optimale parameters.
-
     '''
-    # Pipeline for continous data preprocessing -------------------------------
-    # One hot encoder
-    ohe_1 = OneHotEncoder(categories=task['ohe_categories'],
-                          drop='if_binary',
-                          sparse_output=False,
-                          dtype=np.float64,
-                          handle_unknown='error',
-                          min_frequency=None,
-                          max_categories=None)
-    # OHE categorical predictors
-    coltrans_1 = ColumnTransformer(
-        [('ohe_1', ohe_1, task['X_CAT_NAMES'])],
-        remainder='passthrough',
-        sparse_threshold=0,
-        n_jobs=1,
-        transformer_weights=None,
-        verbose=False,
-        verbose_feature_names_out=False)
-    # Standard scaler
-    stdscal_1 = StandardScaler(copy=True,
-                               with_mean=True,
-                               with_std=True)
-    # Imputer
-    knnimp_1 = KNNImputer(missing_values=np.nan,
-                          n_neighbors=3,
-                          weights='distance',
-                          metric='nan_euclidean',
-                          copy=True,
-                          add_indicator=False,
-                          keep_empty_features=False)
-    # Column selector
-    coltrans_2 = ColumnTransformer(
-        [('pass', 'passthrough', task['X_CON_NAMES'])],
+
+    # Make preprocessing pipe -------------------------------------------------
+    # Instatiate target-encoder
+    te = TargetEncoder(categories=task['te_categories'],
+                       target_type='continuous',
+                       smooth='auto',
+                       cv=5,
+                       shuffle=True,
+                       random_state=None)
+    # Get categorical predictors for target-encoder
+    coltrans = ColumnTransformer(
+        [('con_pred', 'passthrough', task['X_CON_NAMES']),
+         ('bin_pred', 'passthrough', task['X_CAT_BIN_NAMES']),
+         ('mult_pred', te, task['X_CAT_MULT_NAMES']),
+         ],
         remainder='drop',
         sparse_threshold=0,
         n_jobs=1,
@@ -163,204 +96,112 @@ def prepare(task):
         verbose=False,
         verbose_feature_names_out=False)
     # Pipeline
-    con_pipe = Pipeline([('ohe_cat', coltrans_1),
-                         ('std_scaler', stdscal_1),
-                         ('knn_impute', knnimp_1),
-                         ('con_selector', coltrans_2)],
+    pre_pipe = Pipeline([('coltrans', coltrans),
+                         ('std_scaler', StandardScaler())],
                         memory=None,
                         verbose=False)
 
-    # Pipeline for categorical data preprocessing -----------------------------
-    # Categorical data one hot encoder
-    ohe_2 = OneHotEncoder(categories=task['ohe_categories'],
-                          drop='if_binary',
-                          sparse_output=False,
-                          dtype=np.float64,
-                          handle_unknown='error',
-                          min_frequency=None,
-                          max_categories=None)
-    # OHE categorical predictors
-    coltrans_3 = ColumnTransformer(
-        [('ohe_2', ohe_2, task['X_CAT_NAMES'])],
-        remainder='drop',
-        sparse_threshold=0,
-        n_jobs=1,
-        transformer_weights=None,
-        verbose=False,
-        verbose_feature_names_out=False)
-    # Standard scaler
-    stdscal_2 = StandardScaler(copy=True,
-                               with_mean=True,
-                               with_std=True)
-    # Pipeline
-    cat_pipe = Pipeline([('ohe_cat', coltrans_3),
-                         ('std_scaler', stdscal_2)],
-                        memory=None,
-                        verbose=False)
-
-    # Preprocessing pipeline --------------------------------------------------
-    # Put pipes together
-    pre_pipe = ColumnTransformer(
-        [('con', con_pipe, task['X_CON_NAMES']+task['X_CAT_NAMES']),
-         ('cat', cat_pipe, task['X_CAT_NAMES'])],
-        remainder='drop',
-        sparse_threshold=0,
-        n_jobs=1,
-        transformer_weights=None,
-        verbose=False,
-        verbose_feature_names_out=False)
-
-    # Regression --------------------------------------------------------------
-    if task['KIND'] == 'reg':
-        # Linear model
-        if task['ESTIMATOR_NAME'] == 'LM':
-            # Estimator
-            estimator = ElasticNet(
-                alpha=1.0,
-                l1_ratio=0.5,
-                fit_intercept=True,
-                precompute=False,
-                max_iter=10000,
-                copy_X=True,
-                tol=0.0001,
-                warm_start=True,
-                positive=False,
-                random_state=None,
-                selection='cyclic')
-            # Search space
-            space = {
-                'estimator__regressor__alpha': loguniform(0.0001, 1),
-                'estimator__regressor__l1_ratio': uniform(0.01, 0.99),
-                }
-        # Gradient boosting model
-        elif task['ESTIMATOR_NAME'] == 'GB':
-            # Estimator
-            estimator = LGBMRegressor(
-                boosting_type='goss',
-                num_leaves=100,
-                max_depth=-1,
-                learning_rate=0.1,
-                n_estimators=100,
-                subsample_for_bin=100000,
-                objective='regression_l2',
-                class_weight=None,
-                min_split_gain=0.0,
-                min_child_weight=0.001,
-                min_child_samples=2,
-                subsample=1.0,
-                subsample_freq=0,
-                colsample_bytree=1.0,
-                reg_alpha=0.0,
-                reg_lambda=0.0,
-                random_state=None,
-                n_jobs=1,
-                importance_type='gain',
-                **{'feature_pre_filter': False,
-                   'max_bin': 1000,
-                   'min_data_in_bin': 1,
-                   'top_rate': 0.5,
-                   })
-            # Search space
-            space = {
-                'estimator__regressor__colsample_bytree': uniform(0.5, 0.5),
-                'estimator__regressor__extra_trees': [True, False],
-                'estimator__regressor__learning_rate': loguniform(0.01, 0.1),
-                'estimator__regressor__n_estimators': randint(100, 1001),
-                'estimator__regressor__path_smooth': loguniform(1, 1001),
-                }
-        # Other
-        else:
-            # Raise error
-            raise TypeError('Estimator name not found.')
+    # Make predictor ----------------------------------------------------------
+    # Regression
+    if task['OBJECTIVE'] == 'regression':
+        # Estimator
+        estimator = LGBMRegressor(
+            boosting_type='gbdt',
+            num_leaves=100,
+            max_depth=-1,
+            learning_rate=0.01,
+            n_estimators=1000,
+            subsample_for_bin=100000,
+            objective=task['OBJECTIVE'],
+            min_split_gain=0.0,
+            min_child_weight=0.1,
+            min_child_samples=2,
+            subsample=1.0,
+            subsample_freq=0,
+            colsample_bytree=1.0,
+            reg_alpha=0.0,
+            reg_lambda=0.0,
+            random_state=None,
+            n_jobs=1,
+            importance_type='gain',
+            **{'data_random_seed': None,
+               'data_sample_strategy': 'goss',
+               'extra_seed': None,
+               'feature_fraction_seed': None,
+               'feature_pre_filter': False,
+               'force_col_wise': True,
+               'max_bin': 1000,
+               'min_data_in_bin': 1,
+               'top_rate': 0.5,
+               'verbosity': -1,
+               })
+        # Search space
+        space = {
+            'estimator__regressor__colsample_bytree': uniform(0.2, 0.8),
+            'estimator__regressor__extra_trees': [True, False],
+            'estimator__regressor__path_smooth': loguniform(0.1, 1000),
+            }
         # Add scaler to the estimator
         estimator = TransformedTargetRegressor(
             regressor=estimator,
-            transformer=StandardScaler(copy=True,
-                                       with_mean=True,
-                                       with_std=True),
+            transformer=StandardScaler(),
             func=None,
             inverse_func=None,
             check_inverse=True)
-
-    # Classification ----------------------------------------------------------
-    elif task['KIND'] == 'clf':
-        # Linear model
-        if task['ESTIMATOR_NAME'] == 'LM':
-            # Estimator
-            estimator = LogisticRegression(
-                penalty='elasticnet',
-                dual=False,
-                tol=0.0001,
-                C=1.0,
-                fit_intercept=True,
-                intercept_scaling=1,
-                class_weight=None,
-                random_state=None,
-                solver='saga',
-                max_iter=10000,
-                multi_class='multinomial',
-                verbose=0,
-                warm_start=True,
-                n_jobs=None,
-                l1_ratio=None)
-            # Search space
-            space = {
-                'estimator__C': loguniform(1, 10000),
-                'estimator__l1_ratio': uniform(0.01, 0.99),
-                }
-        # Gradient boosting model
-        elif task['ESTIMATOR_NAME'] == 'GB':
-            # Estimator
-            estimator = LGBMClassifier(
-                boosting_type='goss',
-                num_leaves=100,
-                max_depth=-1,
-                learning_rate=0.1,
-                n_estimators=100,
-                subsample_for_bin=100000,
-                objective='cross_entropy',
-                class_weight=None,
-                min_split_gain=0.0,
-                min_child_weight=0.001,
-                min_child_samples=2,
-                subsample=1.0,
-                subsample_freq=0,
-                colsample_bytree=1.0,
-                reg_alpha=0.0,
-                reg_lambda=0.0,
-                random_state=None,
-                n_jobs=1,
-                importance_type='gain',
-                **{'feature_pre_filter': False,
-                   'max_bin': 1000,
-                   'min_data_in_bin': 1,
-                   'top_rate': 0.5,
-                   })
-            # Search space
-            space = {
-                'estimator__colsample_bytree': uniform(0.5, 0.5),
-                'estimator__extra_trees': [True, False],
-                'estimator__learning_rate': loguniform(0.01, 0.1),
-                'estimator__n_estimators': randint(100, 1001),
-                'estimator__path_smooth': loguniform(1, 1001),
-                }
-        # Other
-        else:
-            # Raise error
-            raise TypeError('Estimator name not found.')
+    # Classification
+    elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
+        # Estimator
+        estimator = LGBMClassifier(
+            boosting_type='gbdt',
+            num_leaves=100,
+            max_depth=-1,
+            learning_rate=0.01,
+            n_estimators=1000,
+            subsample_for_bin=100000,
+            objective=task['OBJECTIVE'],
+            class_weight=None,
+            min_split_gain=0.0,
+            min_child_weight=0.1,
+            min_child_samples=2,
+            subsample=1.0,
+            subsample_freq=0,
+            colsample_bytree=1.0,
+            reg_alpha=0.0,
+            reg_lambda=0.0,
+            random_state=None,
+            n_jobs=1,
+            importance_type='gain',
+            **{'data_random_seed': None,
+               'data_sample_strategy': 'goss',
+               'extra_seed': None,
+               'feature_fraction_seed': None,
+               'feature_pre_filter': False,
+               'force_col_wise': True,
+               'max_bin': 1000,
+               'min_data_in_bin': 1,
+               'top_rate': 0.5,
+               'verbosity': -1,
+               })
+        # Search space
+        space = {
+            'estimator__colsample_bytree': uniform(0.2, 0.8),
+            'estimator__extra_trees': [True, False],
+            'estimator__path_smooth': loguniform(0.1, 1000),
+            }
     # Other
     else:
         # Raise error
-        raise TypeError('Kind not found.')
+        raise ValueError('OBJECTIVE not found.')
 
-    # Make pipeline -----------------------------------------------------------
+    # Make full pipeline ------------------------------------------------------
     # Analyis pipeline
     pipe = Pipeline(
         [('preprocessing', pre_pipe),
          ('estimator', estimator)],
         memory=None,
         verbose=False).set_output(transform='pandas')
-    # Return the pipe and space
+
+    # Return pipe and space ---------------------------------------------------
     return pipe, space
 
 
@@ -383,8 +224,9 @@ def split_data(df, i_trn, i_tst):
         Dataframe holding the training data.
     df_tst : dataframe
          Dataframe holding the testing data.
-
     '''
+
+    # Split dataframe via index -----------------------------------------------
     # Dataframe is not empty
     if not df.empty:
         # Make split
@@ -395,7 +237,8 @@ def split_data(df, i_trn, i_tst):
     else:
         # Make empty dataframes
         df_trn, df_tst = pd.DataFrame(), pd.DataFrame()
-    # Return train test dataframes
+
+    # Return train test dataframes --------------------------------------------
     return df_trn, df_tst
 
 
@@ -412,15 +255,17 @@ def get_class_w(y):
     -------
     class_weights : dictionary
         Dictionary of class weights with class labels as keys.
-
     '''
+
+    # Get class weights -------------------------------------------------------
     # Count unique classes occurances
     counter = Counter(y.squeeze())
     # n_samples
     total_class = sum(counter.values())
     # Get weights
     w = {key: np.round(count/total_class, 4) for key, count in counter.items()}
-    # Return class weights
+
+    # Return class weights ----------------------------------------------------
     return w
 
 
@@ -442,11 +287,13 @@ def weighted_accuracy_score(y_true, y_pred, class_weights):
     -------
     accuracy : float
         Prediction accuracy.
-
     '''
+
+    # Get sample weights ------------------------------------------------------
     # Make sample weights dataframe
     w = y_true.squeeze().map(class_weights).to_numpy()
-    # Return sample weighted accuracy
+
+    # Return sample weighted accuracy -----------------------------------------
     return accuracy_score(y_true, y_pred, sample_weight=w)
 
 
@@ -470,36 +317,61 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
     Returns
     -------
     None.
-
     '''
-    # Regression
-    if task['KIND'] == 'reg':
-        # Print data set
-        print('Dataset: '+task['PATH_TO_DATA'])
-        # Print general information
-        print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
-              'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
-              'n rep inner cv: '+str(n_splits)+' | ' +
-              str(task['ESTIMATOR_NAME'])+' | ' +
-              'best neg MSE: '+str(np.round(hp_score, decimals=4)))
-        # Print best hyperparameter and related score for regression task
-        print(str(hp_params))
-    # Classification
-    elif task['KIND'] == 'clf':
-        # Print data set
-        print('Dataset: '+task['PATH_TO_DATA'])
-        # Print general information
-        print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
-              'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
-              'n rep inner cv: '+str(n_splits)+' | ' +
-              str(task['ESTIMATOR_NAME'])+' | ' +
-              'acc: '+str(np.round(hp_score, decimals=4)))
-        # Print best hyperparameter and related score for classification task
-        print(str(hp_params))
-    # Other
+
+    # Print analysis name
+    print('Analysis: '+task['ANALYSIS_NAME'])
+    # Print data set
+    print('Dataset: '+task['PATH_TO_DATA'])
+    # Cross-validation --------------------------------------------------------
+    if task['TYPE'] == 'CV':
+        # Regression
+        if task['OBJECTIVE'] == 'regression':
+            # Print general information
+            print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
+                  'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
+                  'n rep inner cv: '+str(n_splits)+' | ' +
+                  'best neg MSE: '+str(np.round(hp_score, decimals=4)))
+        # Classification
+        elif (task['OBJECTIVE'] == 'binary' or
+              task['OBJECTIVE'] == 'multiclass'):
+            # Print general information
+            print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
+                  'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
+                  'n rep inner cv: '+str(n_splits)+' | ' +
+                  'acc: '+str(np.round(hp_score, decimals=4)))
+        # Other
+        else:
+            # Raise error
+            raise ValueError('OBJECTIVE not found.')
+    # Train-Test split --------------------------------------------------------
+    elif task['TYPE'] == 'TT':
+        # Regression
+        if task['OBJECTIVE'] == 'regression':
+            # Print general information
+            print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
+                  'n rep inner cv: '+str(n_splits)+' | ' +
+                  'best neg MSE: '+str(np.round(hp_score, decimals=4)))
+        # Classification
+        elif (task['OBJECTIVE'] == 'binary' or
+              task['OBJECTIVE'] == 'multiclass'):
+            # Print general information
+            print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
+                  'n rep inner cv: '+str(n_splits)+' | ' +
+                  'acc: '+str(np.round(hp_score, decimals=4)))
+        # Other
+        else:
+            # Raise error
+            raise ValueError('OBJECTIVE not found.')
+    # Other -------------------------------------------------------------------
     else:
         # Raise error
-        raise TypeError('Kind not found.')
+        raise ValueError('TYPE not found.')
+    # Print best hyperparameter and related score for regression task
+    print(str(hp_params))
+
+    # Return None -------------------------------------------------------------
+    return
 
 
 def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
@@ -535,14 +407,15 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
         Fitted pipeline object with tuned parameters.
     best parameters : dict
         Best hyperparameters of the pipe.
-
     '''
+
+    # Get scorer --------------------------------------------------------------
     # Regression
-    if task['KIND'] == 'reg':
+    if task['OBJECTIVE'] == 'regression':
         # neg_mean_squared_error
         scorer = 'neg_mean_squared_error'
     # Classification
-    elif task['KIND'] == 'clf':
+    elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
         # Weighted accuracy for classification
         scorer = make_scorer(weighted_accuracy_score,
                              greater_is_better=True,
@@ -552,13 +425,13 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
     # Other
     else:
         # Raise error
-        raise TypeError('Kind not found.')
+        raise ValueError('OBJECTIVE not found.')
 
     # Tune analysis pipeline --------------------------------------------------
-    # Choose n_splits to approx N_SAMPLES_INNER_CV predictions, min 5, max 1000
-    n_splits = min(1000, max(5, int(task['N_SAMPLES_INNER_CV'] /
-                                    (g_trn.shape[0]*task['TST_SIZE_FRAC']))))
-    # Instanciate random parameter search
+    # Choose n_repeats to approx N_SAMPLES_INNER_CV predictions, min 1, max 10
+    n_repeats = min(10, max(1, int(task['N_SAMPLES_INNER_CV'] /
+                                   g_trn.shape[0])))
+    # Instatiate random parameter search
     search = RandomizedSearchCV(
         pipe,
         space,
@@ -566,8 +439,9 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
         scoring=scorer,
         n_jobs=task['N_JOBS'],
         refit=True,
-        cv=GroupShuffleSplit(n_splits=n_splits,
-                             test_size=task['TST_SIZE_FRAC']),
+        cv=RepeatedGroupKFold(n_splits=5,
+                              n_repeats=n_repeats,
+                              random_state=None),
         verbose=0,
         pre_dispatch='2*n_jobs',
         random_state=None,
@@ -576,10 +450,11 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
     # Random search for best parameter
     search.fit(x_trn, y_trn.squeeze(), groups=g_trn)
     # Print tune summary
-    print_tune_summary(task, i_cv, n_splits, search.best_params_,
+    print_tune_summary(task, i_cv, n_repeats, search.best_params_,
                        search.best_score_)
-    # Return tuned analysis pipe
-    return (search.best_estimator_, search.best_params_)
+
+    # Return tuned analysis pipe ----------------------------------------------
+    return search.best_estimator_, search.best_params_
 
 
 def score_predictions(task, pipe, x_tst, y_tst, y):
@@ -604,12 +479,15 @@ def score_predictions(task, pipe, x_tst, y_tst, y):
     scores : dict
         Returns scoring results. MAE, MSE and R² if task is regression.
         ACC and true class weights if task is classification.
-
     '''
+
+    # Predict -----------------------------------------------------------------
     # Predict test samples
     y_pred = pipe.predict(x_tst)
+
+    # Score results -----------------------------------------------------------
     # Regression
-    if task['KIND'] == 'reg':
+    if task['OBJECTIVE'] == 'regression':
         # Score predictions in terms of mae
         mae = mean_absolute_error(y_tst, y_pred)
         # Score predictions in terms of mse
@@ -623,7 +501,7 @@ def score_predictions(task, pipe, x_tst, y_tst, y):
                   'mse': mse,
                   'r2': r2}
     # Classification
-    elif task['KIND'] == 'clf':
+    elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
         # Get class weights
         class_weights = get_class_w(y)
         # Calculate model fit in terms of acc
@@ -636,8 +514,9 @@ def score_predictions(task, pipe, x_tst, y_tst, y):
     # Other
     else:
         # Raise error
-        raise TypeError('Kind not found.')
-    # Return scores dictionary
+        raise ValueError('OBJECTIVE not found.')
+
+    # Return scores -----------------------------------------------------------
     return scores
 
 
@@ -677,22 +556,9 @@ def get_explainations(task, pipe, x_trn, x_tst):
     -------
     imp : shap explainer object
         SHAP based predictor importance.
-
     '''
-    # Linear models and interactions
-    if (task['ESTIMATOR_NAME'] == 'LM' and task['SHAP_INTERACTIONS']):
-        # Linear models cannot have interactions
-        task['SHAP_INTERACTIONS'] = False
-        # Warning
-        warnings.warn('Linear models cannot have interactions.' +
-                      'Computation skipped.', UserWarning)
-    # Subsample train data to be used as background data
-    x_background = x_trn.sample(
-        n=min(x_trn.shape[0], task['MAX_SAMPLES_SHAP_BACKGROUND']),
-        random_state=3141592,
-        ignore_index=True)
-    # Transform background data
-    x_background = pipe[0].transform(x_background)
+
+    # Get SHAP test data ------------------------------------------------------
     # Subsample test data
     x_tst_shap_orig = x_tst.sample(
         n=min(x_tst.shape[0], task['MAX_SAMPLES_SHAP']),
@@ -701,106 +567,45 @@ def get_explainations(task, pipe, x_trn, x_tst):
     # Transform shap test data
     x_tst_shap = pipe[0].transform(x_tst_shap_orig)
 
-    # Masker ------------------------------------------------------------------
-    # Linear model and regression
-    if (task['ESTIMATOR_NAME'] == 'LM' and task['KIND'] == 'reg'):
-        # Get masker
-        masker = ImputeMasker(
-            x_background,
-            method='linear')
-    # Without interactions
-    elif not task['SHAP_INTERACTIONS']:
-        # Get masker
-        masker = PartitionMasker(
-            x_background,
-            max_samples=task['MAX_SAMPLES_SHAP_BACKGROUND'],
-            clustering='correlation')
-    # With interactions
-    else:
-        # Get masker
-        masker = IndependentMasker(
-            x_background,
-            max_samples=task['MAX_SAMPLES_SHAP_BACKGROUND'])
-
-    # Explainer ---------------------------------------------------------------
-    # Gradient boosting model and regression
-    if (task['ESTIMATOR_NAME'] == 'GB' and task['KIND'] == 'reg'):
-        # Get explainer
-        explainer = TreeExplainer(
-            pipe[1].regressor_,
-            data=None,
-            model_output='raw',
-            feature_perturbation='tree_path_dependent',
-            feature_names=None,
-            approximate=False)
-    # Linear model and regression
-    elif (task['ESTIMATOR_NAME'] == 'LM' and task['KIND'] == 'reg'):
-        # Get explainer
-        explainer = LinearExplainer(
-            pipe[1].regressor_,
-            masker,
-            nsamples=task['MAX_SAMPLES_SHAP_BACKGROUND'])
-    # Without interactions
-    elif not task['SHAP_INTERACTIONS']:
-        # Get explainer
-        explainer = PartitionExplainer(pipe[1].predict, masker)
-    # With interactions
-    else:
-        # Get explainer
-        explainer = ExactExplainer(pipe[1].predict, masker)
-
-    # Explainations -----------------------------------------------------------
-    # With interactions
-    if task['SHAP_INTERACTIONS']:
-        # Gradient boosting model and regression
-        if (task['ESTIMATOR_NAME'] == 'GB' and task['KIND'] == 'reg'):
-            # Get shap values
-            shap_explainations = explainer(x_tst_shap,
-                                           interactions=True,
-                                           check_additivity=False)
-        # Other
-        else:
-            # Get shap values
-            shap_explainations = explainer(x_tst_shap,
-                                           max_evals='auto',
-                                           main_effects=False,
-                                           error_bounds=False,
-                                           batch_size='auto',
-                                           interactions=True,
-                                           silent=False)
-    # Without interactions
-    elif not task['SHAP_INTERACTIONS']:
-        # Gradient boosting model and regression
-        if (task['ESTIMATOR_NAME'] == 'GB' and task['KIND'] == 'reg'):
-            # Get shap values
-            shap_explainations = explainer(x_tst_shap,
-                                           interactions=False,
-                                           check_additivity=False)
-        # Linear model and regression
-        elif (task['ESTIMATOR_NAME'] == 'LM' and task['KIND'] == 'reg'):
-            # Get shap values
-            shap_explainations = explainer(x_tst_shap,
-                                           max_evals='auto',
-                                           main_effects=False,
-                                           error_bounds=False,
-                                           batch_size='auto',
-                                           outputs=None,
-                                           silent=False)
-        # Other
-        else:
-            # Get shap values
-            shap_explainations = explainer(x_tst_shap,
-                                           max_evals='auto',
-                                           main_effects=False,
-                                           error_bounds=False,
-                                           batch_size='auto',
-                                           outputs=None,
-                                           silent=False)
-    # Replace scaled data in shap explainations with unscaled
-    shap_explainations.data = pipe[0].transformers_[0][1][0].transform(
-        x_tst_shap_orig).reindex(columns=task['x_names'])
+    # Explainer and Explainations ---------------------------------------------
     # Regression
-    if task['KIND'] == 'reg':
+    if task['OBJECTIVE'] == 'regression':
+        # Get predictor
+        predictor = pipe[1].regressor_
+    # Classification
+    elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
+        # Get predictor
+        predictor = pipe[1]
+    # Get explainer
+    explainer = TreeExplainer(
+        predictor,
+        data=None,
+        model_output='raw',
+        feature_perturbation='tree_path_dependent',
+        feature_names=None,
+        approximate=False)
+    # Get explainations with interactions
+    if task['SHAP_INTERACTIONS']:
+        # Get shap values
+        shap_explainations = explainer(x_tst_shap,
+                                       interactions=True,
+                                       check_additivity=False)
+    # Get explainations without interactions
+    elif not task['SHAP_INTERACTIONS']:
+        # Get shap values
+        shap_explainations = explainer(x_tst_shap,
+                                       interactions=False,
+                                       check_additivity=False)
+    # Other
+    else:
+        # Raise error
+        raise ValueError('Invalid value for SHAP_INTERACTIONS.')
+
+    # Prepare shap_explainations ----------------------------------------------
+    # Replace scaled data in shap explainations with unscaled
+    shap_explainations.data = x_tst_shap_orig
+    # If regression
+    if task['OBJECTIVE'] == 'regression':
         # Rescale shap values from scaled data to original space
         shap_explainations.values = (shap_explainations.values *
                                      pipe[1].transformer_.scale_[0])
@@ -808,7 +613,8 @@ def get_explainations(task, pipe, x_trn, x_tst):
         shap_explainations.base_values = ((shap_explainations.base_values *
                                           pipe[1].transformer_.scale_[0]) +
                                           pipe[1].transformer_.mean_[0])
-    # Return shap explainations
+
+    # Return shap explainations -----------------------------------------------
     return shap_explainations
 
 
@@ -826,12 +632,16 @@ def s2p(path_save, variable):
     Returns
     -------
     None.
-
     '''
+
+    # Save --------------------------------------------------------------------
     # Save variable as pickle file
     with open(path_save, 'wb') as filehandle:
         # store the data as binary data stream
         pickle.dump(variable, filehandle)
+
+    # Return None -------------------------------------------------------------
+    return
 
 
 def print_current_results(task, t_start, scores, scores_sh):
@@ -852,10 +662,11 @@ def print_current_results(task, t_start, scores, scores_sh):
     Returns
     -------
     None.
-
     '''
+
+    # Print results -----------------------------------------------------------
     # Regression
-    if task['KIND'] == 'reg':
+    if task['OBJECTIVE'] == 'regression':
         # Print current R2
         print('Current CV loop R2: '+str(np.round(
             scores[-1]['r2'], decimals=4)))
@@ -869,7 +680,7 @@ def print_current_results(task, t_start, scores, scores_sh):
         print('Elapsed time: '+str(np.round(
             time() - t_start, decimals=1)), end='\n\n')
     # Classification
-    elif task['KIND'] == 'clf':
+    elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
         # Print current acc
         print('Current CV loop acc: '+str(np.round(
             scores[-1]['acc'], decimals=4)))
@@ -885,7 +696,10 @@ def print_current_results(task, t_start, scores, scores_sh):
     # Other
     else:
         # Raise error
-        raise TypeError('Kind not found.')
+        raise ValueError('OBJECTIVE not found.')
+
+    # Return None -------------------------------------------------------------
+    return
 
 
 def cross_validation(task, g, x, y):
@@ -909,12 +723,11 @@ def cross_validation(task, g, x, y):
     y : dataframe
         Target dataframe.
 
-
     Returns
     -------
     None.
-
     '''
+
     # Initialize results lists ------------------------------------------------
     # Initialize best params list
     best_params = []
@@ -930,11 +743,10 @@ def cross_validation(task, g, x, y):
     pipe, space = prepare(task)
 
     # Main cross-validation loop ----------------------------------------------
-    # Instanciate main cv splitter with fixed random state for comparison
-    cv = GroupShuffleSplit(
-        n_splits=task['N_REP_OUTER_CV'],
-        test_size=task['TST_SIZE_FRAC'],
-        random_state=3141592)
+    # Instatiate main cv splitter with fixed random state for comparison
+    cv = RepeatedGroupKFold(n_splits=5,
+                            n_repeats=task['N_REP_OUTER_CV'],
+                            random_state=3141592)
     # Loop over main (outer) cross validation splits
     for i_cv, (i_trn, i_tst) in enumerate(cv.split(g, groups=g)):
         # Save loop start time
@@ -989,6 +801,9 @@ def cross_validation(task, g, x, y):
         # Print current results -----------------------------------------------
         print_current_results(task, t_start, scores, scores_sh)
 
+    # Return None -------------------------------------------------------------
+    return
+
 
 def train_test_split(task, g, x, y):
     '''
@@ -1011,12 +826,11 @@ def train_test_split(task, g, x, y):
     y : dataframe
         Target dataframe.
 
-
     Returns
     -------
     None.
-
     '''
+
     # Initialize results lists ------------------------------------------------
     # Initialize best params list
     best_params = []
@@ -1067,7 +881,7 @@ def train_test_split(task, g, x, y):
     # SHAP explainations
     explainations_sh.append(get_explainations(task, pipe_sh, x_trn, x_tst))
 
-    # Compile and save intermediate results and task ----------------------
+    # Compile and save intermediate results and task --------------------------
     # Create results
     results = {
         'best_params': best_params,
@@ -1083,8 +897,11 @@ def train_test_split(task, g, x, y):
     # Save task as pickle file
     s2p(save_path+'_task.pickle', task)
 
-    # Print current results -----------------------------------------------
+    # Print current results ---------------------------------------------------
     print_current_results(task, t_start, scores, scores_sh)
+
+    # Return None -------------------------------------------------------------
+    return
 
 
 def main():
@@ -1094,8 +911,8 @@ def main():
     Returns
     -------
     None.
-
     '''
+
     ###########################################################################
     # Specify analysis
     ###########################################################################
@@ -1108,239 +925,333 @@ def main():
     TYPE = 'CV'
     # Number parallel processing jobs. int (-1=all, -2=all-1)
     N_JOBS = -2
-    # CV: Number of outer CV repetitions. int (default: 100)
-    N_REP_OUTER_CV = 100
+    # CV: Number of outer CV repetitions. int (default: 10)
+    N_REP_OUTER_CV = 10
     # CV & TT: Total number of predictions in inner CV. int (default: 10000)
     N_SAMPLES_INNER_CV = 10000
-    # CV & TT: Test size fraction of groups in CV. float (]0,1], default: 0.2)
-    TST_SIZE_FRAC = 0.2
     # Number of samples in random search. int (default: 100)
     N_SAMPLES_RS = 100
-    # Estimator. string (LM linear model, GB gradient boosting, default: GB)
-    ESTIMATOR_NAME = 'GB'
-    # Limit number of samples for SHAP. int (default: 10).
-    MAX_SAMPLES_SHAP = 10
-    # Limit number of samples for background data in SHAP. int (default: 100)
-    MAX_SAMPLES_SHAP_BACKGROUND = 100
-    # Get SHAP interactions. Warning! Time consuming! bool (default: False)
+    # Limit number of samples for SHAP. int (default: 100).
+    MAX_SAMPLES_SHAP = 100
+    # Get SHAP interactions. Time consuming! bool (default: False)
     SHAP_INTERACTIONS = False
-    # Drop rows with nans. If false imputation & ohe of nans (default: False)
-    DROP_NAN = False
 
     # 2. Specify data ---------------------------------------------------------
 
-    # Cancer data - classification, 2 classes
+    # Diabetes data - regression, binary category predictor
     # Specifiy an analysis name
-    ANALYSIS_NAME = 'cancer'+'_'+TYPE
-    # Specify task KIND. string (clf, reg)
-    KIND = 'clf'
+    ANALYSIS_NAME = 'diabetes'
     # Specify path to data. string
-    PATH_TO_DATA = 'data/cancer_20221123.xlsx'
+    PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
     # Specify sheet name. string
     SHEET_NAME = 'data'
+    # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    OBJECTIVE = 'regression'
     # Specify grouping for CV split. list of string
     G_NAME = [
-        'sample_id']
+        'sample_id',
+        ]
     # Specify continous predictor names. list of string or []
     X_CON_NAMES = [
-        'mean_radius',
-        'mean_texture',
-        'mean_perimeter',
-        'mean_area',
-        'mean_smoothness',
-        'mean_compactness',
-        'mean_concavity',
-        'mean_concave_points',
-        'mean_symmetry',
-        'mean_fractal_dimension',
-        'radius_error',
-        'texture_error',
-        'perimeter_error',
-        'area_error',
-        'smoothness_error',
-        'compactness_error',
-        'concavity_error',
-        'concave_points_error',
-        'symmetry_error',
-        'fractal_dimension_error',
-        'worst_radius',
-        'worst_texture',
-        'worst_perimeter',
-        'worst_area',
-        'worst_smoothness',
-        'worst_compactness',
-        'worst_concavity',
-        'worst_concave_points',
-        'worst_symmetry',
-        'worst_fractal_dimension']
-    # Specify categorical predictor names. list of string or []
-    X_CAT_NAMES = []
+        'age',
+        'bmi',
+        'bp',
+        's1',
+        's2',
+        's3',
+        's4',
+        's5',
+        's6',
+        ]
+    # Specify binary categorical predictor names. list of string or []
+    X_CAT_BIN_NAMES = [
+        'sex',
+        ]
+    # Specify multi categorical predictor names. list of string or []
+    X_CAT_MULT_NAMES = []
     # Specify target name(s). list of strings or []
     Y_NAMES = [
-        'target']
+        'progression',
+        ]
     # Rows to skip. list of int or []
     SKIP_ROWS = []
     # Specify index of rows for test set if TT. list of int or []
-    TEST_SET_IND = list(randint.rvs(0, 569, size=114))
+    TEST_SET_IND = list(randint.rvs(0, 441, size=88))
 
-    # # Diabetes data - regression
+    # # Digits data - classification 10 class, multicategory predictors
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'diabetes'+'_'+TYPE
-    # # Specify task KIND. string (clf, reg)
-    # KIND = 'reg'
+    # ANALYSIS_NAME = 'digits'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/diabetes_20220824.xlsx'
+    # PATH_TO_DATA = 'data/digit_20230809.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'multiclass'
     # # Specify grouping for CV split. list of string
     # G_NAME = [
-    #     'sample_id']
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'age',
-    #     'bmi',
-    #     'bp',
-    #     's1',
-    #     's2',
-    #     's3',
-    #     's4',
-    #     's5',
-    #     's6']
-    # # Specify categorical predictor names. list of string or []
-    # X_CAT_NAMES = [
-    #     'sex']
+    # X_CON_NAMES = []
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = [
+    #     'pixel_0_1',
+    #     'pixel_0_2',
+    #     'pixel_0_3',
+    #     'pixel_0_4',
+    #     'pixel_0_5',
+    #     'pixel_0_6',
+    #     'pixel_0_7',
+    #     'pixel_1_0',
+    #     'pixel_1_1',
+    #     'pixel_1_2',
+    #     'pixel_1_3',
+    #     'pixel_1_4',
+    #     'pixel_1_5',
+    #     'pixel_1_6',
+    #     'pixel_1_7',
+    #     'pixel_2_0',
+    #     'pixel_2_1',
+    #     'pixel_2_2',
+    #     'pixel_2_3',
+    #     'pixel_2_4',
+    #     'pixel_2_5',
+    #     'pixel_2_6',
+    #     'pixel_2_7',
+    #     'pixel_3_0',
+    #     'pixel_3_1',
+    #     'pixel_3_2',
+    #     'pixel_3_3',
+    #     'pixel_3_4',
+    #     'pixel_3_5',
+    #     'pixel_3_6',
+    #     'pixel_3_7',
+    #     'pixel_4_0',
+    #     'pixel_4_1',
+    #     'pixel_4_2',
+    #     'pixel_4_3',
+    #     'pixel_4_4',
+    #     'pixel_4_5',
+    #     'pixel_4_6',
+    #     'pixel_4_7',
+    #     'pixel_5_0',
+    #     'pixel_5_1',
+    #     'pixel_5_2',
+    #     'pixel_5_3',
+    #     'pixel_5_4',
+    #     'pixel_5_5',
+    #     'pixel_5_6',
+    #     'pixel_5_7',
+    #     'pixel_6_0',
+    #     'pixel_6_1',
+    #     'pixel_6_2',
+    #     'pixel_6_3',
+    #     'pixel_6_4',
+    #     'pixel_6_5',
+    #     'pixel_6_6',
+    #     'pixel_6_7',
+    #     'pixel_7_0',
+    #     'pixel_7_1',
+    #     'pixel_7_2',
+    #     'pixel_7_3',
+    #     'pixel_7_4',
+    #     'pixel_7_5',
+    #     'pixel_7_6',
+    #     'pixel_7_7',
+    #     ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'target']
+    #     'digit',
+    #     ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 441, size=88))
+    # TEST_SET_IND = list(randint.rvs(0, 1797, size=359))
 
-    # # Housing data - regression, 20k samples, categorical predictor
+    # # Housing data - regression, multicategory predictor
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'housing'+'_'+TYPE
-    # # Specify task KIND. string (clf, reg)
-    # KIND = 'reg'
+    # ANALYSIS_NAME = 'housing'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/housing_20220824.xlsx'
+    # PATH_TO_DATA = 'data/housing_20230907.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'regression'
     # # Specify grouping for CV split. list of string
     # G_NAME = [
-    #     'sample_id']
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
-    #     'longitude',
-    #     'latitude',
-    #     'housing_median_age',
-    #     'total_rooms',
-    #     'total_bedrooms',
+    #     'median_income',
+    #     'house_age',
+    #     'average_rooms',
+    #     'average_bedrooms',
     #     'population',
-    #     'households',
-    #     'median_income']
-    # # Specify categorical predictors names. list of string or []
-    # X_CAT_NAMES = [
-    #     'ocean_proximity']
+    #     'average_occupation',
+    #     'latitude',
+    #     'longitude',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = [
+    #     'ocean_proximity',
+    #     ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'median_house_value_k']
+    #     'median_house_value',
+    #     ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 20639, size=4128))
 
-    # # Radon data - regression, high cardial categorical predictors
+    # # Iris data - classification 2 class,
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'radon'+'_'+TYPE
-    # # Specify task KIND. string (clf, reg)
-    # KIND = 'reg'
+    # ANALYSIS_NAME = 'iris_2'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/radon_20220824.xlsx'
+    # PATH_TO_DATA = 'data/iris_20230809.xlsx'
     # # Specify sheet name. string
-    # SHEET_NAME = 'data'
+    # SHEET_NAME = 'data_2class'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'binary'
     # # Specify grouping for CV split. list of string
     # G_NAME = [
-    #     'sample_id']
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
-    #     'Uppm']
-    # # Specify categorical predictors names. list of string or []
-    # X_CAT_NAMES = [
-    #     'county_code',
-    #     'floor']
+    #     'sepal_length',
+    #     'sepal_width',
+    #     'petal_length',
+    #     'petal_width',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'log_radon']
+    #     'type',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 100, size=20))
+
+    # # Iris data - classification 3 class,
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'iris_3'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/iris_20230809.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data_3class'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'multiclass'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'sepal_length',
+    #     'sepal_width',
+    #     'petal_length',
+    #     'petal_width',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'type',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 150, size=30))
+
+    # # Radon data - regression, binary and multicategory predictors
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'radon'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/radon_20230809.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'regression'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'Uppm',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = [
+    #     'basement',
+    #     'floor',
+    #     ]
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = [
+    #     'county_code',
+    #     ]
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'log_radon',
+    #     ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 918, size=184))
 
-    # # Wine data - classification, 3 classes
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'wine'+'_'+TYPE
-    # # Specify task KIND. string (clf, reg)
-    # KIND = 'clf'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'data/wine_20221122.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id']
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'alcohol',
-    #     'malic_acid',
-    #     'ash',
-    #     'alcalinity_of_ash',
-    #     'magnesium',
-    #     'total_phenols',
-    #     'flavanoids',
-    #     'nonflavanoid_phenols',
-    #     'proanthocyanins',
-    #     'color_intensity',
-    #     'hue',
-    #     'od280_od315_of_diluted_wines',
-    #     'proline']
-    # # Specify categorical predictor names. list of string or []
-    # X_CAT_NAMES = []
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'target']
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-    # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 178, size=36))
-
     ###########################################################################
 
+    # Add to analysis name ----------------------------------------------------
+    # If shap with interactions
+    if SHAP_INTERACTIONS:
+        # Update string
+        ANALYSIS_NAME = ANALYSIS_NAME+'_'+TYPE+'_'+'inter'
+    # If shap without interactions
+    elif not SHAP_INTERACTIONS:
+        # Update string
+        ANALYSIS_NAME = ANALYSIS_NAME+'_'+TYPE
+    # Other
+    else:
+        # Raise error
+        raise ValueError('SHAP_INTERACTIONS can be True or False only.')
+
     # Create results directory path -------------------------------------------
-    path_to_results = 'res_'+KIND+'_'+ANALYSIS_NAME+'_'+ESTIMATOR_NAME
+    path_to_results = 'res_ml_'+ANALYSIS_NAME
 
     # Create task variable ----------------------------------------------------
-    task = {'TYPE': TYPE,
-            'N_JOBS': N_JOBS,
-            'N_REP_OUTER_CV': N_REP_OUTER_CV,
-            'N_SAMPLES_INNER_CV': N_SAMPLES_INNER_CV,
-            'TST_SIZE_FRAC': TST_SIZE_FRAC,
-            'N_SAMPLES_RS': N_SAMPLES_RS,
-            'ESTIMATOR_NAME': ESTIMATOR_NAME,
-            'MAX_SAMPLES_SHAP': MAX_SAMPLES_SHAP,
-            'MAX_SAMPLES_SHAP_BACKGROUND': MAX_SAMPLES_SHAP_BACKGROUND,
-            'SHAP_INTERACTIONS': SHAP_INTERACTIONS,
-            'DROP_NAN': DROP_NAN,
-            'ANALYSIS_NAME': ANALYSIS_NAME,
-            'KIND': KIND,
-            'PATH_TO_DATA': PATH_TO_DATA,
-            'G_NAME': G_NAME,
-            'X_CON_NAMES': X_CON_NAMES,
-            'X_CAT_NAMES': X_CAT_NAMES,
-            'Y_NAMES': Y_NAMES,
-            'SKIP_ROWS': SKIP_ROWS,
-            'TEST_SET_IND': TEST_SET_IND,
-            'path_to_results': path_to_results}
+    task = {
+        'TYPE': TYPE,
+        'N_JOBS': N_JOBS,
+        'N_REP_OUTER_CV': N_REP_OUTER_CV,
+        'N_SAMPLES_INNER_CV': N_SAMPLES_INNER_CV,
+        'N_SAMPLES_RS': N_SAMPLES_RS,
+        'MAX_SAMPLES_SHAP': MAX_SAMPLES_SHAP,
+        'SHAP_INTERACTIONS': SHAP_INTERACTIONS,
+        'ANALYSIS_NAME': ANALYSIS_NAME,
+        'PATH_TO_DATA': PATH_TO_DATA,
+        'SHEET_NAME': SHEET_NAME,
+        'OBJECTIVE': OBJECTIVE,
+        'G_NAME': G_NAME,
+        'X_CON_NAMES': X_CON_NAMES,
+        'X_CAT_BIN_NAMES': X_CAT_BIN_NAMES,
+        'X_CAT_MULT_NAMES': X_CAT_MULT_NAMES,
+        'Y_NAMES': Y_NAMES,
+        'SKIP_ROWS': SKIP_ROWS,
+        'TEST_SET_IND': TEST_SET_IND,
+        'path_to_results': path_to_results,
+        'x_names': X_CON_NAMES+X_CAT_BIN_NAMES+X_CAT_MULT_NAMES,
+        }
 
     # Create results directory ------------------------------------------------
     create_dir(path_to_results)
@@ -1350,71 +1261,82 @@ def main():
 
     # Load data ---------------------------------------------------------------
     # Load groups from excel file
-    g = pd.read_excel(PATH_TO_DATA,
-                      sheet_name=SHEET_NAME,
+    G = pd.read_excel(task['PATH_TO_DATA'],
+                      sheet_name=task['SHEET_NAME'],
                       header=0,
-                      usecols=G_NAME,
+                      usecols=task['G_NAME'],
                       dtype=np.float64,
-                      skiprows=SKIP_ROWS)
+                      skiprows=task['SKIP_ROWS'])
     # Load predictors from excel file
-    x = pd.read_excel(PATH_TO_DATA,
-                      sheet_name=SHEET_NAME,
+    X = pd.read_excel(task['PATH_TO_DATA'],
+                      sheet_name=task['SHEET_NAME'],
                       header=0,
-                      usecols=X_CON_NAMES+X_CAT_NAMES,
+                      usecols=task['x_names'],
                       dtype=np.float64,
-                      skiprows=SKIP_ROWS)
+                      skiprows=task['SKIP_ROWS'])
+    # Reindex x to x_names
+    X = X.reindex(task['x_names'], axis=1)
     # Load targets from excel file
-    y = pd.read_excel(PATH_TO_DATA,
-                      sheet_name=SHEET_NAME,
+    Y = pd.read_excel(task['PATH_TO_DATA'],
+                      sheet_name=task['SHEET_NAME'],
                       header=0,
-                      usecols=Y_NAMES,
+                      usecols=task['Y_NAMES'],
                       dtype=np.float64,
-                      skiprows=SKIP_ROWS)
+                      skiprows=task['SKIP_ROWS'])
 
-    # Drop rows with nans -----------------------------------------------------
-    if task['DROP_NAN']:
-        # Drop rows with nans
-        g, x, y = drop_nan_rows(g, x, y)
-
-    # Get one-hot-encoding categories and names but don't do actual encoding --
-    # Instanciate one-hot-encoder
-    ohe = OneHotEncoder(categories='auto',
-                        drop='if_binary',
-                        sparse_output=False,
-                        dtype=np.float64,
-                        handle_unknown='error',
-                        min_frequency=None,
-                        max_categories=None)
-    # Fit one-hot-encoder
-    ohe.fit(x[task['X_CAT_NAMES']])
-    # Get one-hot-encoder categories
-    task['ohe_categories'] = ohe.categories_
-    # Get one-hot-encoder category names
-    task['x_ohe_names'] = list(ohe.get_feature_names_out())
-    # All predictor names
-    task['x_names'] = task['X_CON_NAMES']+task['x_ohe_names']
-
-    # Cross-validation --------------------------------------------------------
-    # Iterate over prediction targets (y names)
+    # Modelling and testing ---------------------------------------------------
+    # Iterate over prediction targets (Y_NAMES)
     for i_y, y_name in enumerate(Y_NAMES):
         # Add prediction target index to task
         task['i_y'] = i_y
         # Add prediction target name to task
         task['y_name'] = [y_name]
-        # Get current target
-        yi = y[y_name].to_frame()
+
+        # Deal with NaNs in the target ----------------------------------------
+        # Get current target and remove NaNs
+        y = Y[y_name].to_frame().dropna()
+        # Use y index for groups and reset index
+        g = G.reindex(index=y.index).reset_index(drop=True)
+        # Use y index for predictors and reset index
+        x = X.reindex(index=y.index).reset_index(drop=True)
+        # Reset index of target
+        y = y.reset_index(drop=True)
+
+        # Get target-encoding categories but don't do encoding ----------------
+        # If multi categorical predictors
+        if task['X_CAT_MULT_NAMES']:
+            # Instatiate target-encoder
+            te = TargetEncoder(categories='auto',
+                               target_type='continuous',
+                               smooth='auto',
+                               cv=5,
+                               shuffle=True,
+                               random_state=None)
+            # Fit target-encoder
+            te.fit(x[task['X_CAT_MULT_NAMES']], y.squeeze())
+            # Get target-encoder categories
+            task['te_categories'] = te.categories_
+        # Other
+        else:
+            # Set target-encoder categories to empty
+            task['te_categories'] = []
+
+        # Run analysis --------------------------------------------------------
         # Cross-validation
         if TYPE == 'CV':
             # Run cross-validation
-            cross_validation(task, g, x, yi)
+            cross_validation(task, g, x, y)
         # Switch Type of analysis
         elif TYPE == 'TT':
             # Run train-test split
-            train_test_split(task, g, x, yi)
+            train_test_split(task, g, x, y)
         # Other
         else:
             # Raise error
-            raise TypeError('Type not found.')
+            raise ValueError('Analysis type not found.')
+
+    # Return None -------------------------------------------------------------
+    return
 
 
 if __name__ == '__main__':

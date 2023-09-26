@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
+# *- coding: utf-8 -*-
 '''
-Exploratory data analysis
-v111
+Exploratory Data Analysis (EDA)
+v123
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -12,15 +12,16 @@ import pandas as pd
 import seaborn as sns
 import shutil
 import warnings
+from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
-from sklearn.impute import KNNImputer
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import TargetEncoder
 
-warnings.filterwarnings(
-    'ignore',
-    'iteritems is deprecated and will be removed in a future version.')
+warnings.filterwarnings('ignore', 'The figure layout has changed to tight')
+warnings.filterwarnings('ignore', 'is_categorical_dtype is deprecated and')
+warnings.filterwarnings('ignore', 'use_inf_as_na option is deprecated and')
 
 
 def create_dir(path):
@@ -35,41 +36,16 @@ def create_dir(path):
     Returns
     -------
     None.
-
     '''
+
+    # Create dir of not existing ----------------------------------------------
     # Check if dir exists
     if not os.path.isdir(path):
         # Create dir
         os.mkdir(path)
 
-
-def drop_nan_rows(x, y):
-    '''
-    Identify and drop rows containing nans from dataframes.
-
-    Parameters
-    ----------
-    x : dataframe
-        Predictors dataframe.
-    y : dataframe
-        Targets dataframe.
-
-    Returns
-    -------
-    x : dataframe
-        Predictors dataframe.
-    y : dataframe
-        Targets dataframe.
-
-    '''
-    # Search for nans in predictors
-    rows_nans = list(x.loc[x.isna().any(axis=1).to_numpy(), :].index)
-    # Drop rows from predictors
-    x = x.drop(rows_nans).reset_index(drop=True)
-    # Drop rows from targets
-    y = y.drop(rows_nans).reset_index(drop=True)
-    # Return x and y
-    return x, y
+    # Return None -------------------------------------------------------------
+    return
 
 
 def eda(task, x, y):
@@ -93,19 +69,38 @@ def eda(task, x, y):
     Returns
     -------
     None.
-
     '''
-    # Prepare data ------------------------------------------------------------
-    # Create all data dataframe
+
+    # Preprocessing -----------------------------------------------------------
+    # Instatiate target encoder
+    te = TargetEncoder(categories='auto',
+                       target_type='continuous',
+                       smooth='auto',
+                       cv=5,
+                       shuffle=True,
+                       random_state=3141592)
+    # Get categorical predictors for target-encoder
+    coltrans = ColumnTransformer(
+        [('con_pred', 'passthrough', task['X_CON_NAMES']),
+         ('bin_pred', 'passthrough', task['X_CAT_BIN_NAMES']),
+         ('mult_pred', te, task['X_CAT_MULT_NAMES']),
+         ('target', 'passthrough', task['Y_NAMES']),
+         ],
+        remainder='drop',
+        sparse_threshold=0,
+        n_jobs=1,
+        transformer_weights=None,
+        verbose=False,
+        verbose_feature_names_out=False)
+    # Pipeline
+    pre_pipe = Pipeline([('coltrans', coltrans),
+                         ('std_scaler', StandardScaler())],
+                        memory=None,
+                        verbose=False).set_output(transform='pandas')
+    # Concatinate predictors and targets
     z = pd.concat([x, y], axis=1)
-    # Instanciate scaler
-    scaler = StandardScaler(copy=True,
-                            with_mean=True,
-                            with_std=True).set_output(transform='pandas')
-    # Fit transform all data
-    z_sc = scaler.fit_transform(z)
-    # Fit transform predictors
-    x_sc = scaler.fit_transform(x)
+    # Do preprocessing
+    z = pre_pipe.fit_transform(z, y.squeeze())
 
     # Distributions -----------------------------------------------------------
     # Do VIOLINPLOTS?
@@ -118,7 +113,7 @@ def eda(task, x, y):
         fig, ax = plt.subplots(figsize=(x_names_max_len*.1+4,
                                         x_names_count*.7+1))
         # Violinplot all data
-        sns.violinplot(data=z_sc, bw='scott', cut=2, scale='width',
+        sns.violinplot(data=z, bw='scott', cut=2, scale='width',
                        gridsize=100, width=0.8, inner='box', orient='h',
                        linewidth=1, color='#777777', saturation=1, ax=ax)
         # Remove top, right and left frame elements
@@ -157,7 +152,7 @@ def eda(task, x, y):
     # Do PAIRPLOTS?
     if task['PAIRPLOTS']:
         # Make pairplot
-        pair_plot = sns.pairplot(z_sc, corner=False, diag_kind='kde',
+        pair_plot = sns.pairplot(z, corner=False, diag_kind='kde',
                                  plot_kws={'color': '#777777'},
                                  diag_kws={'color': '#777777'})
         # Make title string
@@ -195,7 +190,7 @@ def eda(task, x, y):
         # Make colorbar string
         clb_str = ('correlation coefficient')
         # Print correlations
-        sns.heatmap(z_sc.corr(),
+        sns.heatmap(z.corr(),
                     vmin=-1,
                     vmax=1,
                     cmap='Greys',
@@ -248,140 +243,157 @@ def eda(task, x, y):
     # PCA and linear dependency -----------------------------------------------
     # Do PCA?
     if task['PCA']:
-        # Instanciate PCA
-        pca = PCA(n_components=x.shape[1],
-                  copy=True,
-                  whiten=False,
-                  svd_solver='auto',
-                  tol=1e-4,
-                  iterated_power='auto',
-                  random_state=None)
-        # Fit PCA
-        pca.fit(x_sc)
-        # x names count
-        x_names_count = len(task['x_names'])
-        # Make figure
-        fig, ax = plt.subplots(figsize=(max((1+x_names_count*.25), 8), 4))
-        # Plot data
-        ax.plot(pca.explained_variance_ratio_,
-                label='Explained variance per component')
-        # Add dots
-        ax.plot(pca.explained_variance_ratio_,
-                color='black',
-                marker='.',
-                linestyle='None')
-        # Remove top, right and left frame elements
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        # Add x label
-        ax.set_xlabel('PCA-component')
-        # Add y label
-        ax.set_ylabel('Explained Variance')
-        # Create twin x axis
-        ax2 = ax.twinx()
-        # Plot cum sum of explained variance
-        ax2.plot(np.cumsum(pca.explained_variance_ratio_),
-                 color='orange',
-                 label='Cumulative explained variance')
-        # Add dots
-        ax2.plot(np.cumsum(pca.explained_variance_ratio_),
-                 color='black',
-                 marker='.',
-                 linestyle='None')
-        # Remove top, right and left frame elements
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['left'].set_visible(False)
-        # Add y label
-        ax2.set_ylabel('Cumulative Variance')
-        # Add labels to ax
-        for comp, t in enumerate(
-                pca.explained_variance_ratio_.round(decimals=2)):
-            # Add current label
-            ax.text(comp, t, t, fontsize=8)
-        # Add cum sum labels
-        for comp, t in enumerate(
-                np.cumsum(pca.explained_variance_ratio_).round(decimals=2)):
-            # Add current cumsum label
-            ax2.text(comp, t, t, fontsize=8)
-        # Add legend
-        fig.legend(loc='center right',
-                   bbox_to_anchor=(1, 0.5),
-                   bbox_transform=ax.transAxes)
-        # Make title string
-        title_str = (
-            task['ANALYSIS_NAME']+' ' +
-            'data principle components variance contribution')
-        # set title
-        plt.title(title_str, fontsize=10)
+        # Check for NaN values
+        if not z.isnull().values.any():
+            # Instanciate PCA
+            pca = PCA(n_components=x.shape[1],
+                      copy=True,
+                      whiten=False,
+                      svd_solver='auto',
+                      tol=1e-4,
+                      iterated_power='auto',
+                      random_state=None)
+            # Fit PCA
+            pca.fit(x)
+            # x names count
+            x_names_count = len(task['x_names'])
+            # Make figure
+            fig, ax = plt.subplots(figsize=(max((1+x_names_count*.25), 8), 4))
+            # Plot data
+            ax.plot(pca.explained_variance_ratio_,
+                    label='Explained variance per component')
+            # Add dots
+            ax.plot(pca.explained_variance_ratio_,
+                    color='black',
+                    marker='.',
+                    linestyle='None')
+            # Remove top, right and left frame elements
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            # Add x label
+            ax.set_xlabel('PCA-component')
+            # Add y label
+            ax.set_ylabel('Explained Variance')
+            # Create twin x axis
+            ax2 = ax.twinx()
+            # Plot cum sum of explained variance
+            ax2.plot(np.cumsum(pca.explained_variance_ratio_),
+                     color='orange',
+                     label='Cumulative explained variance')
+            # Add dots
+            ax2.plot(np.cumsum(pca.explained_variance_ratio_),
+                     color='black',
+                     marker='.',
+                     linestyle='None')
+            # Remove top, right and left frame elements
+            ax2.spines['top'].set_visible(False)
+            ax2.spines['left'].set_visible(False)
+            # Add y label
+            ax2.set_ylabel('Cumulative Variance')
+            # Add labels to ax
+            for comp, t in enumerate(
+                    pca.explained_variance_ratio_.round(decimals=2)):
+                # Add current label
+                ax.text(comp, t, t, fontsize=8)
+            # Add cum sum labels
+            for comp, t in enumerate(
+                    np.cumsum(
+                        pca.explained_variance_ratio_).round(decimals=2)):
+                # Add current cumsum label
+                ax2.text(comp, t, t, fontsize=8)
+            # Add legend
+            fig.legend(loc='center right',
+                       bbox_to_anchor=(1, 0.5),
+                       bbox_transform=ax.transAxes)
+            # Make title string
+            title_str = (
+                task['ANALYSIS_NAME']+' ' +
+                'data principle components variance contribution')
+            # set title
+            plt.title(title_str, fontsize=10)
 
-        # Save figure ---------------------------------------------------------
-        # Make save path
-        save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                     '_eda_4_pca')
-        # Save figure in .png format
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
-        # Check if save as svg is enabled
-        if task['AS_SVG']:
-            # Save figure in .svg format
-            plt.savefig(save_path+'.svg', bbox_inches='tight')
-        # show figure
-        plt.show()
+            # Save figure -----------------------------------------------------
+            # Make save path
+            save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
+                         '_eda_4_pca')
+            # Save figure in .png format
+            plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+            # Check if save as svg is enabled
+            if task['AS_SVG']:
+                # Save figure in .svg format
+                plt.savefig(save_path+'.svg', bbox_inches='tight')
+            # show figure
+            plt.show()
+        # If nans
+        else:
+            # Raise warning
+            warnings.warn('PCA skipped because of NaN values.')
 
     # Outlier dection with Isolation Forests ----------------------------------
     # Do OUTLIER detection?
     if task['OUTLIER']:
-        # Instanciate isolation forest
-        iForest = IsolationForest(n_estimators=5000,
-                                  max_samples='auto',
-                                  contamination='auto',
-                                  max_features=1.0,
-                                  bootstrap=False,
-                                  n_jobs=-2,
-                                  random_state=None,
-                                  verbose=0,
-                                  warm_start=False)
-        # Fit data and predict outlier
-        outlier = iForest.fit_predict(x_sc)
-        # Make outlier dataframe
-        outlier_df = pd.DataFrame(data=outlier, columns=['is_outlier'])
-        # Outlier score
-        outlier_score = iForest.decision_function(x_sc)
-        # Make figure
-        fig, ax = plt.subplots(figsize=(8, 5))
-        # Plot hist of inlier score
-        sns.histplot(data=outlier_score,
-                     bins=30,
-                     kde=True,
-                     color='#777777',
-                     ax=ax)
-        # Remove top, right and left frame elements
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        # Add x label
-        ax.set_xlabel('Isolation Forest outlier score')
-        # Add y label
-        ax.set_ylabel('Number of samples')
-        # Create title string
-        title_str = (
-            task['ANALYSIS_NAME']+' ' +
-            'data outlier detection | Isolation Forest | outlier {:.1f} %')
-        # Add title
-        ax.set_title(title_str.format(np.sum(outlier == -1)/len(outlier)*100))
+        # Check for NaN values
+        if not z.isnull().values.any():
+            # Instanciate isolation forest
+            iForest = IsolationForest(n_estimators=1000,
+                                      max_samples='auto',
+                                      contamination='auto',
+                                      max_features=0.5,
+                                      bootstrap=False,
+                                      n_jobs=-2,
+                                      random_state=None,
+                                      verbose=0,
+                                      warm_start=False)
+            # Fit data and predict outlier
+            outlier = iForest.fit_predict(x)
+            # Make outlier dataframe
+            outlier_df = pd.DataFrame(data=outlier, columns=['is_outlier'])
+            # Outlier score
+            outlier_score = iForest.decision_function(x)
+            # Make figure
+            fig, ax = plt.subplots(figsize=(8, 5))
+            # Plot hist of inlier score
+            sns.histplot(data=outlier_score,
+                         bins=30,
+                         kde=True,
+                         color='#777777',
+                         ax=ax)
+            # Remove top, right and left frame elements
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            # Add x label
+            ax.set_xlabel('Isolation Forest outlier score')
+            # Add y label
+            ax.set_ylabel('Number of samples')
+            # Create title string
+            title_str = (
+                task['ANALYSIS_NAME']+' ' +
+                'data outlier detection | Isolation Forest | outlier {:.1f} %')
+            # Add title
+            ax.set_title(
+                title_str.format(np.sum(outlier == -1)/len(outlier)*100))
 
-        # Save figure ---------------------------------------------------------
-        # Make save path
-        save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                     '_eda_5_outlier')
-        # Save outlier data
-        outlier_df.to_excel(save_path+'.xlsx')
-        # Save figure in .png format
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
-        # Check if save as svg is enabled
-        if task['AS_SVG']:
-            # Save figure in .svg format
-            plt.savefig(save_path+'.svg', bbox_inches='tight')
-        # show figure
-        plt.show()
+            # Save figure -----------------------------------------------------
+            # Make save path
+            save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
+                         '_eda_5_outlier')
+            # Save outlier data
+            outlier_df.to_excel(save_path+'.xlsx')
+            # Save figure in .png format
+            plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+            # Check if save as svg is enabled
+            if task['AS_SVG']:
+                # Save figure in .svg format
+                plt.savefig(save_path+'.svg', bbox_inches='tight')
+            # show figure
+            plt.show()
+        # If nans
+        else:
+            # Raise warning
+            warnings.warn('Outlier skipped because of NaN values.')
+
+    # Return ------------------------------------------------------------------
+    return
 
 
 def main():
@@ -391,7 +403,6 @@ def main():
     Returns
     -------
     None.
-
     '''
 
     ###########################################################################
@@ -399,7 +410,7 @@ def main():
     ###########################################################################
 
     # 1. Specify task ---------------------------------------------------------
-    # Specify max number of samples. Default: 1000.
+    # Specify max number of samples. (default: 1000)
     MAX_SAMPLES = 1000
     # Do VIOLINPLOTS in EDA?
     VIOLINPLOTS = True
@@ -413,92 +424,132 @@ def main():
     OUTLIER = True
     # Save plots additionally AS_SVG?
     AS_SVG = False
-    # Drop rows with nans. If false imputation & ohe of nans (default: False)
-    DROP_NAN = False
 
     # 2. Specify data ---------------------------------------------------------
 
-    # Cancer data - classification, 2 classes
+    # Diabetes data - regression, binary category predictor
     # Specifiy an analysis name
-    ANALYSIS_NAME = 'cancer'
+    ANALYSIS_NAME = 'diabetes'
     # Specify path to data. string
-    PATH_TO_DATA = 'data/cancer_20221123.xlsx'
+    PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
     # Specify sheet name. string
-    SHEET_NAME = 'data'
+    SHEET_NAME = 'data_nan'
     # Specify continous predictor names. list of string or []
     X_CON_NAMES = [
-        'mean_radius',
-        'mean_texture',
-        'mean_perimeter',
-        'mean_area',
-        'mean_smoothness',
-        'mean_compactness',
-        'mean_concavity',
-        'mean_concave_points',
-        'mean_symmetry',
-        'mean_fractal_dimension',
-        'radius_error',
-        'texture_error',
-        'perimeter_error',
-        'area_error',
-        'smoothness_error',
-        'compactness_error',
-        'concavity_error',
-        'concave_points_error',
-        'symmetry_error',
-        'fractal_dimension_error',
-        'worst_radius',
-        'worst_texture',
-        'worst_perimeter',
-        'worst_area',
-        'worst_smoothness',
-        'worst_compactness',
-        'worst_concavity',
-        'worst_concave_points',
-        'worst_symmetry',
-        'worst_fractal_dimension']
-    # Specify categorical predictor names. list of string or []
-    X_CAT_NAMES = []
+        'age',
+        'bmi',
+        'bp',
+        's1',
+        's2',
+        's3',
+        's4',
+        's5',
+        's6',
+        ]
+    # Specify binary categorical predictor names. list of string or []
+    X_CAT_BIN_NAMES = [
+        'sex',
+        ]
+    # Specify multi categorical predictor names. list of string or []
+    X_CAT_MULT_NAMES = []
     # Specify target name(s). list of strings or []
     Y_NAMES = [
-        'target']
+        'progression',
+        ]
     # Rows to skip. list of int or []
     SKIP_ROWS = []
 
-    # # Diabetes data - regression
+    # # Digits data - classification 10 class, multicategory predictors
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'diabetes'
+    # ANALYSIS_NAME = 'digits'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/diabetes_20220824.xlsx'
+    # PATH_TO_DATA = 'data/digit_20230809.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
     # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'age',
-    #     'bmi',
-    #     'bp',
-    #     's1',
-    #     's2',
-    #     's3',
-    #     's4',
-    #     's5',
-    #     's6']
-    # # Specify categorical predictor names. list of string or []
-    # X_CAT_NAMES = [
-    #     'sex']
+    # X_CON_NAMES = []
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = [
+    #     'pixel_0_1',
+    #     'pixel_0_2',
+    #     'pixel_0_3',
+    #     'pixel_0_4',
+    #     'pixel_0_5',
+    #     'pixel_0_6',
+    #     'pixel_0_7',
+    #     'pixel_1_0',
+    #     'pixel_1_1',
+    #     'pixel_1_2',
+    #     'pixel_1_3',
+    #     'pixel_1_4',
+    #     'pixel_1_5',
+    #     'pixel_1_6',
+    #     'pixel_1_7',
+    #     'pixel_2_0',
+    #     'pixel_2_1',
+    #     'pixel_2_2',
+    #     'pixel_2_3',
+    #     'pixel_2_4',
+    #     'pixel_2_5',
+    #     'pixel_2_6',
+    #     'pixel_2_7',
+    #     'pixel_3_0',
+    #     'pixel_3_1',
+    #     'pixel_3_2',
+    #     'pixel_3_3',
+    #     'pixel_3_4',
+    #     'pixel_3_5',
+    #     'pixel_3_6',
+    #     'pixel_3_7',
+    #     'pixel_4_0',
+    #     'pixel_4_1',
+    #     'pixel_4_2',
+    #     'pixel_4_3',
+    #     'pixel_4_4',
+    #     'pixel_4_5',
+    #     'pixel_4_6',
+    #     'pixel_4_7',
+    #     'pixel_5_0',
+    #     'pixel_5_1',
+    #     'pixel_5_2',
+    #     'pixel_5_3',
+    #     'pixel_5_4',
+    #     'pixel_5_5',
+    #     'pixel_5_6',
+    #     'pixel_5_7',
+    #     'pixel_6_0',
+    #     'pixel_6_1',
+    #     'pixel_6_2',
+    #     'pixel_6_3',
+    #     'pixel_6_4',
+    #     'pixel_6_5',
+    #     'pixel_6_6',
+    #     'pixel_6_7',
+    #     'pixel_7_0',
+    #     'pixel_7_1',
+    #     'pixel_7_2',
+    #     'pixel_7_3',
+    #     'pixel_7_4',
+    #     'pixel_7_5',
+    #     'pixel_7_6',
+    #     'pixel_7_7',
+    #     ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'target']
+    #     'digit',
+    #     ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
-    # # Housing data - regression, 20k samples, categorical predictor
+    # # Housing data - regression, multicategory predictor
     # # Specifiy an analysis name
     # ANALYSIS_NAME = 'housing'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/housing_20220824.xlsx'
+    # PATH_TO_DATA = 'data/housing_20230809.xlsx'
     # # Specify sheet name. string
-    # SHEET_NAME = 'data'
+    # SHEET_NAME = 'data_nan'
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
     #     'longitude',
@@ -508,63 +559,95 @@ def main():
     #     'total_bedrooms',
     #     'population',
     #     'households',
-    #     'median_income']
-    # # Specify categorical predictors names. list of string or []
-    # X_CAT_NAMES = [
-    #     'ocean_proximity']
+    #     'median_income',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = [
+    #     'ocean_proximity',
+    #     ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'median_house_value_k']
+    #     'median_house_value_k',
+    #     ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
-    # # Radon data - regression, categorical predictors with high cardiality
+    # # Iris data - classification 2 class,
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'iris_2'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/iris_20230809.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data_2class'
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'sepal_length',
+    #     'sepal_width',
+    #     'petal_length',
+    #     'petal_width',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'type',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+
+    # # Iris data - classification 3 class,
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'iris_3'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/iris_20230809.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data_3class'
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'sepal_length',
+    #     'sepal_width',
+    #     'petal_length',
+    #     'petal_width',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'type',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+
+    # # Radon data - regression, binary and multicategory predictors
     # # Specifiy an analysis name
     # ANALYSIS_NAME = 'radon'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/radon_20220824.xlsx'
+    # PATH_TO_DATA = 'data/radon_20230809.xlsx'
     # # Specify sheet name. string
-    # SHEET_NAME = 'data'
+    # SHEET_NAME = 'data_nan'
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
-    #     'Uppm']
-    # # Specify categorical predictors names. list of string or []
-    # X_CAT_NAMES = [
+    #     'Uppm',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = [
+    #     'basement',
+    #     'floor',
+    #     ]
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = [
     #     'county_code',
-    #     'floor']
+    #     ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'log_radon']
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-
-    # # Wine data - classification, 3 classes
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'wine'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'data/wine_20221122.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'alcohol',
-    #     'malic_acid',
-    #     'ash',
-    #     'alcalinity_of_ash',
-    #     'magnesium',
-    #     'total_phenols',
-    #     'flavanoids',
-    #     'nonflavanoid_phenols',
-    #     'proanthocyanins',
-    #     'color_intensity',
-    #     'hue',
-    #     'od280_od315_of_diluted_wines',
-    #     'proline']
-    # # Specify categorical predictor names. list of string or []
-    # X_CAT_NAMES = []
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'target']
+    #     'log_radon',
+    #     ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
@@ -574,22 +657,25 @@ def main():
     path_to_results = 'res_eda_'+ANALYSIS_NAME
 
     # Create task variable ----------------------------------------------------
-    task = {'MAX_SAMPLES': MAX_SAMPLES,
-            'VIOLINPLOTS': VIOLINPLOTS,
-            'PAIRPLOTS': PAIRPLOTS,
-            'HEATMAP': HEATMAP,
-            'PCA': PCA,
-            'OUTLIER': OUTLIER,
-            'AS_SVG': AS_SVG,
-            'DROP_NAN': DROP_NAN,
-            'ANALYSIS_NAME': ANALYSIS_NAME,
-            'PATH_TO_DATA': PATH_TO_DATA,
-            'SHEET_NAME': SHEET_NAME,
-            'X_CON_NAMES': X_CON_NAMES,
-            'X_CAT_NAMES': X_CAT_NAMES,
-            'Y_NAMES': Y_NAMES,
-            'SKIP_ROWS': SKIP_ROWS,
-            'path_to_results': path_to_results}
+    task = {
+        'MAX_SAMPLES': MAX_SAMPLES,
+        'VIOLINPLOTS': VIOLINPLOTS,
+        'PAIRPLOTS': PAIRPLOTS,
+        'HEATMAP': HEATMAP,
+        'PCA': PCA,
+        'OUTLIER': OUTLIER,
+        'AS_SVG': AS_SVG,
+        'ANALYSIS_NAME': ANALYSIS_NAME,
+        'PATH_TO_DATA': PATH_TO_DATA,
+        'SHEET_NAME': SHEET_NAME,
+        'X_CON_NAMES': X_CON_NAMES,
+        'X_CAT_BIN_NAMES': X_CAT_BIN_NAMES,
+        'X_CAT_MULT_NAMES': X_CAT_MULT_NAMES,
+        'Y_NAMES': Y_NAMES,
+        'SKIP_ROWS': SKIP_ROWS,
+        'path_to_results': path_to_results,
+        'x_names': X_CON_NAMES+X_CAT_BIN_NAMES+X_CAT_MULT_NAMES,
+        }
 
     # Create results directory ------------------------------------------------
     create_dir(path_to_results)
@@ -599,24 +685,21 @@ def main():
 
     # Load data ---------------------------------------------------------------
     # Load predictors from excel file
-    x = pd.read_excel(PATH_TO_DATA,
-                      sheet_name=SHEET_NAME,
+    x = pd.read_excel(task['PATH_TO_DATA'],
+                      sheet_name=task['SHEET_NAME'],
                       header=0,
-                      usecols=X_CON_NAMES+X_CAT_NAMES,
-                      dtype='float',
-                      skiprows=SKIP_ROWS)
+                      usecols=task['x_names'],
+                      dtype=np.float64,
+                      skiprows=task['SKIP_ROWS'])
+    # Reindex x to x_names
+    x = x.reindex(task['x_names'], axis=1)
     # Load targets from excel file
-    y = pd.read_excel(PATH_TO_DATA,
-                      sheet_name=SHEET_NAME,
+    y = pd.read_excel(task['PATH_TO_DATA'],
+                      sheet_name=task['SHEET_NAME'],
                       header=0,
-                      usecols=Y_NAMES,
-                      dtype='float',
-                      skiprows=SKIP_ROWS)
-
-    # Drop rows with nans -----------------------------------------------------
-    if task['DROP_NAN']:
-        # Drop rows with nans
-        x, y = drop_nan_rows(x, y)
+                      usecols=task['Y_NAMES'],
+                      dtype=np.float64,
+                      skiprows=task['SKIP_ROWS'])
 
     # Limit number of samples -------------------------------------------------
     # Subsample predictors
@@ -628,47 +711,6 @@ def main():
     # Reset index of predictors
     x = x.reset_index(drop=True)
 
-    # One-hot-encode categorical predictors -----------------------------------
-    if task['X_CAT_NAMES']:
-        # Instanciate one-hot-encoder
-        ohe = OneHotEncoder(categories='auto',
-                            drop='if_binary',
-                            sparse_output=False,
-                            dtype=int,
-                            handle_unknown='error',
-                            min_frequency=None,
-                            max_categories=None).set_output(transform='pandas')
-        # Fit-transform one-hot-encoder
-        x_ohe = ohe.fit_transform(x[task['X_CAT_NAMES']])
-        # Get one-hot-encoder category names
-        task['x_ohe_names'] = list(ohe.get_feature_names_out())
-        # All predictor names
-        task['x_names'] = task['X_CON_NAMES']+task['x_ohe_names']
-    else:
-        # Pass on empty
-        x_ohe = pd.DataFrame()
-        task['x_ohe_names'] = []
-        task['x_names'] = task['X_CON_NAMES']
-
-    # Impute missing values in continous predictors ---------------------------
-    if task['X_CON_NAMES']:
-        # Instanciate imputer
-        imp = KNNImputer(missing_values=np.nan,
-                         n_neighbors=3,
-                         weights='distance',
-                         metric='nan_euclidean',
-                         copy=True,
-                         add_indicator=False).set_output(transform='pandas')
-        # Impute missing values in continous data
-        x_imp = imp.fit_transform(x[task['X_CON_NAMES']])
-    else:
-        # Pass on empty
-        x_imp = pd.DataFrame()
-
-    # Get predictors ----------------------------------------------------------
-    # Predictors
-    x = pd.concat([x_imp, x_ohe], axis=1)
-
     # Store data --------------------------------------------------------------
     # Save predictors
     x.to_excel(path_to_results+'/'+ANALYSIS_NAME+'_data_x.xlsx')
@@ -678,6 +720,9 @@ def main():
     # Exploratory data analysis (EDA) -----------------------------------------
     # Run EDA
     eda(task, x, y)
+
+    # Return ------------------------------------------------------------------
+    return
 
 
 if __name__ == '__main__':
