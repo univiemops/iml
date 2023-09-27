@@ -1,7 +1,7 @@
 # *- coding: utf-8 -*-
 '''
 Exploratory Data Analysis (EDA)
-v123
+v124
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -707,7 +707,7 @@ def main():
                  random_state=3141592,
                  ignore_index=False)
     # Slice targets to fit subsampled predictors
-    y = y.loc[y.index, :].reset_index(drop=True)
+    y = y.loc[x.index, :].reset_index(drop=True)
     # Reset index of predictors
     x = x.reset_index(drop=True)
 
