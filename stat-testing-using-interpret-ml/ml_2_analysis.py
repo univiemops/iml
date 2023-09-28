@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Statistical Analysis using Interpretable Machine-Learning (SAIML)
-v709
+v714
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -180,6 +180,18 @@ def prepare(task):
                'top_rate': 0.5,
                'verbosity': -1,
                })
+        # Binary classification
+        if task['OBJECTIVE'] == 'binary':
+            # Set is unbalanced to true (works only in binary case)
+            estimator.set_params(**{'is_unbalance': True})
+        # Multiclass
+        elif task['OBJECTIVE'] == 'multiclass':
+            # Set class weight to balanced mode (works only in multiclass case)
+            estimator.set_params(**{'class_weight': 'balanced'})
+        # Other
+        else:
+            # Raise error
+            raise ValueError('OBJECTIVE not found.')
         # Search space
         space = {
             'estimator__colsample_bytree': uniform(0.2, 0.8),
@@ -862,13 +874,13 @@ def main():
     # Number parallel processing jobs. int (-1=all, -2=all-1)
     N_JOBS = -2
     # CV: Number of outer CV repetitions. int (default: 10)
-    N_REP_OUTER_CV = 1
+    N_REP_OUTER_CV = 10
     # CV & TT: Total number of predictions in inner CV. int (default: 10000)
-    N_SAMPLES_INNER_CV = 100
+    N_SAMPLES_INNER_CV = 10000
     # Number of samples in random search. int (default: 100)
-    N_SAMPLES_RS = 10
+    N_SAMPLES_RS = 100
     # Limit number of samples for SHAP. int (default: 100).
-    MAX_SAMPLES_SHAP = 10
+    MAX_SAMPLES_SHAP = 100
     # Get SHAP interactions. Time consuming! bool (default: False)
     SHAP_INTERACTIONS = False
 
@@ -921,9 +933,7 @@ def main():
         'worst_fractal_dimension',
         ]
     # Specify binary categorical predictor names. list of string or []
-    X_CAT_BIN_NAMES = [
-
-        ]
+    X_CAT_BIN_NAMES = []
     # Specify multi categorical predictor names. list of string or []
     X_CAT_MULT_NAMES = []
     # Specify target name(s). list of strings or []

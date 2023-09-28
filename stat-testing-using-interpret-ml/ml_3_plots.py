@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Plot results of Statistical Analysis using Interpretable Machine-Learning
-v258
+v259
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -143,7 +143,7 @@ def corrected_ttest(differences, n_tst_over_n_trn=0.25):
     # Compute t statistics
     t_stat = mean / std
     # Compute p value for right-tailed t-test
-    p_val = t.sf(np.abs(t_stat), df=len(differences)-1)
+    p_val = t.sf(t_stat, df=len(differences)-1)
 
     # Return t statistics and p value -----------------------------------------
     return t_stat, p_val
@@ -487,7 +487,7 @@ def print_classification_confusion(task, results, plots_path):
     # Predicted values
     pred_values = [i['y_pred'] for i in results['scores']]
     # Sample weights  list
-    sample_weights = [i['class_weights'] for i in results['scores']]
+    # sample_weights = [i['class_weights'] for i in results['scores']]
     # Accuracy
     acc = [i['acc'] for i in results['scores']]
     # Schuffle accuracy
@@ -497,7 +497,8 @@ def print_classification_confusion(task, results, plots_path):
 
     # Get confusion matrix ----------------------------------------------------
     # Loop over single results
-    for true, pred, w in zip(true_values, pred_values, sample_weights):
+    # for true, pred, w in zip(true_values, pred_values, sample_weights):
+    for true, pred in zip(true_values, pred_values):
         if 'con_mat' not in locals():
             # Compute confusion matrix
             con_mat = confusion_matrix(
