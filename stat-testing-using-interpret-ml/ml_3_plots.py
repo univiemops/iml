@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Plot results of Statistical Analysis using Interpretable Machine-Learning
-v256
+v258
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -504,7 +504,6 @@ def print_classification_confusion(task, results, plots_path):
                 true,
                 pred,
                 labels=class_labels,
-                sample_weight=np.array([w[i] for i in true]),
                 normalize='all')
         else:
             # Add confusion matrix
@@ -512,7 +511,6 @@ def print_classification_confusion(task, results, plots_path):
                 true,
                 pred,
                 labels=class_labels,
-                sample_weight=np.array([w[i] for i in true]),
                 normalize='all'))
     # Normalize confusion matrix
     con_mat_norm = con_mat / len(true_values)
@@ -553,9 +551,9 @@ def print_classification_confusion(task, results, plots_path):
         task['ANALYSIS_NAME']+' ' +
         'predicting'+' ' +
         task['y_name'][0]+'\n' +
-        'Orig. data accuracy mean'+r'$\pm$'+'std|median: {:.2f}'+r'$\pm$' +
+        'Orig. data balanced acc mean'+r'$\pm$'+'std|median: {:.2f}'+r'$\pm$' +
         '{:.2f}|{:.2f}'+'\n' +
-        'Shuffle data accuracy mean'+r'$\pm$'+'std|median: {:.2f}'+r'$\pm$' +
+        'Shuf. data balanced acc mean'+r'$\pm$'+'std|median: {:.2f}'+r'$\pm$' +
         '{:.2f}|{:.2f}'+'\n' +
         'p-value of orig. and shuffle: {:.3f}'+'\n').format(
         np.mean(acc)*100,

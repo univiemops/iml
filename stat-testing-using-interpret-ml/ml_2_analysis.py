@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Statistical Analysis using Interpretable Machine-Learning (SAIML)
-v707
+v709
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -10,7 +10,6 @@ import os
 import pandas as pd
 import pickle
 import shutil
-from collections import Counter
 from lightgbm import LGBMClassifier
 from lightgbm import LGBMRegressor
 from scipy.stats import loguniform
@@ -22,8 +21,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import make_scorer
+from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics import r2_score
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
@@ -242,61 +240,6 @@ def split_data(df, i_trn, i_tst):
     return df_trn, df_tst
 
 
-def get_class_w(y):
-    '''
-    Compute class weights over array by counting occurrences.
-
-    Parameters
-    ----------
-    y : ndarray
-        Array containing class labels.
-
-    Returns
-    -------
-    class_weights : dictionary
-        Dictionary of class weights with class labels as keys.
-    '''
-
-    # Get class weights -------------------------------------------------------
-    # Count unique classes occurances
-    counter = Counter(y.squeeze())
-    # n_samples
-    total_class = sum(counter.values())
-    # Get weights
-    w = {key: np.round(count/total_class, 4) for key, count in counter.items()}
-
-    # Return class weights ----------------------------------------------------
-    return w
-
-
-def weighted_accuracy_score(y_true, y_pred, class_weights):
-    '''
-    Computes accuracy score weighted by the inverse if the frequency of a
-    class.
-
-    Parameters
-    ----------
-    y_true : ndarray
-        True values.
-    y_pred : ndarray
-        Predicted values.
-    class_weights : dictionary
-        Class weights as inverse of frequency of class.
-
-    Returns
-    -------
-    accuracy : float
-        Prediction accuracy.
-    '''
-
-    # Get sample weights ------------------------------------------------------
-    # Make sample weights dataframe
-    w = y_true.squeeze().map(class_weights).to_numpy()
-
-    # Return sample weighted accuracy -----------------------------------------
-    return accuracy_score(y_true, y_pred, sample_weight=w)
-
-
 def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
     '''
     Print best paramters and related score to console.
@@ -417,11 +360,7 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
     # Classification
     elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
         # Weighted accuracy for classification
-        scorer = make_scorer(weighted_accuracy_score,
-                             greater_is_better=True,
-                             **{'class_weights': get_class_w(y_trn)})
-        # Add current class weights to the pipe
-        pipe.set_params(**{'estimator__class_weight': get_class_w(y_trn)})
+        scorer = 'balanced_accuracy'
     # Other
     else:
         # Raise error
@@ -502,15 +441,12 @@ def score_predictions(task, pipe, x_tst, y_tst, y):
                   'r2': r2}
     # Classification
     elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
-        # Get class weights
-        class_weights = get_class_w(y)
         # Calculate model fit in terms of acc
-        acc = weighted_accuracy_score(y_tst, y_pred, class_weights)
+        acc = balanced_accuracy_score(y_tst, y_pred)
         # Results
         scores = {'y_true': y_tst.squeeze().to_numpy(),
                   'y_pred': y_pred,
-                  'acc': acc,
-                  'class_weights': class_weights}
+                  'acc': acc}
     # Other
     else:
         # Raise error
@@ -926,57 +862,118 @@ def main():
     # Number parallel processing jobs. int (-1=all, -2=all-1)
     N_JOBS = -2
     # CV: Number of outer CV repetitions. int (default: 10)
-    N_REP_OUTER_CV = 10
+    N_REP_OUTER_CV = 1
     # CV & TT: Total number of predictions in inner CV. int (default: 10000)
-    N_SAMPLES_INNER_CV = 10000
+    N_SAMPLES_INNER_CV = 100
     # Number of samples in random search. int (default: 100)
-    N_SAMPLES_RS = 100
+    N_SAMPLES_RS = 10
     # Limit number of samples for SHAP. int (default: 100).
-    MAX_SAMPLES_SHAP = 100
+    MAX_SAMPLES_SHAP = 10
     # Get SHAP interactions. Time consuming! bool (default: False)
     SHAP_INTERACTIONS = False
 
     # 2. Specify data ---------------------------------------------------------
 
-    # Diabetes data - regression, binary category predictor
+    # Cancer data - classification 2 class, unbalanced classes
     # Specifiy an analysis name
-    ANALYSIS_NAME = 'diabetes'
+    ANALYSIS_NAME = 'cancer'
     # Specify path to data. string
-    PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
+    PATH_TO_DATA = 'data/cancer_20230927.xlsx'
     # Specify sheet name. string
     SHEET_NAME = 'data'
     # Specify task OBJECTIVE. string (regression, binary, multiclass)
-    OBJECTIVE = 'regression'
+    OBJECTIVE = 'binary'
     # Specify grouping for CV split. list of string
     G_NAME = [
         'sample_id',
         ]
     # Specify continous predictor names. list of string or []
     X_CON_NAMES = [
-        'age',
-        'bmi',
-        'bp',
-        's1',
-        's2',
-        's3',
-        's4',
-        's5',
-        's6',
+        'mean_radius',
+        'mean_texture',
+        'mean_perimeter',
+        'mean_area',
+        'mean_smoothness',
+        'mean_compactness',
+        'mean_concavity',
+        'mean_concave_points',
+        'mean_symmetry',
+        'mean_fractal_dimension',
+        'radius_error',
+        'texture_error',
+        'perimeter_error',
+        'area_error',
+        'smoothness_error',
+        'compactness_error',
+        'concavity_error',
+        'concave_points_error',
+        'symmetry_error',
+        'fractal_dimension_error',
+        'worst_radius',
+        'worst_texture',
+        'worst_perimeter',
+        'worst_area',
+        'worst_smoothness',
+        'worst_compactness',
+        'worst_concavity',
+        'worst_concave_points',
+        'worst_symmetry',
+        'worst_fractal_dimension',
         ]
     # Specify binary categorical predictor names. list of string or []
     X_CAT_BIN_NAMES = [
-        'sex',
+
         ]
     # Specify multi categorical predictor names. list of string or []
     X_CAT_MULT_NAMES = []
     # Specify target name(s). list of strings or []
     Y_NAMES = [
-        'progression',
+        'target',
         ]
     # Rows to skip. list of int or []
     SKIP_ROWS = []
     # Specify index of rows for test set if TT. list of int or []
-    TEST_SET_IND = list(randint.rvs(0, 441, size=88))
+    TEST_SET_IND = list(randint.rvs(0, 569, size=114))
+
+    # # Diabetes data - regression, binary category predictor
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'diabetes'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'regression'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'age',
+    #     'bmi',
+    #     'bp',
+    #     's1',
+    #     's2',
+    #     's3',
+    #     's4',
+    #     's5',
+    #     's6',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = [
+    #     'sex',
+    #     ]
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'progression',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 441, size=88))
 
     # # Digits data - classification 10 class, multicategory predictors
     # # Specifiy an analysis name
