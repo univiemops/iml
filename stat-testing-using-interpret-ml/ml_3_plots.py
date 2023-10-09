@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Plot results of Statistical Analysis using Interpretable Machine-Learning
-v259
+v261
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -11,7 +11,6 @@ import os
 import pandas as pd
 import pickle
 import seaborn as sns
-import warnings
 from itertools import permutations
 from scipy.stats import t
 from shap import dependence_plot
@@ -19,10 +18,6 @@ from shap import Explanation
 from shap.plots import beeswarm
 from shap.plots import scatter
 from sklearn.metrics import confusion_matrix
-
-warnings.filterwarnings('ignore', 'Setting an item of incompatible dtype is')
-warnings.filterwarnings('ignore', 'is_categorical_dtype is deprecated and')
-warnings.filterwarnings('ignore', 'use_inf_as_na option is deprecated and')
 
 
 def lfp(path_load):
@@ -142,7 +137,7 @@ def corrected_ttest(differences, n_tst_over_n_trn=0.25):
     std = corrected_std(differences, n_tst_over_n_trn)
     # Compute t statistics
     t_stat = mean / std
-    # Compute p value for right-tailed t-test
+    # Compute p value for one-tailed t-test
     p_val = t.sf(t_stat, df=len(differences)-1)
 
     # Return t statistics and p value -----------------------------------------
@@ -412,9 +407,9 @@ def print_regression_violin(task, results, plots_path):
     for i, metric in enumerate(metrics):
         # Plot data
         sns.violinplot(x=metric, y='Dummy', hue='Data', data=all_scores_df,
-                       bw='scott', cut=2, scale='width', gridsize=100,
-                       width=0.8, inner='box', orient='h', linewidth=1,
-                       saturation=1, ax=ax[i], palette=mypal)
+                       bw_method='scott', cut=2, density_norm='width',
+                       gridsize=100, width=0.8, inner='box', orient='h',
+                       linewidth=1, saturation=1, ax=ax[i], palette=mypal)
         # Remove top, right and left frame elements
         ax[i].spines['top'].set_visible(False)
         ax[i].spines['right'].set_visible(False)
@@ -634,9 +629,9 @@ def print_classification_violin(task, results, plots_path):
     for i, metric in enumerate(metrics):
         # Plot data
         sns.violinplot(x=metric, y='Dummy', hue='Data', data=all_scores_df,
-                       bw='scott', cut=2, scale='width', gridsize=100,
-                       width=0.8, inner='box', orient='h', linewidth=1,
-                       saturation=1, ax=ax[i], palette=mypal)
+                       bw_method='scott', cut=2, density_norm='width',
+                       gridsize=100, width=0.8, inner='box', orient='h',
+                       linewidth=1, saturation=1, ax=ax[i], palette=mypal)
         # Remove top, right and left frame elements
         ax[i].spines['top'].set_visible(False)
         ax[i].spines['right'].set_visible(False)
@@ -1011,8 +1006,8 @@ def print_shap_effects_distribution(task, results, plots_path):
         mypal = {'original': '#777777', 'shuffle': '#eeeeee'}
         # Plot data
         sns.violinplot(x=value_name, y='predictors', hue='Data',
-                       data=shap_effects_df_sort_melt_all, bw='scott',
-                       cut=2, scale='width', gridsize=100, width=0.8,
+                       data=shap_effects_df_sort_melt_all, bw_method='scott',
+                       cut=2, density_norm='width', gridsize=100, width=0.8,
                        inner='box', orient='h', linewidth=.5,
                        saturation=1, ax=ax, palette=mypal)
         # Get the current figure and axes objects.

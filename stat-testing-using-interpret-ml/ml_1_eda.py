@@ -1,7 +1,7 @@
 # *- coding: utf-8 -*-
 '''
 Exploratory Data Analysis (EDA)
-v124
+v128
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -20,8 +20,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import TargetEncoder
 
 warnings.filterwarnings('ignore', 'The figure layout has changed to tight')
-warnings.filterwarnings('ignore', 'is_categorical_dtype is deprecated and')
-warnings.filterwarnings('ignore', 'use_inf_as_na option is deprecated and')
 
 
 def create_dir(path):
@@ -113,7 +111,7 @@ def eda(task, x, y):
         fig, ax = plt.subplots(figsize=(x_names_max_len*.1+4,
                                         x_names_count*.7+1))
         # Violinplot all data
-        sns.violinplot(data=z, bw='scott', cut=2, scale='width',
+        sns.violinplot(data=z, bw_method='scott', cut=2, density_norm='width',
                        gridsize=100, width=0.8, inner='box', orient='h',
                        linewidth=1, color='#777777', saturation=1, ax=ax)
         # Remove top, right and left frame elements
@@ -427,37 +425,88 @@ def main():
 
     # 2. Specify data ---------------------------------------------------------
 
-    # Diabetes data - regression, binary category predictor
+    # Cancer data - classification 2 class, unbalanced classes
     # Specifiy an analysis name
-    ANALYSIS_NAME = 'diabetes'
+    ANALYSIS_NAME = 'cancer'
     # Specify path to data. string
-    PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
+    PATH_TO_DATA = 'data/cancer_20230927.xlsx'
     # Specify sheet name. string
-    SHEET_NAME = 'data_nan'
+    SHEET_NAME = 'data'
     # Specify continous predictor names. list of string or []
     X_CON_NAMES = [
-        'age',
-        'bmi',
-        'bp',
-        's1',
-        's2',
-        's3',
-        's4',
-        's5',
-        's6',
+        'mean_radius',
+        'mean_texture',
+        'mean_perimeter',
+        'mean_area',
+        'mean_smoothness',
+        'mean_compactness',
+        'mean_concavity',
+        'mean_concave_points',
+        'mean_symmetry',
+        'mean_fractal_dimension',
+        'radius_error',
+        'texture_error',
+        'perimeter_error',
+        'area_error',
+        'smoothness_error',
+        'compactness_error',
+        'concavity_error',
+        'concave_points_error',
+        'symmetry_error',
+        'fractal_dimension_error',
+        'worst_radius',
+        'worst_texture',
+        'worst_perimeter',
+        'worst_area',
+        'worst_smoothness',
+        'worst_compactness',
+        'worst_concavity',
+        'worst_concave_points',
+        'worst_symmetry',
+        'worst_fractal_dimension',
         ]
     # Specify binary categorical predictor names. list of string or []
-    X_CAT_BIN_NAMES = [
-        'sex',
-        ]
+    X_CAT_BIN_NAMES = []
     # Specify multi categorical predictor names. list of string or []
     X_CAT_MULT_NAMES = []
     # Specify target name(s). list of strings or []
     Y_NAMES = [
-        'progression',
+        'target',
         ]
     # Rows to skip. list of int or []
     SKIP_ROWS = []
+
+    # # Diabetes data - regression, binary category predictor
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'diabetes'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'age',
+    #     'bmi',
+    #     'bp',
+    #     's1',
+    #     's2',
+    #     's3',
+    #     's4',
+    #     's5',
+    #     's6',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = [
+    #     'sex',
+    #     ]
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'progression',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
 
     # # Digits data - classification 10 class, multicategory predictors
     # # Specifiy an analysis name
@@ -547,9 +596,9 @@ def main():
     # # Specifiy an analysis name
     # ANALYSIS_NAME = 'housing'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/housing_20230809.xlsx'
+    # PATH_TO_DATA = 'data/housing_20230907.xlsx'
     # # Specify sheet name. string
-    # SHEET_NAME = 'data_nan'
+    # SHEET_NAME = 'data'
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
     #     'longitude',
@@ -630,7 +679,7 @@ def main():
     # # Specify path to data. string
     # PATH_TO_DATA = 'data/radon_20230809.xlsx'
     # # Specify sheet name. string
-    # SHEET_NAME = 'data_nan'
+    # SHEET_NAME = 'data'
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
     #     'Uppm',

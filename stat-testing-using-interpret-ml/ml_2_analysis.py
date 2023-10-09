@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Statistical Analysis using Interpretable Machine-Learning (SAIML)
-v714
+v715
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -128,7 +128,6 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
-               'max_bin': 1000,
                'min_data_in_bin': 1,
                'top_rate': 0.5,
                'verbosity': -1,
@@ -175,7 +174,6 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
-               'max_bin': 1000,
                'min_data_in_bin': 1,
                'top_rate': 0.5,
                'verbosity': -1,
