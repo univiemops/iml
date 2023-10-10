@@ -874,7 +874,7 @@ def main():
     # CV: Number of outer CV repetitions. int (default: 10)
     N_REP_OUTER_CV = 10
     # CV & TT: Total number of predictions in inner CV. int (default: 10000)
-    N_SAMPLES_INNER_CV = 10000
+    N_SAMPLES_INNER_CV = 1000
     # Number of samples in random search. int (default: 100)
     N_SAMPLES_RS = 100
     # Limit number of samples for SHAP. int (default: 100).

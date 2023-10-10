@@ -1,7 +1,7 @@
 # *- coding: utf-8 -*-
 '''
 Exploratory Data Analysis (EDA)
-v128
+v129
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -111,9 +111,10 @@ def eda(task, x, y):
         fig, ax = plt.subplots(figsize=(x_names_max_len*.1+4,
                                         x_names_count*.7+1))
         # Violinplot all data
-        sns.violinplot(data=z, bw_method='scott', cut=2, density_norm='width',
-                       gridsize=100, width=0.8, inner='box', orient='h',
-                       linewidth=1, color='#777777', saturation=1, ax=ax)
+        sns.violinplot(data=z, bw_method='scott', bw_adjust=0.5,
+                       cut=2, density_norm='width', gridsize=100, width=0.8,
+                       inner='box', orient='h', linewidth=1, color='#777777',
+                       saturation=1, ax=ax)
         # Remove top, right and left frame elements
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)

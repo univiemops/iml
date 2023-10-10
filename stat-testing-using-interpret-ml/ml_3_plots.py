@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Plot results of Statistical Analysis using Interpretable Machine-Learning
-v261
+v262
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -407,9 +407,10 @@ def print_regression_violin(task, results, plots_path):
     for i, metric in enumerate(metrics):
         # Plot data
         sns.violinplot(x=metric, y='Dummy', hue='Data', data=all_scores_df,
-                       bw_method='scott', cut=2, density_norm='width',
-                       gridsize=100, width=0.8, inner='box', orient='h',
-                       linewidth=1, saturation=1, ax=ax[i], palette=mypal)
+                       bw_method='scott', bw_adjust=0.5, cut=2,
+                       density_norm='width', gridsize=100, width=0.8,
+                       inner='box', orient='h', linewidth=1, saturation=1,
+                       ax=ax[i], palette=mypal)
         # Remove top, right and left frame elements
         ax[i].spines['top'].set_visible(False)
         ax[i].spines['right'].set_visible(False)
@@ -629,9 +630,10 @@ def print_classification_violin(task, results, plots_path):
     for i, metric in enumerate(metrics):
         # Plot data
         sns.violinplot(x=metric, y='Dummy', hue='Data', data=all_scores_df,
-                       bw_method='scott', cut=2, density_norm='width',
-                       gridsize=100, width=0.8, inner='box', orient='h',
-                       linewidth=1, saturation=1, ax=ax[i], palette=mypal)
+                       bw_method='scott', bw_adjust=0.5, cut=2,
+                       density_norm='width', gridsize=100, width=0.8,
+                       inner='box', orient='h', linewidth=1, saturation=1,
+                       ax=ax[i], palette=mypal)
         # Remove top, right and left frame elements
         ax[i].spines['top'].set_visible(False)
         ax[i].spines['right'].set_visible(False)
@@ -1007,9 +1009,9 @@ def print_shap_effects_distribution(task, results, plots_path):
         # Plot data
         sns.violinplot(x=value_name, y='predictors', hue='Data',
                        data=shap_effects_df_sort_melt_all, bw_method='scott',
-                       cut=2, density_norm='width', gridsize=100, width=0.8,
-                       inner='box', orient='h', linewidth=.5,
-                       saturation=1, ax=ax, palette=mypal)
+                       bw_adjust=0.5, cut=2, density_norm='width',
+                       gridsize=100, width=0.8, inner='box', orient='h',
+                       linewidth=.5, saturation=1, ax=ax, palette=mypal)
         # Get the current figure and axes objects.
         _, ax = plt.gcf(), plt.gca()
         # Set x label size
