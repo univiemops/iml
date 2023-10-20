@@ -1,7 +1,7 @@
 # *- coding: utf-8 -*-
 '''
 Exploratory Data Analysis (EDA)
-v129
+v136
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -82,7 +82,7 @@ def eda(task, x, y):
         [('con_pred', 'passthrough', task['X_CON_NAMES']),
          ('bin_pred', 'passthrough', task['X_CAT_BIN_NAMES']),
          ('mult_pred', te, task['X_CAT_MULT_NAMES']),
-         ('target', 'passthrough', task['Y_NAMES']),
+         ('target', 'passthrough', task['y_name']),
          ],
         remainder='drop',
         sparse_threshold=0,
@@ -137,9 +137,9 @@ def eda(task, x, y):
         # Save figure ---------------------------------------------------------
         # Make save path
         save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                     '_eda_1_distribuations')
+                     '_'+task['y_name'][0]+'_eda_1_distribuations')
         # Save figure in .png format
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
         if task['AS_SVG']:
             # Save figure in .svg format
@@ -166,9 +166,9 @@ def eda(task, x, y):
         # Save figure ---------------------------------------------------------
         # Make save path
         save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                     '_eda_2_pairplots')
+                     '_'+task['y_name'][0]+'_eda_2_pairplots')
         # Save figure in .png format
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
         if task['AS_SVG']:
             # Save figure in .svg format
@@ -229,9 +229,9 @@ def eda(task, x, y):
         # Save figure ---------------------------------------------------------
         # Make save path
         save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                     '_eda_3_correlations')
+                     '_'+task['y_name'][0]+'_eda_3_correlations')
         # Save figure in .png format
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
         if task['AS_SVG']:
             # Save figure in .svg format
@@ -314,9 +314,9 @@ def eda(task, x, y):
             # Save figure -----------------------------------------------------
             # Make save path
             save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                         '_eda_4_pca')
+                         '_'+task['y_name'][0]+'_eda_4_pca')
             # Save figure in .png format
-            plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+            plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
             if task['AS_SVG']:
                 # Save figure in .svg format
@@ -375,11 +375,11 @@ def eda(task, x, y):
             # Save figure -----------------------------------------------------
             # Make save path
             save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                         '_eda_5_outlier')
+                         '_'+task['y_name'][0]+'_eda_5_outlier')
             # Save outlier data
             outlier_df.to_excel(save_path+'.xlsx')
             # Save figure in .png format
-            plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+            plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
             if task['AS_SVG']:
                 # Save figure in .svg format
@@ -602,14 +602,14 @@ def main():
     # SHEET_NAME = 'data'
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
-    #     'longitude',
-    #     'latitude',
-    #     'housing_median_age',
-    #     'total_rooms',
-    #     'total_bedrooms',
-    #     'population',
-    #     'households',
     #     'median_income',
+    #     'house_age',
+    #     'average_rooms',
+    #     'average_bedrooms',
+    #     'population',
+    #     'average_occupation',
+    #     'latitude',
+    #     'longitude',
     #     ]
     # # Specify binary categorical predictor names. list of string or []
     # X_CAT_BIN_NAMES = []
@@ -619,7 +619,7 @@ def main():
     #     ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'median_house_value_k',
+    #     'median_house_value',
     #     ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
@@ -735,41 +735,59 @@ def main():
 
     # Load data ---------------------------------------------------------------
     # Load predictors from excel file
-    x = pd.read_excel(task['PATH_TO_DATA'],
+    X = pd.read_excel(task['PATH_TO_DATA'],
                       sheet_name=task['SHEET_NAME'],
                       header=0,
                       usecols=task['x_names'],
                       dtype=np.float64,
                       skiprows=task['SKIP_ROWS'])
     # Reindex x to x_names
-    x = x.reindex(task['x_names'], axis=1)
+    X = X.reindex(task['x_names'], axis=1)
     # Load targets from excel file
-    y = pd.read_excel(task['PATH_TO_DATA'],
+    Y = pd.read_excel(task['PATH_TO_DATA'],
                       sheet_name=task['SHEET_NAME'],
                       header=0,
                       usecols=task['Y_NAMES'],
                       dtype=np.float64,
                       skiprows=task['SKIP_ROWS'])
 
-    # Limit number of samples -------------------------------------------------
-    # Subsample predictors
-    x = x.sample(n=min(x.shape[0], task['MAX_SAMPLES']),
-                 random_state=3141592,
-                 ignore_index=False)
-    # Slice targets to fit subsampled predictors
-    y = y.loc[x.index, :].reset_index(drop=True)
-    # Reset index of predictors
-    x = x.reset_index(drop=True)
+    # Prepare data ------------------------------------------------------------
+    # Iterate over prediction targets (Y_NAMES)
+    for i_y, y_name in enumerate(Y_NAMES):
+        # Add prediction target index to task
+        task['i_y'] = i_y
+        # Add prediction target name to task
+        task['y_name'] = [y_name]
 
-    # Store data --------------------------------------------------------------
-    # Save predictors
-    x.to_excel(path_to_results+'/'+ANALYSIS_NAME+'_data_x.xlsx')
-    # Save targets
-    y.to_excel(path_to_results+'/'+ANALYSIS_NAME+'_data_y.xlsx')
+        # Deal with NaNs in the target ----------------------------------------
+        # Get current target and remove NaNs
+        y = Y[y_name].to_frame().dropna()
+        # Use y index for predictors and reset index
+        x = X.reindex(index=y.index).reset_index(drop=True)
+        # Reset index of target
+        y = y.reset_index(drop=True)
 
-    # Exploratory data analysis (EDA) -----------------------------------------
-    # Run EDA
-    eda(task, x, y)
+        # Limit number of samples ---------------------------------------------
+        # Subsample predictors
+        x = x.sample(n=min(x.shape[0], task['MAX_SAMPLES']),
+                     random_state=3141592,
+                     ignore_index=False)
+        # Slice targets to fit subsampled predictors
+        y = y.loc[x.index, :].reset_index(drop=True)
+        # Reset index of predictors
+        x = x.reset_index(drop=True)
+
+        # Store data ----------------------------------------------------------
+        # Save predictors
+        x.to_excel(path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
+                   '_data_x.xlsx')
+        # Save targets
+        y.to_excel(path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
+                   '_data_y.xlsx')
+
+        # Exploratory data analysis (EDA) -------------------------------------
+        # Run EDA
+        eda(task, x, y)
 
     # Return ------------------------------------------------------------------
     return

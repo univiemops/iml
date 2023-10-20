@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Plot results of Statistical Analysis using Interpretable Machine-Learning
-v262
+v264
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -197,9 +197,9 @@ def print_parameter_distributions(task, results, plots_path):
                      str(idx)+'_' +
                      task['y_name'][0]+'_' +
                      'hyperparameter'+'_' +
-                     name)[:130]
+                     name)[:150]
         # Save figure
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
         if task['AS_SVG']:
             # Save figure
@@ -338,9 +338,9 @@ def print_regression_scatter(task, results, plots_path):
     # Make save path
     save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
                  '1'+'_' +
-                 task['y_name'][0])[:130]
+                 task['y_name'][0])[:150]
     # Save figure
-    plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+    plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
     if task['AS_SVG']:
         # Save figure
@@ -445,9 +445,9 @@ def print_regression_violin(task, results, plots_path):
     save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
                  '1'+'_' +
                  task['y_name'][0]+'_' +
-                 'distribution')[:130]
+                 'distribution')[:150]
     # Save figure
-    plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+    plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
     if task['AS_SVG']:
         # Save figure
@@ -567,9 +567,9 @@ def print_classification_confusion(task, results, plots_path):
     # Make save path
     save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
                  '1'+'_' +
-                 task['y_name'][0])[:130]
+                 task['y_name'][0])[:150]
     # Save figure
-    plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+    plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
     if task['AS_SVG']:
         # Save figure
@@ -668,9 +668,9 @@ def print_classification_violin(task, results, plots_path):
     save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
                  '1'+'_' +
                  task['y_name'][0]+'_' +
-                 'distribution')[:130]
+                 'distribution')[:150]
     # Save figure
-    plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+    plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
     if task['AS_SVG']:
         # Save figure
@@ -900,7 +900,7 @@ def print_shap_effects(task, results, plots_path):
                      '2'+'_' +
                      str(c_class)+'_' +
                      task['y_name'][0]+'_' +
-                     'shap_effects')[:130]
+                     'shap_effects')[:150]
         # Add class if binary or multiclass (interaction)
         if (task['OBJECTIVE'] == 'multiclass' or
             (task['OBJECTIVE'] == 'binary' and
@@ -908,7 +908,7 @@ def print_shap_effects(task, results, plots_path):
             # Make save path
             save_path = save_path+'_class_'+str(c_class)
         # Save figure
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
         if task['AS_SVG']:
             # Save figure
@@ -1056,7 +1056,7 @@ def print_shap_effects_distribution(task, results, plots_path):
                      '2'+'_' +
                      str(c_class)+'_' +
                      task['y_name'][0]+'_' +
-                     'shap_effects_distribution')[:130]
+                     'shap_effects_distribution')[:150]
         # Add class if no interactions and binary or multiclass
         # Add class if binary or multiclass (interaction)
         if (task['OBJECTIVE'] == 'multiclass' or
@@ -1065,7 +1065,7 @@ def print_shap_effects_distribution(task, results, plots_path):
             # Make save path
             save_path = save_path+'_class_'+str(c_class)
         # Save figure
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
         if task['AS_SVG']:
             # Save figure
@@ -1352,7 +1352,7 @@ def print_shap_values(task, results, plots_path):
                      '3'+'_' +
                      str(c_class)+'_' +
                      task['y_name'][0]+'_' +
-                     'shap_values')[:130]
+                     'shap_values')[:150]
         # Add class if binary or multiclass (interaction)
         if (task['OBJECTIVE'] == 'multiclass' or
             (task['OBJECTIVE'] == 'binary' and
@@ -1360,7 +1360,7 @@ def print_shap_values(task, results, plots_path):
             # Make save path
             save_path = save_path+'_class_'+str(c_class)
         # Save figure
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
         if task['AS_SVG']:
             # Save figure
@@ -1480,7 +1480,7 @@ def print_shap_dependences(task, results, plots_path):
                          str(idx)+'_' +
                          task['y_name'][0]+'_' +
                          'shap_values_dependency'+'_' +
-                         str(c_pred))[:130]
+                         str(c_pred))[:150]
             # Add class if no interactions and binary or multiclass
             # Add class if binary or multiclass (interaction)
             if (task['OBJECTIVE'] == 'multiclass' or
@@ -1489,7 +1489,7 @@ def print_shap_dependences(task, results, plots_path):
                 # Make save path
                 save_path = save_path+'_class_'+str(c_class)
             # Save figure
-            plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+            plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
             if task['AS_SVG']:
                 # Save figure
@@ -1739,7 +1739,7 @@ def print_shap_effects_interactions(task, results, plots_path):
                      '5'+'_' +
                      str(c_class)+'_' +
                      task['y_name'][0]+'_' +
-                     'shap_effects_interactions')[:130]
+                     'shap_effects_interactions')[:150]
         # Add class if binary or multiclass (interaction)
         if (task['OBJECTIVE'] == 'multiclass' or
             (task['OBJECTIVE'] == 'binary' and
@@ -1747,7 +1747,7 @@ def print_shap_effects_interactions(task, results, plots_path):
             # Make save path
             save_path = save_path+'_class_'+str(c_class)
         # Save figure
-        plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
         if task['AS_SVG']:
             # Save figure
@@ -1877,7 +1877,7 @@ def print_shap_interaction_values(task, results, plots_path):
                          task['y_name'][0]+'_' +
                          'shap_interaction_values'+'_' +
                          ind[0]+'_' +
-                         ind[1])[:130]
+                         ind[1])[:150]
             # Add class if binary or multiclass (interaction)
             if (task['OBJECTIVE'] == 'multiclass' or
                 (task['OBJECTIVE'] == 'binary' and
@@ -1885,7 +1885,7 @@ def print_shap_interaction_values(task, results, plots_path):
                 # Make save path
                 save_path = save_path+'_class_'+str(c_class)
             # Save figure
-            plt.savefig(save_path+'.png', dpi=150, bbox_inches='tight')
+            plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
             if task['AS_SVG']:
                 # Save figure

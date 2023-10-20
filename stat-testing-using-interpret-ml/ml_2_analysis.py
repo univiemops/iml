@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Statistical Analysis using Interpretable Machine-Learning (SAIML)
-v715
+v716
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
@@ -128,8 +128,10 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
+               'max_bin': 1000,
                'min_data_in_bin': 1,
                'top_rate': 0.5,
+               'other_rate': 0.1,
                'verbosity': -1,
                })
         # Search space
@@ -174,8 +176,10 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
+               'max_bin': 1000,
                'min_data_in_bin': 1,
                'top_rate': 0.5,
+               'other_rate': 0.1,
                'verbosity': -1,
                })
         # Binary classification
@@ -874,12 +878,12 @@ def main():
     # CV: Number of outer CV repetitions. int (default: 10)
     N_REP_OUTER_CV = 10
     # CV & TT: Total number of predictions in inner CV. int (default: 10000)
-    N_SAMPLES_INNER_CV = 1000
+    N_SAMPLES_INNER_CV = 10000
     # Number of samples in random search. int (default: 100)
     N_SAMPLES_RS = 100
     # Limit number of samples for SHAP. int (default: 100).
     MAX_SAMPLES_SHAP = 100
-    # Get SHAP interactions. Time consuming! bool (default: False)
+    # Get SHAP interactions. bool (default: True)
     SHAP_INTERACTIONS = False
 
     # 2. Specify data ---------------------------------------------------------
