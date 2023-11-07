@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 '''
 Statistical Analysis using Interpretable Machine-Learning (SAIML)
-v716
+v723
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
 
+import math
 import numpy as np
 import os
 import pandas as pd
@@ -112,7 +113,7 @@ def prepare(task):
             subsample_for_bin=100000,
             objective=task['OBJECTIVE'],
             min_split_gain=0.0,
-            min_child_weight=0.1,
+            min_child_weight=0.001,
             min_child_samples=2,
             subsample=1.0,
             subsample_freq=0,
@@ -128,7 +129,7 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
-               'max_bin': 1000,
+               'max_bin': 255,
                'min_data_in_bin': 1,
                'top_rate': 0.5,
                'other_rate': 0.1,
@@ -160,7 +161,7 @@ def prepare(task):
             objective=task['OBJECTIVE'],
             class_weight=None,
             min_split_gain=0.0,
-            min_child_weight=0.1,
+            min_child_weight=0.001,
             min_child_samples=2,
             subsample=1.0,
             subsample_freq=0,
@@ -176,7 +177,7 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
-               'max_bin': 1000,
+               'max_bin': 255,
                'min_data_in_bin': 1,
                'top_rate': 0.5,
                'other_rate': 0.1,
@@ -381,9 +382,8 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
         raise ValueError('OBJECTIVE not found.')
 
     # Tune analysis pipeline --------------------------------------------------
-    # Choose n_repeats to approx N_SAMPLES_INNER_CV predictions, min 1, max 10
-    n_repeats = min(10, max(1, int(task['N_SAMPLES_INNER_CV'] /
-                                   g_trn.shape[0])))
+    # Choose n_repeats to approx N_SAMPLES_INNER_CV predictions, max 10
+    n_repeats = min(10, math.ceil(task['N_SAMPLES_INNER_CV'] / g_trn.shape[0]))
     # Instatiate random parameter search
     search = RandomizedSearchCV(
         pipe,
@@ -884,7 +884,7 @@ def main():
     # Limit number of samples for SHAP. int (default: 100).
     MAX_SAMPLES_SHAP = 100
     # Get SHAP interactions. bool (default: True)
-    SHAP_INTERACTIONS = False
+    SHAP_INTERACTIONS = True
 
     # 2. Specify data ---------------------------------------------------------
 
