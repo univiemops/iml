@@ -1,8 +1,8 @@
 # *- coding: utf-8 -*-
 '''
 Exploratory Data Analysis (EDA)
-v136
-@author: Dr. David Steyrl david.steyrl@gmail.com
+v137
+@author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
 import matplotlib.pyplot as plt

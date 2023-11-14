@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 '''
 Plot results of Statistical Analysis using Interpretable Machine-Learning
-v264
-@author: Dr. David Steyrl david.steyrl@gmail.com
+v265
+@author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
 import matplotlib.pyplot as plt

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 '''
 Statistical Analysis using Interpretable Machine-Learning (SAIML)
-v723
-@author: Dr. David Steyrl david.steyrl@gmail.com
+v725
+@author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
 import math
@@ -129,7 +129,7 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
-               'max_bin': 255,
+               'max_bin': 1000,
                'min_data_in_bin': 1,
                'top_rate': 0.5,
                'other_rate': 0.1,
@@ -177,7 +177,7 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
-               'max_bin': 255,
+               'max_bin': 1000,
                'min_data_in_bin': 1,
                'top_rate': 0.5,
                'other_rate': 0.1,
@@ -382,8 +382,8 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
         raise ValueError('OBJECTIVE not found.')
 
     # Tune analysis pipeline --------------------------------------------------
-    # Choose n_repeats to approx N_SAMPLES_INNER_CV predictions, max 10
-    n_repeats = min(10, math.ceil(task['N_SAMPLES_INNER_CV'] / g_trn.shape[0]))
+    # Choose n_repeats to approx N_SAMPLES_INNER_CV predictions
+    n_repeats = math.ceil(task['N_SAMPLES_INNER_CV'] / g_trn.shape[0])
     # Instatiate random parameter search
     search = RandomizedSearchCV(
         pipe,
