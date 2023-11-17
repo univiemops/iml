@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Plot results of Statistical Analysis using Interpretable Machine-Learning
-v265
+v266
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -176,6 +176,7 @@ def print_parameter_distributions(task, results, plots_path):
                      bins=30,
                      kde=True,
                      color='#777777',
+                     log_scale=True if name.endswith('path_smooth') else False,
                      ax=ax)
         # Remove top, right and left frame elements
         ax.spines['top'].set_visible(False)
