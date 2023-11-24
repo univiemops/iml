@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Statistical Analysis using Interpretable Machine-Learning (SAIML)
-v728
+v732
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -113,14 +113,14 @@ def prepare(task):
             subsample_for_bin=100000,
             objective=task['OBJECTIVE'],
             min_split_gain=0.0,
-            min_child_weight=0.0001,
+            min_child_weight=0.001,
             min_child_samples=2,
             subsample=1.0,
             subsample_freq=0,
             colsample_bytree=1.0,
             reg_alpha=0.0,
             reg_lambda=0.0,
-            random_state=np.random.RandomState(seed=None),
+            random_state=None,
             n_jobs=1,
             importance_type='gain',
             **{'data_random_seed': None,
@@ -132,7 +132,7 @@ def prepare(task):
                'max_bin': 1000,
                'min_data_in_bin': 1,
                'top_rate': 0.2,
-               'other_rate': 0.0001,
+               'other_rate': 0.001,
                'verbosity': -1,
                })
         # Search space
@@ -140,7 +140,7 @@ def prepare(task):
             'estimator__regressor__colsample_bytree': uniform(0.2, 0.8),
             'estimator__regressor__extra_trees': [True, False],
             'estimator__regressor__path_smooth': loguniform(0.1, 1000),
-            'estimator__regressor__top_rate': uniform(0.2, 0.7999),
+            'estimator__regressor__top_rate': uniform(0.2, 0.799),
             }
         # Add scaler to the estimator
         estimator = TransformedTargetRegressor(
@@ -162,14 +162,14 @@ def prepare(task):
             objective=task['OBJECTIVE'],
             class_weight=None,
             min_split_gain=0.0,
-            min_child_weight=0.0001,
+            min_child_weight=0.001,
             min_child_samples=2,
             subsample=1.0,
             subsample_freq=0,
             colsample_bytree=1.0,
             reg_alpha=0.0,
             reg_lambda=0.0,
-            random_state=np.random.RandomState(seed=None),
+            random_state=None,
             n_jobs=1,
             importance_type='gain',
             **{'data_random_seed': None,
@@ -181,7 +181,7 @@ def prepare(task):
                'max_bin': 1000,
                'min_data_in_bin': 1,
                'top_rate': 0.2,
-               'other_rate': 0.0001,
+               'other_rate': 0.001,
                'verbosity': -1,
                })
         # Binary classification
@@ -201,7 +201,7 @@ def prepare(task):
             'estimator__colsample_bytree': uniform(0.2, 0.8),
             'estimator__extra_trees': [True, False],
             'estimator__path_smooth': loguniform(0.1, 1000),
-            'estimator__top_rate': uniform(0.2, 0.7999),
+            'estimator__top_rate': uniform(0.2, 0.799),
             }
     # Other
     else:
@@ -879,11 +879,11 @@ def main():
     N_JOBS = -2
     # CV: Number of outer CV repetitions. int (default: 10)
     N_REP_OUTER_CV = 10
-    # CV & TT: Total number of predictions in inner CV. int (default: 10000)
-    N_SAMPLES_INNER_CV = 10000
-    # Number of samples in random search. int (default: 100)
+    # CV & TT: Min number of predictions inner CV. int (default: 1000)
+    N_SAMPLES_INNER_CV = 1000
+    # Number of samples random search. int (default: 100)
     N_SAMPLES_RS = 100
-    # Limit number of samples for SHAP. int (default: 100).
+    # Number of samples SHAP. int (default: 100).
     MAX_SAMPLES_SHAP = 100
     # Get SHAP interactions. bool (default: True)
     SHAP_INTERACTIONS = False
