@@ -1,2 +1,2 @@
-# stat-testing-using-interpret-ml
-Statistical testing using interpretable machine-learning
+# Interpret ml data analysis (IMLDA)
+Interpretable machine-learning for data analysis
