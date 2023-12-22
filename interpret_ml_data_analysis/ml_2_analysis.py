@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning Data Analysis (IMLDA)
-v736
+v742
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -11,6 +11,7 @@ import os
 import pandas as pd
 import pickle
 import shutil
+import warnings
 from lightgbm import LGBMClassifier
 from lightgbm import LGBMRegressor
 from scipy.stats import loguniform
@@ -76,12 +77,13 @@ def prepare(task):
 
     # Make preprocessing pipe -------------------------------------------------
     # Instatiate target-encoder
-    te = TargetEncoder(categories=task['te_categories'],
-                       target_type='continuous',
-                       smooth='auto',
-                       cv=5,
-                       shuffle=True,
-                       random_state=None)
+    te = TargetEncoder(
+        categories=task['te_categories'],
+        target_type='continuous',
+        smooth='auto',
+        cv=5,
+        shuffle=True,
+        random_state=None)
     # Get categorical predictors for target-encoder
     coltrans = ColumnTransformer(
         [('con_pred', 'passthrough', task['X_CON_NAMES']),
@@ -95,10 +97,10 @@ def prepare(task):
         verbose=False,
         verbose_feature_names_out=False)
     # Pipeline
-    pre_pipe = Pipeline([('coltrans', coltrans),
-                         ('std_scaler', StandardScaler())],
-                        memory=None,
-                        verbose=False)
+    pre_pipe = Pipeline(
+        [('coltrans', coltrans), ('std_scaler', StandardScaler())],
+        memory=None,
+        verbose=False)
 
     # Make predictor ----------------------------------------------------------
     # Regression
@@ -284,18 +286,20 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
         # Regression
         if task['OBJECTIVE'] == 'regression':
             # Print general information
-            print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
-                  'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
-                  'n rep inner cv: '+str(n_splits)+' | ' +
-                  'best neg MSE: '+str(np.round(hp_score, decimals=4)))
+            print(
+                str(task['i_y'])+'.'+str(i_cv)+' | ' +
+                'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
+                'n rep inner cv: '+str(n_splits)+' | ' +
+                'best neg MSE: '+str(np.round(hp_score, decimals=4)))
         # Classification
         elif (task['OBJECTIVE'] == 'binary' or
               task['OBJECTIVE'] == 'multiclass'):
             # Print general information
-            print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
-                  'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
-                  'n rep inner cv: '+str(n_splits)+' | ' +
-                  'acc: '+str(np.round(hp_score, decimals=4)))
+            print(
+                str(task['i_y'])+'.'+str(i_cv)+' | ' +
+                'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
+                'n rep inner cv: '+str(n_splits)+' | ' +
+                'acc: '+str(np.round(hp_score, decimals=4)))
         # Other
         else:
             # Raise error
@@ -305,16 +309,18 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
         # Regression
         if task['OBJECTIVE'] == 'regression':
             # Print general information
-            print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
-                  'n rep inner cv: '+str(n_splits)+' | ' +
-                  'best neg MSE: '+str(np.round(hp_score, decimals=4)))
+            print(
+                str(task['i_y'])+'.'+str(i_cv)+' | ' +
+                'n rep inner cv: '+str(n_splits)+' | ' +
+                'best neg MSE: '+str(np.round(hp_score, decimals=4)))
         # Classification
         elif (task['OBJECTIVE'] == 'binary' or
               task['OBJECTIVE'] == 'multiclass'):
             # Print general information
-            print(str(task['i_y'])+'.'+str(i_cv)+' | ' +
-                  'n rep inner cv: '+str(n_splits)+' | ' +
-                  'acc: '+str(np.round(hp_score, decimals=4)))
+            print(
+                str(task['i_y'])+'.'+str(i_cv)+' | ' +
+                'n rep inner cv: '+str(n_splits)+' | ' +
+                'acc: '+str(np.round(hp_score, decimals=4)))
         # Other
         else:
             # Raise error
@@ -401,8 +407,12 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
     # Random search for best parameter
     search.fit(x_trn, y_trn.squeeze(), groups=g_trn)
     # Print tune summary
-    print_tune_summary(task, i_cv, n_repeats, search.best_params_,
-                       search.best_score_)
+    print_tune_summary(
+        task,
+        i_cv,
+        n_repeats,
+        search.best_params_,
+        search.best_score_)
 
     # Return tuned analysis pipe ----------------------------------------------
     return search.best_estimator_, search.best_params_
@@ -446,19 +456,21 @@ def score_predictions(task, pipe, x_tst, y_tst, y):
         # Score predictions in terms of R²
         r2 = r2_score(y_tst, y_pred)
         # Results
-        scores = {'y_true': y_tst.squeeze().to_numpy(),
-                  'y_pred': y_pred,
-                  'mae': mae,
-                  'mse': mse,
-                  'r2': r2}
+        scores = {
+            'y_true': y_tst.squeeze().to_numpy(),
+            'y_pred': y_pred,
+            'mae': mae,
+            'mse': mse,
+            'r2': r2}
     # Classification
     elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
         # Calculate model fit in terms of acc
         acc = balanced_accuracy_score(y_tst, y_pred)
         # Results
-        scores = {'y_true': y_tst.squeeze().to_numpy(),
-                  'y_pred': y_pred,
-                  'acc': acc}
+        scores = {
+            'y_true': y_tst.squeeze().to_numpy(),
+            'y_pred': y_pred,
+            'acc': acc}
     # Other
     else:
         # Raise error
@@ -535,15 +547,17 @@ def get_explainations(task, pipe, x_trn, x_tst):
     # Get explainations with interactions
     if task['SHAP_INTERACTIONS']:
         # Get shap values
-        shap_explainations = explainer(x_tst_shap,
-                                       interactions=True,
-                                       check_additivity=False)
+        shap_explainations = explainer(
+            x_tst_shap,
+            interactions=True,
+            check_additivity=False)
     # Get explainations without interactions
     elif not task['SHAP_INTERACTIONS']:
         # Get shap values
-        shap_explainations = explainer(x_tst_shap,
-                                       interactions=False,
-                                       check_additivity=False)
+        shap_explainations = explainer(
+            x_tst_shap,
+            interactions=False,
+            check_additivity=False)
     # Other
     else:
         # Raise error
@@ -555,12 +569,12 @@ def get_explainations(task, pipe, x_trn, x_tst):
     # If regression
     if task['OBJECTIVE'] == 'regression':
         # Rescale shap values from scaled data to original space
-        shap_explainations.values = (shap_explainations.values *
-                                     pipe[1].transformer_.scale_[0])
+        shap_explainations.values = (
+            shap_explainations.values*pipe[1].transformer_.scale_[0])
         # Rescale shap base values from scaled data to original space
-        shap_explainations.base_values = ((shap_explainations.base_values *
-                                          pipe[1].transformer_.scale_[0]) +
-                                          pipe[1].transformer_.mean_[0])
+        shap_explainations.base_values = (
+            (shap_explainations.base_values*pipe[1].transformer_.scale_[0]) +
+            pipe[1].transformer_.mean_[0])
 
     # Return shap explainations -----------------------------------------------
     return shap_explainations
@@ -616,31 +630,39 @@ def print_current_results(task, t_start, scores, scores_sh):
     # Regression
     if task['OBJECTIVE'] == 'regression':
         # Print current R2
-        print('Current CV loop R2: '+str(np.round(
-            scores[-1]['r2'], decimals=4)))
+        print(
+            'Current CV loop R2: '+str(np.round(
+                scores[-1]['r2'], decimals=4)))
         # Print running mean R2
-        print('Running mean R2: '+str(np.round(
-            np.mean([i['r2'] for i in scores]), decimals=4)))
+        print(
+            'Running mean R2: '+str(np.round(
+                np.mean([i['r2'] for i in scores]), decimals=4)))
         # Print running mean shuffle R2
-        print('Running shuffle mean R2: '+str(np.round(
-            np.mean([i['r2'] for i in scores_sh]), decimals=4)))
+        print(
+            'Running shuffle mean R2: '+str(np.round(
+                np.mean([i['r2'] for i in scores_sh]), decimals=4)))
         # Print elapsed time
-        print('Elapsed time: '+str(np.round(
-            time() - t_start, decimals=1)), end='\n\n')
+        print(
+            'Elapsed time: '+str(np.round(
+                time() - t_start, decimals=1)), end='\n\n')
     # Classification
     elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
         # Print current acc
-        print('Current CV loop acc: '+str(np.round(
-            scores[-1]['acc'], decimals=4)))
+        print(
+            'Current CV loop acc: '+str(np.round(
+                scores[-1]['acc'], decimals=4)))
         # Print running mean acc
-        print('Running mean acc: '+str(np.round(
-            np.mean([i['acc'] for i in scores]), decimals=4)))
+        print(
+            'Running mean acc: '+str(np.round(
+                np.mean([i['acc'] for i in scores]), decimals=4)))
         # Print running mean shuffle acc
-        print('Running shuffle mean acc: '+str(np.round(
-            np.mean([i['acc'] for i in scores_sh]), decimals=4)))
+        print(
+            'Running shuffle mean acc: '+str(np.round(
+                np.mean([i['acc'] for i in scores_sh]), decimals=4)))
         # Print elapsed time
-        print('Elapsed time: '+str(np.round(
-            time() - t_start, decimals=1)), end='\n\n')
+        print(
+            'Elapsed time: '+str(np.round(
+                time() - t_start, decimals=1)), end='\n\n')
     # Other
     else:
         # Raise error
@@ -692,9 +714,10 @@ def cross_validation(task, g, x, y):
 
     # Main cross-validation loop ----------------------------------------------
     # Instatiate main cv splitter with fixed random state for comparison
-    cv = RepeatedGroupKFold(n_splits=5,
-                            n_repeats=task['N_REP_OUTER_CV'],
-                            random_state=3141592)
+    cv = RepeatedGroupKFold(
+        n_splits=5,
+        n_repeats=task['N_REP_OUTER_CV'],
+        random_state=3141592)
     # Loop over main (outer) cross validation splits
     for i_cv, (i_trn, i_tst) in enumerate(cv.split(g, groups=g)):
         # Save loop start time
@@ -951,7 +974,7 @@ def main():
     # # Specify path to data. string
     # PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
     # # Specify sheet name. string
-    # SHEET_NAME = 'data'
+    # SHEET_NAME = 'data_nan'
     # # Specify task OBJECTIVE. string (regression, binary, multiclass)
     # OBJECTIVE = 'regression'
     # # Specify grouping for CV split. list of string
@@ -1268,28 +1291,31 @@ def main():
 
     # Load data ---------------------------------------------------------------
     # Load groups from excel file
-    G = pd.read_excel(task['PATH_TO_DATA'],
-                      sheet_name=task['SHEET_NAME'],
-                      header=0,
-                      usecols=task['G_NAME'],
-                      dtype=np.float64,
-                      skiprows=task['SKIP_ROWS'])
+    G = pd.read_excel(
+        task['PATH_TO_DATA'],
+        sheet_name=task['SHEET_NAME'],
+        header=0,
+        usecols=task['G_NAME'],
+        dtype=np.float64,
+        skiprows=task['SKIP_ROWS'])
     # Load predictors from excel file
-    X = pd.read_excel(task['PATH_TO_DATA'],
-                      sheet_name=task['SHEET_NAME'],
-                      header=0,
-                      usecols=task['x_names'],
-                      dtype=np.float64,
-                      skiprows=task['SKIP_ROWS'])
+    X = pd.read_excel(
+        task['PATH_TO_DATA'],
+        sheet_name=task['SHEET_NAME'],
+        header=0,
+        usecols=task['x_names'],
+        dtype=np.float64,
+        skiprows=task['SKIP_ROWS'])
     # Reindex x to x_names
     X = X.reindex(task['x_names'], axis=1)
     # Load targets from excel file
-    Y = pd.read_excel(task['PATH_TO_DATA'],
-                      sheet_name=task['SHEET_NAME'],
-                      header=0,
-                      usecols=task['Y_NAMES'],
-                      dtype=np.float64,
-                      skiprows=task['SKIP_ROWS'])
+    Y = pd.read_excel(
+        task['PATH_TO_DATA'],
+        sheet_name=task['SHEET_NAME'],
+        header=0,
+        usecols=task['Y_NAMES'],
+        dtype=np.float64,
+        skiprows=task['SKIP_ROWS'])
 
     # Modelling and testing ---------------------------------------------------
     # Iterate over prediction targets (Y_NAMES)
@@ -1308,17 +1334,25 @@ def main():
         x = X.reindex(index=y.index).reset_index(drop=True)
         # Reset index of target
         y = y.reset_index(drop=True)
-
+        # Raise Warning if samples were dropped because of NaNs in target
+        if y.shape[0] < Y.shape[0]:
+            # Warning
+            warnings.warn(
+                'Warning: ' +
+                str(Y.shape[0]-y.shape[0]) +
+                ' samples were dropped due to NaNs in ' +
+                y_name+'.', UserWarning)
         # Get target-encoding categories but don't do encoding ----------------
         # If multi categorical predictors
         if task['X_CAT_MULT_NAMES']:
             # Instatiate target-encoder
-            te = TargetEncoder(categories='auto',
-                               target_type='continuous',
-                               smooth='auto',
-                               cv=5,
-                               shuffle=True,
-                               random_state=None)
+            te = TargetEncoder(
+                categories='auto',
+                target_type='continuous',
+                smooth='auto',
+                cv=5,
+                shuffle=True,
+                random_state=None)
             # Fit target-encoder
             te.fit(x[task['X_CAT_MULT_NAMES']], y.squeeze())
             # Get target-encoder categories

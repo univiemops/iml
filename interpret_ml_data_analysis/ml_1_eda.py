@@ -1,7 +1,7 @@
 # *- coding: utf-8 -*-
 '''
 Exploratory Data Analysis (EDA)
-v137
+v139
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -71,12 +71,13 @@ def eda(task, x, y):
 
     # Preprocessing -----------------------------------------------------------
     # Instatiate target encoder
-    te = TargetEncoder(categories='auto',
-                       target_type='continuous',
-                       smooth='auto',
-                       cv=5,
-                       shuffle=True,
-                       random_state=3141592)
+    te = TargetEncoder(
+        categories='auto',
+        target_type='continuous',
+        smooth='auto',
+        cv=5,
+        shuffle=True,
+        random_state=3141592)
     # Get categorical predictors for target-encoder
     coltrans = ColumnTransformer(
         [('con_pred', 'passthrough', task['X_CON_NAMES']),
@@ -91,10 +92,11 @@ def eda(task, x, y):
         verbose=False,
         verbose_feature_names_out=False)
     # Pipeline
-    pre_pipe = Pipeline([('coltrans', coltrans),
-                         ('std_scaler', StandardScaler())],
-                        memory=None,
-                        verbose=False).set_output(transform='pandas')
+    pre_pipe = Pipeline(
+        [('coltrans', coltrans),
+         ('std_scaler', StandardScaler())],
+        memory=None,
+        verbose=False).set_output(transform='pandas')
     # Concatinate predictors and targets
     z = pd.concat([x, y], axis=1)
     # Do preprocessing
@@ -108,13 +110,23 @@ def eda(task, x, y):
         # x names count
         x_names_count = len(task['x_names'])
         # Create a figure
-        fig, ax = plt.subplots(figsize=(x_names_max_len*.1+4,
-                                        x_names_count*.7+1))
+        fig, ax = plt.subplots(
+            figsize=(x_names_max_len*.1+4, x_names_count*.7+1))
         # Violinplot all data
-        sns.violinplot(data=z, bw_method='scott', bw_adjust=0.5,
-                       cut=2, density_norm='width', gridsize=100, width=0.8,
-                       inner='box', orient='h', linewidth=1, color='#777777',
-                       saturation=1, ax=ax)
+        sns.violinplot(
+            data=z,
+            bw_method='scott',
+            bw_adjust=0.5,
+            cut=2,
+            density_norm='width',
+            gridsize=100,
+            width=0.8,
+            inner='box',
+            orient='h',
+            linewidth=1,
+            color='#777777',
+            saturation=1,
+            ax=ax)
         # Remove top, right and left frame elements
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -125,19 +137,21 @@ def eda(task, x, y):
         # Add horizontal grid
         fig.axes[0].set_axisbelow(True)
         # Set grid style
-        fig.axes[0].grid(axis='y', color='#bbbbbb', linestyle='dotted',
-                         alpha=.3)
+        fig.axes[0].grid(
+            axis='y',
+            color='#bbbbbb',
+            linestyle='dotted',
+            alpha=.3)
         # Make title string
-        title_str = (
-            task['ANALYSIS_NAME']+' ' +
-            'data distributions')
+        title_str = (task['ANALYSIS_NAME']+' '+'data distributions')
         # set title
         plt.title(title_str, fontsize=10)
 
         # Save figure ---------------------------------------------------------
         # Make save path
-        save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                     '_'+task['y_name'][0]+'_eda_1_distribuations')
+        save_path = (
+            task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
+            '_'+task['y_name'][0]+'_eda_1_distribuations')
         # Save figure in .png format
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -151,13 +165,14 @@ def eda(task, x, y):
     # Do PAIRPLOTS?
     if task['PAIRPLOTS']:
         # Make pairplot
-        pair_plot = sns.pairplot(z, corner=False, diag_kind='kde',
-                                 plot_kws={'color': '#777777'},
-                                 diag_kws={'color': '#777777'})
+        pair_plot = sns.pairplot(
+            z,
+            corner=False,
+            diag_kind='kde',
+            plot_kws={'color': '#777777'},
+            diag_kws={'color': '#777777'})
         # Make title string
-        title_str = (
-            task['ANALYSIS_NAME']+' ' +
-            'data pair plots')
+        title_str = (task['ANALYSIS_NAME']+' '+'data pair plots')
         # set title
         pair_plot.fig.suptitle(title_str, fontsize=10, y=1.0)
         # Add variable kde to plot
@@ -165,8 +180,9 @@ def eda(task, x, y):
 
         # Save figure ---------------------------------------------------------
         # Make save path
-        save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                     '_'+task['y_name'][0]+'_eda_2_pairplots')
+        save_path = (
+            task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
+            '_'+task['y_name'][0]+'_eda_2_pairplots')
         # Save figure in .png format
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -184,38 +200,38 @@ def eda(task, x, y):
         # x names count
         x_names_count = len(task['x_names'])
         # Create a figure
-        fig, ax = plt.subplots(figsize=(x_names_count*.5+x_names_max_len*.1+1,
-                                        x_names_count*.5+x_names_max_len*.1+1))
+        fig, ax = plt.subplots(
+            figsize=(x_names_count*.5+x_names_max_len*.1+1,
+                     x_names_count*.5+x_names_max_len*.1+1))
         # Make colorbar string
         clb_str = ('correlation coefficient')
         # Print correlations
-        sns.heatmap(z.corr(),
-                    vmin=-1,
-                    vmax=1,
-                    cmap='Greys',
-                    center=None,
-                    robust=True,
-                    annot=True,
-                    fmt='.2f',
-                    annot_kws={'size': 10},
-                    linewidths=.5,
-                    linecolor='#999999',
-                    cbar=True,
-                    cbar_kws={'label': clb_str, 'shrink': 0.6},
-                    cbar_ax=None,
-                    square=True,
-                    xticklabels=1,
-                    yticklabels=1,
-                    mask=None,
-                    ax=ax)
+        sns.heatmap(
+            z.corr(),
+            vmin=-1,
+            vmax=1,
+            cmap='Greys',
+            center=None,
+            robust=True,
+            annot=True,
+            fmt='.2f',
+            annot_kws={'size': 10},
+            linewidths=.5,
+            linecolor='#999999',
+            cbar=True,
+            cbar_kws={'label': clb_str, 'shrink': 0.6},
+            cbar_ax=None,
+            square=True,
+            xticklabels=1,
+            yticklabels=1,
+            mask=None,
+            ax=ax)
         # This sets the yticks 'upright' with 0, as opposed to sideways with 90
         plt.yticks(rotation=0)
         # This sets the xticks 'sideways' with 90
         plt.xticks(rotation=90)
         # Make title string
-        title_str = (
-            task['ANALYSIS_NAME']+' ' +
-            'data correlations')
+        title_str = (task['ANALYSIS_NAME']+' '+'data correlations')
         # set title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -228,8 +244,9 @@ def eda(task, x, y):
 
         # Save figure ---------------------------------------------------------
         # Make save path
-        save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                     '_'+task['y_name'][0]+'_eda_3_correlations')
+        save_path = (
+            task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
+            '_'+task['y_name'][0]+'_eda_3_correlations')
         # Save figure in .png format
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -245,13 +262,14 @@ def eda(task, x, y):
         # Check for NaN values
         if not z.isnull().values.any():
             # Instanciate PCA
-            pca = PCA(n_components=x.shape[1],
-                      copy=True,
-                      whiten=False,
-                      svd_solver='auto',
-                      tol=1e-4,
-                      iterated_power='auto',
-                      random_state=None)
+            pca = PCA(
+                n_components=x.shape[1],
+                copy=True,
+                whiten=False,
+                svd_solver='auto',
+                tol=1e-4,
+                iterated_power='auto',
+                random_state=None)
             # Fit PCA
             pca.fit(x)
             # x names count
@@ -259,13 +277,15 @@ def eda(task, x, y):
             # Make figure
             fig, ax = plt.subplots(figsize=(max((1+x_names_count*.25), 8), 4))
             # Plot data
-            ax.plot(pca.explained_variance_ratio_,
-                    label='Explained variance per component')
+            ax.plot(
+                pca.explained_variance_ratio_,
+                label='Explained variance per component')
             # Add dots
-            ax.plot(pca.explained_variance_ratio_,
-                    color='black',
-                    marker='.',
-                    linestyle='None')
+            ax.plot(
+                pca.explained_variance_ratio_,
+                color='black',
+                marker='.',
+                linestyle='None')
             # Remove top, right and left frame elements
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -276,14 +296,16 @@ def eda(task, x, y):
             # Create twin x axis
             ax2 = ax.twinx()
             # Plot cum sum of explained variance
-            ax2.plot(np.cumsum(pca.explained_variance_ratio_),
-                     color='orange',
-                     label='Cumulative explained variance')
+            ax2.plot(
+                np.cumsum(pca.explained_variance_ratio_),
+                color='orange',
+                label='Cumulative explained variance')
             # Add dots
-            ax2.plot(np.cumsum(pca.explained_variance_ratio_),
-                     color='black',
-                     marker='.',
-                     linestyle='None')
+            ax2.plot(
+                np.cumsum(pca.explained_variance_ratio_),
+                color='black',
+                marker='.',
+                linestyle='None')
             # Remove top, right and left frame elements
             ax2.spines['top'].set_visible(False)
             ax2.spines['left'].set_visible(False)
@@ -301,9 +323,10 @@ def eda(task, x, y):
                 # Add current cumsum label
                 ax2.text(comp, t, t, fontsize=8)
             # Add legend
-            fig.legend(loc='center right',
-                       bbox_to_anchor=(1, 0.5),
-                       bbox_transform=ax.transAxes)
+            fig.legend(
+                loc='center right',
+                bbox_to_anchor=(1, 0.5),
+                bbox_transform=ax.transAxes)
             # Make title string
             title_str = (
                 task['ANALYSIS_NAME']+' ' +
@@ -313,8 +336,9 @@ def eda(task, x, y):
 
             # Save figure -----------------------------------------------------
             # Make save path
-            save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                         '_'+task['y_name'][0]+'_eda_4_pca')
+            save_path = (
+                task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
+                '_'+task['y_name'][0]+'_eda_4_pca')
             # Save figure in .png format
             plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
@@ -334,15 +358,16 @@ def eda(task, x, y):
         # Check for NaN values
         if not z.isnull().values.any():
             # Instanciate isolation forest
-            iForest = IsolationForest(n_estimators=1000,
-                                      max_samples='auto',
-                                      contamination='auto',
-                                      max_features=0.5,
-                                      bootstrap=False,
-                                      n_jobs=-2,
-                                      random_state=None,
-                                      verbose=0,
-                                      warm_start=False)
+            iForest = IsolationForest(
+                n_estimators=1000,
+                max_samples='auto',
+                contamination='auto',
+                max_features=0.5,
+                bootstrap=False,
+                n_jobs=-2,
+                random_state=None,
+                verbose=0,
+                warm_start=False)
             # Fit data and predict outlier
             outlier = iForest.fit_predict(x)
             # Make outlier dataframe
@@ -352,11 +377,12 @@ def eda(task, x, y):
             # Make figure
             fig, ax = plt.subplots(figsize=(8, 5))
             # Plot hist of inlier score
-            sns.histplot(data=outlier_score,
-                         bins=30,
-                         kde=True,
-                         color='#777777',
-                         ax=ax)
+            sns.histplot(
+                data=outlier_score,
+                bins=30,
+                kde=True,
+                color='#777777',
+                ax=ax)
             # Remove top, right and left frame elements
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -374,8 +400,9 @@ def eda(task, x, y):
 
             # Save figure -----------------------------------------------------
             # Make save path
-            save_path = (task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                         '_'+task['y_name'][0]+'_eda_5_outlier')
+            save_path = (
+                task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
+                '_'+task['y_name'][0]+'_eda_5_outlier')
             # Save outlier data
             outlier_df.to_excel(save_path+'.xlsx')
             # Save figure in .png format
@@ -389,7 +416,7 @@ def eda(task, x, y):
         # If nans
         else:
             # Raise warning
-            warnings.warn('Outlier skipped because of NaN values.')
+            warnings.warn('Warning: Outlier skipped because of NaN values.')
 
     # Return ------------------------------------------------------------------
     return
@@ -735,21 +762,23 @@ def main():
 
     # Load data ---------------------------------------------------------------
     # Load predictors from excel file
-    X = pd.read_excel(task['PATH_TO_DATA'],
-                      sheet_name=task['SHEET_NAME'],
-                      header=0,
-                      usecols=task['x_names'],
-                      dtype=np.float64,
-                      skiprows=task['SKIP_ROWS'])
+    X = pd.read_excel(
+        task['PATH_TO_DATA'],
+        sheet_name=task['SHEET_NAME'],
+        header=0,
+        usecols=task['x_names'],
+        dtype=np.float64,
+        skiprows=task['SKIP_ROWS'])
     # Reindex x to x_names
     X = X.reindex(task['x_names'], axis=1)
     # Load targets from excel file
-    Y = pd.read_excel(task['PATH_TO_DATA'],
-                      sheet_name=task['SHEET_NAME'],
-                      header=0,
-                      usecols=task['Y_NAMES'],
-                      dtype=np.float64,
-                      skiprows=task['SKIP_ROWS'])
+    Y = pd.read_excel(
+        task['PATH_TO_DATA'],
+        sheet_name=task['SHEET_NAME'],
+        header=0,
+        usecols=task['Y_NAMES'],
+        dtype=np.float64,
+        skiprows=task['SKIP_ROWS'])
 
     # Prepare data ------------------------------------------------------------
     # Iterate over prediction targets (Y_NAMES)
@@ -769,9 +798,10 @@ def main():
 
         # Limit number of samples ---------------------------------------------
         # Subsample predictors
-        x = x.sample(n=min(x.shape[0], task['MAX_SAMPLES']),
-                     random_state=3141592,
-                     ignore_index=False)
+        x = x.sample(
+            n=min(x.shape[0], task['MAX_SAMPLES']),
+            random_state=3141592,
+            ignore_index=False)
         # Slice targets to fit subsampled predictors
         y = y.loc[x.index, :].reset_index(drop=True)
         # Reset index of predictors
@@ -779,11 +809,13 @@ def main():
 
         # Store data ----------------------------------------------------------
         # Save predictors
-        x.to_excel(path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
-                   '_data_x.xlsx')
+        x.to_excel(
+            path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
+            '_data_x.xlsx')
         # Save targets
-        y.to_excel(path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
-                   '_data_y.xlsx')
+        y.to_excel(
+            path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
+            '_data_y.xlsx')
 
         # Exploratory data analysis (EDA) -------------------------------------
         # Run EDA

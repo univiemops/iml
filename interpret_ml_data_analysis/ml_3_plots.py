@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Plot results of Interpretable Machine-Learning Data Analysis
-v266
+v269
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -172,12 +172,13 @@ def print_parameter_distributions(task, results, plots_path):
         # Make figure
         fig, ax = plt.subplots(figsize=(8, 5))
         # Plot hist of inlier score
-        sns.histplot(data=data.astype('float'),
-                     bins=30,
-                     kde=True,
-                     color='#777777',
-                     log_scale=True if name.endswith('path_smooth') else False,
-                     ax=ax)
+        sns.histplot(
+            data=data.astype('float'),
+            bins=30,
+            kde=True,
+            color='#777777',
+            log_scale=True if name.endswith('path_smooth') else False,
+            ax=ax)
         # Remove top, right and left frame elements
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -186,19 +187,21 @@ def print_parameter_distributions(task, results, plots_path):
         # Add y label
         ax.set_ylabel('Number')
         # Set title
-        ax.set_title(task['ANALYSIS_NAME']+' ' +
-                     'parameter distribution for predicting'+' ' +
-                     task['y_name'][0],
-                     fontsize=10)
+        ax.set_title(
+            task['ANALYSIS_NAME']+' ' +
+            'parameter distribution for predicting'+' ' +
+            task['y_name'][0],
+            fontsize=10)
 
         # Save figure ---------------------------------------------------------
         # Make save path
-        save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                     '0'+'_' +
-                     str(idx)+'_' +
-                     task['y_name'][0]+'_' +
-                     'hyperparameter'+'_' +
-                     name)[:150]
+        save_path = (
+            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            '0'+'_' +
+            str(idx)+'_' +
+            task['y_name'][0]+'_' +
+            'hyperparameter'+'_' +
+            name)[:150]
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -240,25 +243,33 @@ def print_regression_scatter(task, results, plots_path):
     # Make figure
     fig, ax = plt.subplots(figsize=(8, 8))
     # Print data
-    ax.scatter(pred_values,
-               true_values,
-               zorder=2,
-               alpha=0.1,
-               color='#444444')
+    ax.scatter(
+        pred_values,
+        true_values,
+        zorder=2,
+        alpha=0.1,
+        color='#444444')
     # Add optimal fit line
-    ax.plot([-10000, 10000], [-10000, 10000],
-            color='#999999',
-            zorder=3,
-            linewidth=2,
-            alpha=0.3)
+    ax.plot(
+        [-10000, 10000], [-10000, 10000],
+        color='#999999',
+        zorder=3,
+        linewidth=2,
+        alpha=0.3)
     # Fix aspect
     ax.set_aspect(1)
     # Remove top, right and left frame elements
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     # Remove ticks
-    ax.tick_params(axis='both', which='major', reset=True,
-                   bottom=True, top=False, left=True, right=False)
+    ax.tick_params(
+        axis='both',
+        which='major',
+        reset=True,
+        bottom=True,
+        top=False,
+        left=True,
+        right=False)
     # Add grid
     ax.grid(visible=True, which='major', axis='both')
     # Modify grid
@@ -266,16 +277,19 @@ def print_regression_scatter(task, results, plots_path):
     # Get true values range
     true_values_range = max(true_values) - min(true_values)
     # Set x-axis limits
-    ax.set_xlim(min(true_values) - true_values_range/20,
-                max(true_values) + true_values_range/20)
+    ax.set_xlim(
+        min(true_values) - true_values_range/20,
+        max(true_values) + true_values_range/20)
     # Set y-axis limits
-    ax.set_ylim(min(true_values) - true_values_range/20,
-                max(true_values) + true_values_range/20)
+    ax.set_ylim(
+        min(true_values) - true_values_range/20,
+        max(true_values) + true_values_range/20)
     # Set title
-    ax.set_title(task['ANALYSIS_NAME']+' ' +
-                 'predicting'+' ' +
-                 task['y_name'][0],
-                 fontsize=10)
+    ax.set_title(
+        task['ANALYSIS_NAME']+' ' +
+        'predicting'+' ' +
+        task['y_name'][0],
+        fontsize=10)
     # Set xlabel
     ax.set_xlabel('Predicted values', fontsize=10)
     # Set x ticks size
@@ -293,22 +307,26 @@ def print_regression_scatter(task, results, plots_path):
     # Calculate p-value between MAE and shuffle MAE
     _, pval_mae = corrected_ttest(np.array(mae_sh)-np.array(mae))
     # Add MAE results to plot
-    ax.text(.40, .055, ('MAE original mean'+r'$\pm$'+'std:{:.2f}'+r'$\pm$' +
-            '{:.2f}|med:{:.2f}').format(
-            np.mean(mae),
-            np.std(mae),
-            np.median(mae)),
-            transform=ax.transAxes,
-            fontsize=8)
+    ax.text(
+        .40, .055,
+        ('MAE original mean'+r'$\pm$'+'std:{:.2f}'+r'$\pm$' +
+         '{:.2f}|med:{:.2f}').format(
+             np.mean(mae),
+             np.std(mae),
+             np.median(mae)),
+        transform=ax.transAxes,
+        fontsize=8)
     # Add MAE p val results to plot
-    ax.text(.40, .02, ('MAE shuffle mean'+r'$\pm$'+'std:{:.2f}'+r'$\pm$' +
-            '{:.2f}|med:{:.2f}|p:{:.3f}').format(
+    ax.text(
+        .40, .02,
+        ('MAE shuffle mean'+r'$\pm$'+'std:{:.2f}'+r'$\pm$' +
+         '{:.2f}|med:{:.2f}|p:{:.3f}').format(
             np.mean(mae_sh),
             np.std(mae_sh),
             np.median(mae_sh),
             pval_mae),
-            transform=ax.transAxes,
-            fontsize=8)
+        transform=ax.transAxes,
+        fontsize=8)
 
     # Add R² ------------------------------------------------------------------
     # Extract R²
@@ -318,28 +336,33 @@ def print_regression_scatter(task, results, plots_path):
     # Calculate p-value between R² and shuffle R²
     _, pval_r2 = corrected_ttest(np.array(r2)-np.array(r2_sh))
     # Add R² results to plot
-    ax.text(.02, .96, ('R² original mean'+r'$\pm$'+'std:{:.3f}'+r'$\pm$' +
-            '{:.3f}|med:{:.3f}').format(
-            np.mean(r2),
-            np.std(r2),
-            np.median(r2)),
-            transform=ax.transAxes,
-            fontsize=8)
+    ax.text(
+        .02, .96,
+        ('R² original mean'+r'$\pm$'+'std:{:.3f}'+r'$\pm$' +
+         '{:.3f}|med:{:.3f}').format(
+             np.mean(r2),
+             np.std(r2),
+             np.median(r2)),
+        transform=ax.transAxes,
+        fontsize=8)
     # Add R² p val results to plot
-    ax.text(.02, .925, ('R² shuffle mean'+r'$\pm$'+'std:{:.3f}'+r'$\pm$' +
-            '{:.3f}|med:{:.3f}|p:{:.3f}').format(
-            np.mean(r2_sh),
-            np.std(r2_sh),
-            np.median(r2_sh),
-            pval_r2),
-            transform=ax.transAxes,
-            fontsize=8)
+    ax.text(
+        .02, .925,
+        ('R² shuffle mean'+r'$\pm$'+'std:{:.3f}'+r'$\pm$' +
+         '{:.3f}|med:{:.3f}|p:{:.3f}').format(
+             np.mean(r2_sh),
+             np.std(r2_sh),
+             np.median(r2_sh),
+             pval_r2),
+        transform=ax.transAxes,
+        fontsize=8)
 
     # Save figure -------------------------------------------------------------
     # Make save path
-    save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                 '1'+'_' +
-                 task['y_name'][0])[:150]
+    save_path = (
+        plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+        '1'+'_' +
+        task['y_name'][0])[:150]
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -407,19 +430,37 @@ def print_regression_violin(task, results, plots_path):
     # Loop over metrics
     for i, metric in enumerate(metrics):
         # Plot data
-        sns.violinplot(x=metric, y='Dummy', hue='Data', data=all_scores_df,
-                       bw_method='scott', bw_adjust=0.5, cut=2,
-                       density_norm='width', gridsize=100, width=0.8,
-                       inner='box', orient='h', linewidth=1, saturation=1,
-                       ax=ax[i], palette=mypal)
+        sns.violinplot(
+            x=metric,
+            y='Dummy',
+            hue='Data',
+            data=all_scores_df,
+            bw_method='scott',
+            bw_adjust=0.5,
+            cut=2,
+            density_norm='width',
+            gridsize=100,
+            width=0.8,
+            inner='box',
+            orient='h',
+            linewidth=1,
+            saturation=1,
+            ax=ax[i],
+            palette=mypal)
         # Remove top, right and left frame elements
         ax[i].spines['top'].set_visible(False)
         ax[i].spines['right'].set_visible(False)
         ax[i].spines['left'].set_visible(False)
         # Remove ticks
-        ax[i].tick_params(axis='both', which='major', reset=True,
-                          bottom=True, top=False, left=False, right=False,
-                          labelleft=False)
+        ax[i].tick_params(
+            axis='both',
+            which='major',
+            reset=True,
+            bottom=True,
+            top=False,
+            left=False,
+            right=False,
+            labelleft=False)
         # Set x ticks and size
         ax[i].set_xlabel(metrics[i], fontsize=10)
         # Set y ticks and size
@@ -431,8 +472,11 @@ def print_regression_violin(task, results, plots_path):
         # Add horizontal grid
         fig.axes[i].set_axisbelow(True)
         # Set grid style
-        fig.axes[i].grid(axis='y', color='#bbbbbb', linestyle='dotted',
-                         alpha=.3)
+        fig.axes[i].grid(
+            axis='y',
+            color='#bbbbbb',
+            linestyle='dotted',
+            alpha=.3)
     # Make title string
     title_str = (
         task['ANALYSIS_NAME']+' ' +
@@ -443,10 +487,11 @@ def print_regression_violin(task, results, plots_path):
 
     # Save figure -------------------------------------------------------------
     # Make save path
-    save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                 '1'+'_' +
-                 task['y_name'][0]+'_' +
-                 'distribution')[:150]
+    save_path = (
+        plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+        '1'+'_' +
+        task['y_name'][0]+'_' +
+        'distribution')[:150]
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -505,37 +550,41 @@ def print_classification_confusion(task, results, plots_path):
                 normalize='all')
         else:
             # Add confusion matrix
-            con_mat = np.add(con_mat, confusion_matrix(
-                true,
-                pred,
-                labels=class_labels,
-                normalize='all'))
+            con_mat = np.add(
+                con_mat,
+                confusion_matrix(
+                    true,
+                    pred,
+                    labels=class_labels,
+                    normalize='all'))
     # Normalize confusion matrix
     con_mat_norm = con_mat / len(true_values)
 
     # Plot confusion matrix ---------------------------------------------------
     # Create figure
-    fig, ax = plt.subplots(figsize=(con_mat.shape[0]*.5+3,
-                                    con_mat.shape[0]*.5+3))
+    fig, ax = plt.subplots(
+        figsize=(con_mat.shape[0]*.5+3,
+                 con_mat.shape[0]*.5+3))
     # Plot confusion matrix
-    sns.heatmap(con_mat_norm*100,
-                vmin=None,
-                vmax=None,
-                cmap='Greys',
-                center=None,
-                robust=True,
-                annot=True,
-                fmt='.2f',
-                annot_kws={'size': 10},
-                linewidths=1,
-                linecolor='#999999',
-                cbar=False,
-                cbar_kws=None,
-                square=True,
-                xticklabels=[int(idx) for idx in class_labels],
-                yticklabels=[int(idx) for idx in class_labels],
-                mask=None,
-                ax=ax)
+    sns.heatmap(
+        con_mat_norm*100,
+        vmin=None,
+        vmax=None,
+        cmap='Greys',
+        center=None,
+        robust=True,
+        annot=True,
+        fmt='.2f',
+        annot_kws={'size': 10},
+        linewidths=1,
+        linecolor='#999999',
+        cbar=False,
+        cbar_kws=None,
+        square=True,
+        xticklabels=[int(idx) for idx in class_labels],
+        yticklabels=[int(idx) for idx in class_labels],
+        mask=None,
+        ax=ax)
     # Add x label to plot
     plt.xlabel('Predicted class', fontsize=10)
     # Add y label to plot
@@ -566,9 +615,10 @@ def print_classification_confusion(task, results, plots_path):
 
     # Save figure -------------------------------------------------------------
     # Make save path
-    save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                 '1'+'_' +
-                 task['y_name'][0])[:150]
+    save_path = (
+        plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+        '1'+'_' +
+        task['y_name'][0])[:150]
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -630,19 +680,37 @@ def print_classification_violin(task, results, plots_path):
     # Loop over metrics
     for i, metric in enumerate(metrics):
         # Plot data
-        sns.violinplot(x=metric, y='Dummy', hue='Data', data=all_scores_df,
-                       bw_method='scott', bw_adjust=0.5, cut=2,
-                       density_norm='width', gridsize=100, width=0.8,
-                       inner='box', orient='h', linewidth=1, saturation=1,
-                       ax=ax[i], palette=mypal)
+        sns.violinplot(
+            x=metric,
+            y='Dummy',
+            hue='Data',
+            data=all_scores_df,
+            bw_method='scott',
+            bw_adjust=0.5,
+            cut=2,
+            density_norm='width',
+            gridsize=100,
+            width=0.8,
+            inner='box',
+            orient='h',
+            linewidth=1,
+            saturation=1,
+            ax=ax[i],
+            palette=mypal)
         # Remove top, right and left frame elements
         ax[i].spines['top'].set_visible(False)
         ax[i].spines['right'].set_visible(False)
         ax[i].spines['left'].set_visible(False)
         # Remove ticks
-        ax[i].tick_params(axis='both', which='major', reset=True,
-                          bottom=True, top=False, left=False, right=False,
-                          labelleft=False)
+        ax[i].tick_params(
+            axis='both',
+            which='major',
+            reset=True,
+            bottom=True,
+            top=False,
+            left=False,
+            right=False,
+            labelleft=False)
         # Set x ticks and size
         ax[i].set_xlabel(metrics[i], fontsize=10)
         # Set y ticks and size
@@ -654,8 +722,11 @@ def print_classification_violin(task, results, plots_path):
         # Add horizontal grid
         fig.axes[i].set_axisbelow(True)
         # Set grid style
-        fig.axes[i].grid(axis='y', color='#bbbbbb', linestyle='dotted',
-                         alpha=.3)
+        fig.axes[i].grid(
+            axis='y',
+            color='#bbbbbb',
+            linestyle='dotted',
+            alpha=.3)
     # Make title string
     title_str = (
         task['ANALYSIS_NAME']+' ' +
@@ -666,10 +737,11 @@ def print_classification_violin(task, results, plots_path):
 
     # Save figure -------------------------------------------------------------
     # Make save path
-    save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                 '1'+'_' +
-                 task['y_name'][0]+'_' +
-                 'distribution')[:150]
+    save_path = (
+        plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+        '1'+'_' +
+        task['y_name'][0]+'_' +
+        'distribution')[:150]
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -799,13 +871,15 @@ def print_shap_effects(task, results, plots_path):
     # Loop over classes
     for c_class in range(n_classes):
         # Get current shap effects
-        shap_effects_df, base = get_shap_effects(task,
-                                                 results['explainations'],
-                                                 c_class)
+        shap_effects_df, base = get_shap_effects(
+            task,
+            results['explainations'],
+            c_class)
         # Get current shuffle shap effects
-        shap_effects_sh_df, _ = get_shap_effects(task,
-                                                 results['explainations_sh'],
-                                                 c_class)
+        shap_effects_sh_df, _ = get_shap_effects(
+            task,
+            results['explainations_sh'],
+            c_class)
 
         # Process SHAP effects-------------------------------------------------
         # Mean shap values
@@ -886,22 +960,30 @@ def print_shap_effects(task, results, plots_path):
         # Loop over values
         for i, (c_pred, c_val) in enumerate(shap_effects_se_mean_sort.items()):
             # Make test string
-            txt_str = (str(np.around(c_val, decimals=2))+'|' +
-                       'p '+str(pval_se[c_pred]))
+            txt_str = (
+                str(np.around(c_val, decimals=2))+'|' +
+                'p '+str(pval_se[c_pred]))
             # Add values to plot
-            ax.text(c_val, i, txt_str, color='k',
-                    va='center', fontsize=8)
+            ax.text(
+                c_val,
+                i,
+                txt_str,
+                color='k',
+                va='center',
+                fontsize=8)
         # Get x limits
         x_left, x_right = plt.xlim()
+        # Set x limits
         plt.xlim(x_left, x_right + x_right*.1)
 
         # Save plot -----------------------------------------------------------
         # Make save path
-        save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                     '2'+'_' +
-                     str(c_class)+'_' +
-                     task['y_name'][0]+'_' +
-                     'shap_effects')[:150]
+        save_path = (
+            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            '2'+'_' +
+            str(c_class)+'_' +
+            task['y_name'][0]+'_' +
+            'shap_effects')[:150]
         # Add class if binary or multiclass (interaction)
         if (task['OBJECTIVE'] == 'multiclass' or
             (task['OBJECTIVE'] == 'binary' and
@@ -957,13 +1039,15 @@ def print_shap_effects_distribution(task, results, plots_path):
     # Loop over classes
     for c_class in range(n_classes):
         # Get current shap effects
-        shap_effects_df, base = get_shap_effects(task,
-                                                 results['explainations'],
-                                                 c_class)
+        shap_effects_df, base = get_shap_effects(
+            task,
+            results['explainations'],
+            c_class)
         # Get current shuffle shap effects
-        shap_effects_sh_df, _ = get_shap_effects(task,
-                                                 results['explainations_sh'],
-                                                 c_class)
+        shap_effects_sh_df, _ = get_shap_effects(
+            task,
+            results['explainations_sh'],
+            c_class)
 
         # Process SHAP effects-------------------------------------------------
         # Sorting index by mean value of columns
@@ -1003,16 +1087,29 @@ def print_shap_effects_distribution(task, results, plots_path):
 
         # Plot ----------------------------------------------------------------
         # Make figure
-        fig, ax = plt.subplots(figsize=(x_names_max_len*.1+7,
-                                        x_names_count*.4+1))
+        fig, ax = plt.subplots(
+            figsize=(x_names_max_len*.1+7,
+                     x_names_count*.4+1))
         # Make color palette
         mypal = {'original': '#777777', 'shuffle': '#eeeeee'}
         # Plot data
-        sns.violinplot(x=value_name, y='predictors', hue='Data',
-                       data=shap_effects_df_sort_melt_all, bw_method='scott',
-                       bw_adjust=0.5, cut=2, density_norm='width',
-                       gridsize=100, width=0.8, inner='box', orient='h',
-                       linewidth=.5, saturation=1, ax=ax, palette=mypal)
+        sns.violinplot(
+            x=value_name,
+            y='predictors',
+            hue='Data',
+            data=shap_effects_df_sort_melt_all,
+            bw_method='scott',
+            bw_adjust=0.5,
+            cut=2,
+            density_norm='width',
+            gridsize=100,
+            width=0.8,
+            inner='box',
+            orient='h',
+            linewidth=.5,
+            saturation=1,
+            ax=ax,
+            palette=mypal)
         # Get the current figure and axes objects.
         _, ax = plt.gcf(), plt.gca()
         # Set x label size
@@ -1053,11 +1150,12 @@ def print_shap_effects_distribution(task, results, plots_path):
 
         # Save plots and results ----------------------------------------------
         # Make save path
-        save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                     '2'+'_' +
-                     str(c_class)+'_' +
-                     task['y_name'][0]+'_' +
-                     'shap_effects_distribution')[:150]
+        save_path = (
+            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            '2'+'_' +
+            str(c_class)+'_' +
+            task['y_name'][0]+'_' +
+            'shap_effects_distribution')[:150]
         # Add class if no interactions and binary or multiclass
         # Add class if binary or multiclass (interaction)
         if (task['OBJECTIVE'] == 'multiclass' or
@@ -1277,8 +1375,10 @@ def print_shap_values(task, results, plots_path):
     # Loop over classes
     for c_class in range(n_classes):
         # Get current shap values
-        shap_values, base = get_shap_values(task, results['explainations'],
-                                            c_class)
+        shap_values, base = get_shap_values(
+            task,
+            results['explainations'],
+            c_class)
 
         # If interactions
         if task['SHAP_INTERACTIONS']:
@@ -1299,19 +1399,20 @@ def print_shap_values(task, results, plots_path):
         x_names_count = len(task['x_names'])
 
         # Plot SHAP values beeswarm -------------------------------------------
-        beeswarm(shap_explainations,
-                 max_display=len(task['x_names']),
-                 order=Explanation.abs.mean(0),
-                 clustering=None,
-                 cluster_threshold=0.5,
-                 color=None,
-                 axis_color='#333333',
-                 alpha=.66,
-                 show=False,
-                 log_scale=False,
-                 color_bar=True,
-                 plot_size=(x_names_max_len*.1+7, x_names_count*.4+1),
-                 color_bar_label='Predictor value')
+        beeswarm(
+            shap_explainations,
+            max_display=len(task['x_names']),
+            order=Explanation.abs.mean(0),
+            clustering=None,
+            cluster_threshold=0.5,
+            color=None,
+            axis_color='#333333',
+            alpha=.66,
+            show=False,
+            log_scale=False,
+            color_bar=True,
+            plot_size=(x_names_max_len*.1+7, x_names_count*.4+1),
+            color_bar_label='Predictor value')
         # Get the current figure and axes objects.
         fig, ax = plt.gcf(), plt.gca()
         # Set x label size
@@ -1349,11 +1450,12 @@ def print_shap_values(task, results, plots_path):
 
         # Save plot -----------------------------------------------------------
         # Make save path
-        save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                     '3'+'_' +
-                     str(c_class)+'_' +
-                     task['y_name'][0]+'_' +
-                     'shap_values')[:150]
+        save_path = (
+            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            '3'+'_' +
+            str(c_class)+'_' +
+            task['y_name'][0]+'_' +
+            'shap_values')[:150]
         # Add class if binary or multiclass (interaction)
         if (task['OBJECTIVE'] == 'multiclass' or
             (task['OBJECTIVE'] == 'binary' and
@@ -1409,8 +1511,10 @@ def print_shap_dependences(task, results, plots_path):
     # Loop over classes
     for c_class in range(n_classes):
         # Get current shap values
-        shap_values, base = get_shap_values(task, results['explainations'],
-                                            c_class)
+        shap_values, base = get_shap_values(
+            task,
+            results['explainations'],
+            c_class)
         # If interactions
         if task['SHAP_INTERACTIONS']:
             # Sum over interaction to get full effects
@@ -1429,22 +1533,23 @@ def print_shap_dependences(task, results, plots_path):
             # Make figure
             fig, ax = plt.subplots(figsize=(8, 5))
             # Plot SHAP Scatter plot
-            scatter(shap_explainations[:, idx],
-                    color='#777777',
-                    hist=True,
-                    axis_color='#333333',
-                    dot_size=16,
-                    x_jitter='auto',
-                    alpha=.5,
-                    title=None,
-                    xmin=None,
-                    xmax=None,
-                    ymin=None,
-                    ymax=None,
-                    overlay=None,
-                    ax=ax,
-                    ylabel='SHAP values',
-                    show=False)
+            scatter(
+                shap_explainations[:, idx],
+                color='#777777',
+                hist=True,
+                axis_color='#333333',
+                dot_size=16,
+                x_jitter='auto',
+                alpha=.5,
+                title=None,
+                xmin=None,
+                xmax=None,
+                ymin=None,
+                ymax=None,
+                overlay=None,
+                ax=ax,
+                ylabel='SHAP values',
+                show=False)
             # Get the current figure and axes objects.
             _, ax = plt.gcf(), plt.gca()
             # Set x label size
@@ -1475,13 +1580,14 @@ def print_shap_dependences(task, results, plots_path):
 
             # Save plot -------------------------------------------------------
             # Make save path
-            save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                         '4'+'_' +
-                         str(c_class)+'_' +
-                         str(idx)+'_' +
-                         task['y_name'][0]+'_' +
-                         'shap_values_dependency'+'_' +
-                         str(c_pred))[:150]
+            save_path = (
+                plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+                '4'+'_' +
+                str(c_class)+'_' +
+                str(idx)+'_' +
+                task['y_name'][0]+'_' +
+                'shap_values_dependency'+'_' +
+                str(c_pred))[:150]
             # Add class if no interactions and binary or multiclass
             # Add class if binary or multiclass (interaction)
             if (task['OBJECTIVE'] == 'multiclass' or
@@ -1591,9 +1697,10 @@ def print_shap_effects_interactions(task, results, plots_path):
     # Loop over classes
     for c_class in range(n_classes):
         # Get current shap effects
-        shap_effects_df, base = get_shap_effects(task,
-                                                 results['explainations'],
-                                                 c_class)
+        shap_effects_df, base = get_shap_effects(
+            task,
+            results['explainations'],
+            c_class)
 
         # Process SHAP effects-------------------------------------------------
         # Mean shap values
@@ -1633,11 +1740,13 @@ def print_shap_effects_interactions(task, results, plots_path):
 
         # Make labels with pvales ---------------------------------------------
         # Get p values
-        pval = np.zeros((shap_effects_inter.shape[1],
-                         shap_effects_inter.shape[2]))
+        pval = np.zeros(
+            (shap_effects_inter.shape[1],
+             shap_effects_inter.shape[2]))
         # Iterate over shap_effects
-        for x, y in np.ndindex((shap_effects_inter.shape[1],
-                                shap_effects_inter.shape[2])):
+        for x, y in np.ndindex(
+                (shap_effects_inter.shape[1],
+                 shap_effects_inter.shape[2])):
             # Get current SHAP effect
             c_effect = shap_effects_inter[:, x, y]
             # Get current SHAP effect shuffle
@@ -1655,8 +1764,9 @@ def print_shap_effects_interactions(task, results, plots_path):
             shap_effects_inter.shape[1],
             shap_effects_inter.shape[2]]))
         # Iterate labels
-        for x, y in np.ndindex((shap_effects_inter.shape[1],
-                                shap_effects_inter.shape[2])):
+        for x, y in np.ndindex(
+                (shap_effects_inter.shape[1],
+                 shap_effects_inter.shape[2])):
             # Make label
             interaction_labels_df.iloc[x, y] = (
                 str(np.around(shap_effects_inter_df.iloc[x, y],
@@ -1676,29 +1786,31 @@ def print_shap_effects_interactions(task, results, plots_path):
 
         # Plot interaction effects --------------------------------------------
         # Create figure
-        fig, ax = plt.subplots(figsize=(x_names_max_len*.1+x_names_count*1+1,
-                                        x_names_max_len*.1+x_names_count*1+1))
+        fig, ax = plt.subplots(
+            figsize=(x_names_max_len*.1+x_names_count*1+1,
+                     x_names_max_len*.1+x_names_count*1+1))
         # Make colorbar string
         clb_str = ('mean(|SHAP value|)')
         # Plot confusion matrix
-        sns.heatmap(shap_effects_inter_sort_df,
-                    vmin=None,
-                    vmax=None,
-                    cmap='Greys',
-                    center=None,
-                    robust=True,
-                    annot=interaction_labels_sort_df,
-                    fmt='',
-                    annot_kws={'size': 10},
-                    linewidths=1,
-                    linecolor='#999999',
-                    cbar=True,
-                    cbar_kws={'label': clb_str, 'shrink': 0.6},
-                    square=True,
-                    xticklabels=True,
-                    yticklabels=True,
-                    mask=None,
-                    ax=ax)
+        sns.heatmap(
+            shap_effects_inter_sort_df,
+            vmin=None,
+            vmax=None,
+            cmap='Greys',
+            center=None,
+            robust=True,
+            annot=interaction_labels_sort_df,
+            fmt='',
+            annot_kws={'size': 10},
+            linewidths=1,
+            linecolor='#999999',
+            cbar=True,
+            cbar_kws={'label': clb_str, 'shrink': 0.6},
+            square=True,
+            xticklabels=True,
+            yticklabels=True,
+            mask=None,
+            ax=ax)
         # Get the current figure and axes objects.
         fig, ax = plt.gcf(), plt.gca()
         # Set x label size
@@ -1736,11 +1848,12 @@ def print_shap_effects_interactions(task, results, plots_path):
 
         # Save plot -----------------------------------------------------------
         # Make save path
-        save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                     '5'+'_' +
-                     str(c_class)+'_' +
-                     task['y_name'][0]+'_' +
-                     'shap_effects_interactions')[:150]
+        save_path = (
+            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            '5'+'_' +
+            str(c_class)+'_' +
+            task['y_name'][0]+'_' +
+            'shap_effects_interactions')[:150]
         # Add class if binary or multiclass (interaction)
         if (task['OBJECTIVE'] == 'multiclass' or
             (task['OBJECTIVE'] == 'binary' and
@@ -1810,27 +1923,28 @@ def print_shap_interaction_values(task, results, plots_path):
             # Make figure
             fig, ax = plt.subplots(figsize=(8, 5))
             # Plot SHAP dependence
-            dependence_plot(ind,
-                            shap_values=shap_values.values,
-                            features=pd.DataFrame(
-                                shap_values.data,
-                                columns=shap_values.feature_names),
-                            feature_names=shap_values.feature_names,
-                            display_features=None,
-                            interaction_index='auto',
-                            color='#1E88E5',
-                            axis_color='#333333',
-                            cmap=None,
-                            dot_size=16,
-                            x_jitter=0,
-                            alpha=.66,
-                            title=None,
-                            xmin=None,
-                            xmax=None,
-                            ax=ax,
-                            show=False,
-                            ymin=None,
-                            ymax=None)
+            dependence_plot(
+                ind,
+                shap_values=shap_values.values,
+                features=pd.DataFrame(
+                    shap_values.data,
+                    columns=shap_values.feature_names),
+                feature_names=shap_values.feature_names,
+                display_features=None,
+                interaction_index='auto',
+                color='#1E88E5',
+                axis_color='#333333',
+                cmap=None,
+                dot_size=16,
+                x_jitter=0,
+                alpha=.66,
+                title=None,
+                xmin=None,
+                xmax=None,
+                ax=ax,
+                show=False,
+                ymin=None,
+                ymax=None)
             # Get the current figure and axes objects.
             _, ax = plt.gcf(), plt.gca()
             # Set x label size
@@ -1871,14 +1985,15 @@ def print_shap_interaction_values(task, results, plots_path):
 
             # Save plot -------------------------------------------------------
             # Make save path
-            save_path = (plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                         '6'+'_' +
-                         str(c_class)+'_' +
-                         str(idx)+'_' +
-                         task['y_name'][0]+'_' +
-                         'shap_interaction_values'+'_' +
-                         ind[0]+'_' +
-                         ind[1])[:150]
+            save_path = (
+                plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+                '6'+'_' +
+                str(c_class)+'_' +
+                str(idx)+'_' +
+                task['y_name'][0]+'_' +
+                'shap_interaction_values'+'_' +
+                ind[0]+'_' +
+                ind[1])[:150]
             # Add class if binary or multiclass (interaction)
             if (task['OBJECTIVE'] == 'multiclass' or
                 (task['OBJECTIVE'] == 'binary' and
