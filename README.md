@@ -1,5 +1,5 @@
-# Interpret ml data analysis (IMLDA)
-Interpretable machine-learning for data analysis  
+# IML data analysis (IMLDA)
+Interpretable machine-learning data analysis  
   
 How to install  
 (1)  Install anaconda (tested with 2023.03-1)  
