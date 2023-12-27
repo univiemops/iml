@@ -9,6 +9,3 @@ How to install (20231227)
 How to update environment with conda (20231227)
 (1)  Open a anaconda prompt
 (2)  Update all packages in env: conda update -c conda-forge -n iml --all blas=*=*mkl
-
-How to get developer version of shap (20231117)
-(1) Install: pip install git+https://github.com/shap/shap
