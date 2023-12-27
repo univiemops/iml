@@ -1,4 +1,4 @@
-# IML data analysis (IMLDA)
+# IML data analysis
 Interpretable machine-learning data analysis  
   
 How to install  
