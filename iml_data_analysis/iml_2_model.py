@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Modelling (MDL)
-v748
+v749
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -1287,7 +1287,7 @@ def main():
     create_dir(path_to_results)
 
     # Copy this python script to results directory ----------------------------
-    shutil.copy('iml_2_analysis.py', path_to_results+'/iml_2_analysis.py')
+    shutil.copy('iml_2_model.py', path_to_results+'/iml_2_model.py')
 
     # Load data ---------------------------------------------------------------
     # Load groups from excel file
