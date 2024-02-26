@@ -1,7 +1,7 @@
 # *- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Exploratory Data Analysis (EDA)
-v140
+v142
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -143,7 +143,7 @@ def eda(task, x, y):
             linestyle='dotted',
             alpha=.3)
         # Make title string
-        title_str = (task['ANALYSIS_NAME']+' '+'data distributions')
+        title_str = (task['ANALYSIS_NAME']+' '+'data distributions \n')
         # set title
         plt.title(title_str, fontsize=10)
 
@@ -172,7 +172,7 @@ def eda(task, x, y):
             plot_kws={'color': '#777777'},
             diag_kws={'color': '#777777'})
         # Make title string
-        title_str = (task['ANALYSIS_NAME']+' '+'data pair plots')
+        title_str = (task['ANALYSIS_NAME']+' '+'data pair plots \n')
         # set title
         pair_plot.fig.suptitle(title_str, fontsize=10, y=1.0)
         # Add variable kde to plot
@@ -231,7 +231,7 @@ def eda(task, x, y):
         # This sets the xticks 'sideways' with 90
         plt.xticks(rotation=90)
         # Make title string
-        title_str = (task['ANALYSIS_NAME']+' '+'data correlations')
+        title_str = (task['ANALYSIS_NAME']+' '+'data correlations \n')
         # set title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -275,7 +275,7 @@ def eda(task, x, y):
             # x names count
             x_names_count = len(task['x_names'])
             # Make figure
-            fig, ax = plt.subplots(figsize=(max((1+x_names_count*.25), 8), 4))
+            fig, ax = plt.subplots(figsize=(max((1+x_names_count*.30), 16), 4))
             # Plot data
             ax.plot(
                 pca.explained_variance_ratio_,
@@ -286,6 +286,10 @@ def eda(task, x, y):
                 color='black',
                 marker='.',
                 linestyle='None')
+            # Set x limit
+            ax.set_xlim((-0.01, ax.get_xlim()[1]))
+            # Set y limit
+            ax.set_ylim((-0.01, 1.01))
             # Remove top, right and left frame elements
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -306,6 +310,10 @@ def eda(task, x, y):
                 color='black',
                 marker='.',
                 linestyle='None')
+            # Set x limit
+            ax2.set_xlim((-0.01, ax2.get_xlim()[1]))
+            # Set y limit
+            ax2.set_ylim((-0.01, 1.01))
             # Remove top, right and left frame elements
             ax2.spines['top'].set_visible(False)
             ax2.spines['left'].set_visible(False)
@@ -315,13 +323,13 @@ def eda(task, x, y):
             for comp, t in enumerate(
                     pca.explained_variance_ratio_.round(decimals=2)):
                 # Add current label
-                ax.text(comp, t, t, fontsize=8)
+                ax.text(comp, t, t, fontsize=10)
             # Add cum sum labels
             for comp, t in enumerate(
                     np.cumsum(
                         pca.explained_variance_ratio_).round(decimals=2)):
                 # Add current cumsum label
-                ax2.text(comp, t, t, fontsize=8)
+                ax2.text(comp, t, t, fontsize=10)
             # Add legend
             fig.legend(
                 loc='center right',
@@ -330,7 +338,7 @@ def eda(task, x, y):
             # Make title string
             title_str = (
                 task['ANALYSIS_NAME']+' ' +
-                'data principle components variance contribution')
+                'data principle components variance contribution \n')
             # set title
             plt.title(title_str, fontsize=10)
 
@@ -393,7 +401,8 @@ def eda(task, x, y):
             # Create title string
             title_str = (
                 task['ANALYSIS_NAME']+' ' +
-                'data outlier detection | Isolation Forest | outlier {:.1f} %')
+                'data outlier detection | Isolation Forest | ' +
+                'outlier {:.1f} % \n')
             # Add title
             ax.set_title(
                 title_str.format(np.sum(outlier == -1)/len(outlier)*100))
@@ -503,6 +512,29 @@ def main():
         ]
     # Rows to skip. list of int or []
     SKIP_ROWS = []
+
+    # # Covid data - classification 2 class
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'covid'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/covid_20240221.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = []
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = [
+    #     'age_over_50',
+    #     'vaccinated',
+    #     ]
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'survived',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
 
     # # Diabetes data - regression, binary category predictor
     # # Specifiy an analysis name
@@ -758,7 +790,7 @@ def main():
     create_dir(path_to_results)
 
     # Copy this python script to results directory ----------------------------
-    shutil.copy('ml_1_eda.py', path_to_results+'/ml_1_eda.py')
+    shutil.copy('iml_1_eda.py', path_to_results+'/iml_1_eda.py')
 
     # Load data ---------------------------------------------------------------
     # Load predictors from excel file
