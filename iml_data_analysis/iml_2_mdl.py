@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Modelling (MDL)
-v757
+v763
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -113,9 +113,9 @@ def prepare(task):
             learning_rate=0.01,
             n_estimators=1000,
             subsample_for_bin=100000,
-            objective=task['OBJECTIVE'],
+            objective='huber',
             min_split_gain=0,
-            min_child_weight=0.001,
+            min_child_weight=0.0001,
             min_child_samples=2,
             subsample=1,
             subsample_freq=0,
@@ -140,7 +140,7 @@ def prepare(task):
         space = {
             'estimator__regressor__colsample_bytree': uniform(0.1, 0.9),
             'estimator__regressor__extra_trees': [True, False],
-            'estimator__regressor__path_smooth': loguniform(0.1, 100),
+            'estimator__regressor__path_smooth': loguniform(1, 100),
             }
         # Add scaler to the estimator
         estimator = TransformedTargetRegressor(
@@ -162,7 +162,7 @@ def prepare(task):
             objective=task['OBJECTIVE'],
             class_weight='balanced',
             min_split_gain=0,
-            min_child_weight=0.001,
+            min_child_weight=0.0001,
             min_child_samples=2,
             subsample=1,
             subsample_freq=0,
@@ -187,7 +187,7 @@ def prepare(task):
         space = {
             'estimator__colsample_bytree': uniform(0.1, 0.9),
             'estimator__extra_trees': [True, False],
-            'estimator__path_smooth': loguniform(0.1, 100),
+            'estimator__path_smooth': loguniform(1, 100),
             }
     # Other
     else:
@@ -269,6 +269,8 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
     print('Analysis: '+task['ANALYSIS_NAME'])
     # Print data set
     print('Dataset: '+task['PATH_TO_DATA'])
+    # Print prediction target
+    print('Predicting: '+task['y_name'][0])
     # Cross-validation --------------------------------------------------------
     if task['TYPE'] == 'CV':
         # Regression
@@ -278,7 +280,7 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
                 str(task['i_y'])+'.'+str(i_cv)+' | ' +
                 'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
                 'n rep inner cv: '+str(n_splits)+' | ' +
-                'best neg MSE: '+str(np.round(hp_score, decimals=4)))
+                'best R²: '+str(np.round(hp_score, decimals=4)))
         # Classification
         elif (task['OBJECTIVE'] == 'binary' or
               task['OBJECTIVE'] == 'multiclass'):
@@ -287,7 +289,7 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
                 str(task['i_y'])+'.'+str(i_cv)+' | ' +
                 'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
                 'n rep inner cv: '+str(n_splits)+' | ' +
-                'acc: '+str(np.round(hp_score, decimals=4)))
+                'best acc: '+str(np.round(hp_score, decimals=4)))
         # Other
         else:
             # Raise error
@@ -300,7 +302,7 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
             print(
                 str(task['i_y'])+'.'+str(i_cv)+' | ' +
                 'n rep inner cv: '+str(n_splits)+' | ' +
-                'best neg MSE: '+str(np.round(hp_score, decimals=4)))
+                'best R²: '+str(np.round(hp_score, decimals=4)))
         # Classification
         elif (task['OBJECTIVE'] == 'binary' or
               task['OBJECTIVE'] == 'multiclass'):
@@ -308,7 +310,7 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
             print(
                 str(task['i_y'])+'.'+str(i_cv)+' | ' +
                 'n rep inner cv: '+str(n_splits)+' | ' +
-                'acc: '+str(np.round(hp_score, decimals=4)))
+                'best acc: '+str(np.round(hp_score, decimals=4)))
         # Other
         else:
             # Raise error
@@ -362,11 +364,11 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
     # Get scorer --------------------------------------------------------------
     # Regression
     if task['OBJECTIVE'] == 'regression':
-        # neg_mean_squared_error
-        scorer = 'neg_mean_squared_error'
+        # R² score
+        scorer = 'r2'
     # Classification
     elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
-        # Weighted accuracy for classification
+        # Balanced accuracy for classification
         scorer = 'balanced_accuracy'
     # Other
     else:
@@ -623,15 +625,15 @@ def print_current_results(task, t_start, scores, scores_sh):
     if task['OBJECTIVE'] == 'regression':
         # Print current R2
         print(
-            'Current CV loop R2: '+str(np.round(
+            'Current CV loop R²: '+str(np.round(
                 scores[-1]['r2'], decimals=4)))
         # Print running mean R2
         print(
-            'Running mean R2: '+str(np.round(
+            'Running mean R²: '+str(np.round(
                 np.mean([i['r2'] for i in scores]), decimals=4)))
         # Print running mean shuffle R2
         print(
-            'Running shuffle mean R2: '+str(np.round(
+            'Running shuffle mean R²: '+str(np.round(
                 np.mean([i['r2'] for i in scores_sh]), decimals=4)))
         # Print elapsed time
         print(
@@ -898,7 +900,7 @@ def main():
     # Number of samples SHAP. int (default: 100).
     MAX_SAMPLES_SHAP = 100
     # Get SHAP interactions. bool (default: True)
-    SHAP_INTERACTIONS = False
+    SHAP_INTERACTIONS = True
 
     # 2. Specify data ---------------------------------------------------------
 
@@ -1021,6 +1023,36 @@ def main():
     # X_CAT_BIN_NAMES = [
     #     'sex',
     #     ]
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'progression',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 441, size=88))
+
+    # # Diabetes data - regression, binary category predictor
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'diabetes_singlepred'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'regression'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'bmi',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
     # # Specify multi categorical predictor names. list of string or []
     # X_CAT_MULT_NAMES = []
     # # Specify target name(s). list of strings or []

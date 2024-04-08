@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Plotting (PLT)
-v285
+v306
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -11,9 +11,7 @@ import os
 import pandas as pd
 import pickle as pkl
 import seaborn as sns
-from itertools import permutations
 from scipy.stats import t
-from shap import dependence_plot
 from shap import Explanation
 from shap.plots import beeswarm
 from shap.plots import scatter
@@ -188,19 +186,21 @@ def print_parameter_distributions(task, results, plots_path):
         ax.set_ylabel('Number')
         # Set title
         ax.set_title(
-            task['ANALYSIS_NAME']+' ' +
-            'parameter distribution for predicting'+' ' +
+            'Analysis name:'+' ' +
+            task['ANALYSIS_NAME']+'\n' +
+            'Parameter distribution of predicting'+' ' +
             task['y_name'][0],
             fontsize=10)
 
         # Save figure ---------------------------------------------------------
         # Make save path
         save_path = (
-            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            plots_path+'/' +
+            task['ANALYSIS_NAME']+'_' +
+            task['y_name'][0]+'_' +
             '0'+'_' +
             str(idx)+'_' +
-            task['y_name'][0]+'_' +
-            'hyperparameter'+'_' +
+            'parameter'+'_' +
             name)[:150]
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
@@ -286,8 +286,9 @@ def print_regression_scatter(task, results, plots_path):
         max(true_values) + true_values_range/20)
     # Set title
     ax.set_title(
-        task['ANALYSIS_NAME']+' ' +
-        'predicting'+' ' +
+        'Analysis name:'+' ' +
+        task['ANALYSIS_NAME']+'\n' +
+        'Performance of predicting'+' ' +
         task['y_name'][0],
         fontsize=10)
     # Set xlabel
@@ -306,29 +307,35 @@ def print_regression_scatter(task, results, plots_path):
     mae_sh = [i['mae'] for i in results['scores_sh']]
     # Calculate p-value between MAE and shuffle MAE
     _, pval_mae = corrected_ttest(np.array(mae_sh)-np.array(mae))
-    # Add MAE results to plot
+    # Add original outcome MAE results to plot
     ax.text(
-        .30, .055,
-        ('Original MAE mean'+r'$\pm$'+'std:{:.2f}'+r'$\pm$' +
-         '{:.2f} | med:{:.2f}').format(
+        .35, .09,
+        ('Original outcome: MAE mean'+r'$\pm$'+'std {:.2f}'+r'$\pm$' +
+         '{:.2f} | med {:.2f}').format(
              np.mean(mae),
              np.std(mae),
              np.median(mae)),
+        transform=ax.transAxes,
+        fontsize=10)
+    # Add shuffled outcome MAE results to plot
+    ax.text(
+        .35, .055,
+        ('Shuffled outcome: MAE mean'+r'$\pm$'+'std {:.2f}'+r'$\pm$' +
+         '{:.2f} | med {:.2f}').format(
+            np.mean(mae_sh),
+            np.std(mae_sh),
+            np.median(mae_sh)),
         transform=ax.transAxes,
         fontsize=10)
     # Make pval string
     if pval_mae <= 0.001:
         pval_string = 'p\u22640.001'
     else:
-        pval_string = 'p='+str(np.around(pval_mae, decimals=3))
-    # Add MAE p val results to plot
+        pval_string = 'p={:.3f}'.format(pval_mae)
+    # Add p value to the plot
     ax.text(
-        .30, .02,
-        ('Shuffled MAE mean'+r'$\pm$'+'std:{:.2f}'+r'$\pm$' +
-         '{:.2f} | med:{:.2f} | ').format(
-            np.mean(mae_sh),
-            np.std(mae_sh),
-            np.median(mae_sh))+pval_string,
+        .35, .02,
+        ('Original vs. shuffled outcome: ')+pval_string,
         transform=ax.transAxes,
         fontsize=10)
 
@@ -339,39 +346,47 @@ def print_regression_scatter(task, results, plots_path):
     r2_sh = [i['r2'] for i in results['scores_sh']]
     # Calculate p-value between R² and shuffle R²
     _, pval_r2 = corrected_ttest(np.array(r2)-np.array(r2_sh))
-    # Add R² results to plot
+    # Add original outcome R² results to plot
     ax.text(
         .02, .96,
-        ('Original R² mean'+r'$\pm$'+'std:{:.3f}'+r'$\pm$' +
-         '{:.3f} | med:{:.3f}').format(
+        ('Original outcome: R² mean'+r'$\pm$'+'std {:.3f}'+r'$\pm$' +
+         '{:.3f} | med {:.3f}').format(
              np.mean(r2),
              np.std(r2),
              np.median(r2)),
+        transform=ax.transAxes,
+        fontsize=10)
+    # Add shuffled outcome R² results to plot
+    ax.text(
+        .02, .925,
+        ('Shuffled outcome: R² mean'+r'$\pm$'+'std {:.3f}'+r'$\pm$' +
+         '{:.3f} | med {:.3f}').format(
+             np.mean(r2_sh),
+             np.std(r2_sh),
+             np.median(r2_sh)),
         transform=ax.transAxes,
         fontsize=10)
     # Make pval string
     if pval_r2 <= 0.001:
         pval_string = 'p\u22640.001'
     else:
-        pval_string = 'p='+str(np.around(pval_r2, decimals=3))
-    # Add R² p val results to plot
+        pval_string = 'p={:.3f}'.format(pval_r2)
+    # Add p value to the plot
     ax.text(
-        .02, .925,
-        ('Shuffled R² mean'+r'$\pm$'+'std:{:.3f}'+r'$\pm$' +
-         '{:.3f} | med:{:.3f} | ').format(
-             np.mean(r2_sh),
-             np.std(r2_sh),
-             np.median(r2_sh))+pval_string,
+        .02, .89,
+        ('Original vs. shuffled outcome: ')+pval_string,
         transform=ax.transAxes,
         fontsize=10)
 
     # Save figure -------------------------------------------------------------
     # Make save path
     save_path = (
-        plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+        plots_path+'/' +
+        task['ANALYSIS_NAME']+'_' +
+        task['y_name'][0]+'_' +
         '1'+'_' +
         '0'+'_' +
-        task['y_name'][0])[:150]
+        'performance')[:150]
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -415,19 +430,19 @@ def print_regression_violin(task, results, plots_path):
     # Compose scores dataframe
     scores_df = pd.DataFrame(
         {'Mean Absolute Error': pd.Series(np.array(mae)),
-         'R2': pd.Series(np.array(r2)),
+         'R²': pd.Series(np.array(r2)),
          'Data': pd.Series(['original' for _ in mae]),
          'Dummy': pd.Series(np.ones(np.array(mae).shape).flatten())})
     # Compose scores shuffle dataframe
     scores_sh_df = pd.DataFrame(
         {'Mean Absolute Error': pd.Series(np.array(mae_sh)),
-         'R2': pd.Series(np.array(r2_sh)),
+         'R²': pd.Series(np.array(r2_sh)),
          'Data': pd.Series(['shuffled' for _ in mae_sh]),
          'Dummy': pd.Series(np.ones(np.array(mae_sh).shape).flatten())})
     # Concatenate scores dataframes
     all_scores_df = pd.concat([scores_df, scores_sh_df], axis=0)
     # Make list of metrics
-    metrics = ['Mean Absolute Error', 'R2']
+    metrics = ['Mean Absolute Error', 'R²']
 
     # Make plot ---------------------------------------------------------------
     # Make figure
@@ -488,8 +503,9 @@ def print_regression_violin(task, results, plots_path):
             alpha=.3)
     # Make title string
     title_str = (
-        task['ANALYSIS_NAME']+' ' +
-        'predicting'+' ' +
+        'Analysis name:'+' ' +
+        task['ANALYSIS_NAME']+'\n' +
+        'Performance of predicting'+' ' +
         task['y_name'][0])
     # set title
     fig.axes[0].set_title(title_str, fontsize=10)
@@ -497,11 +513,12 @@ def print_regression_violin(task, results, plots_path):
     # Save figure -------------------------------------------------------------
     # Make save path
     save_path = (
-        plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-        '1'+'_' +
-        '1'+'_' +
+        plots_path+'/' +
+        task['ANALYSIS_NAME']+'_' +
         task['y_name'][0]+'_' +
-        'distribution')[:150]
+        '1'+'_' +
+        '1'+'_' +
+        'performance_distribution')[:150]
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -602,7 +619,7 @@ def print_classification_confusion(task, results, plots_path):
         nrows=1,
         ncols=2,
         figsize=(con_mat.shape[0]*.5+4,
-                 con_mat.shape[0]*.5+3))
+                 con_mat.shape[0]*.5+3.5))
     # Use tight layout
     plt.tight_layout()
     # Plot count confusion matrix
@@ -662,22 +679,23 @@ def print_classification_confusion(task, results, plots_path):
     # Set y ticks size and sets the yticks 'upright' with 0
     ax[1].tick_params(axis='y', labelsize=10, labelrotation=0)
     # Calculate p-value of accuracy and shuffle accuracy
-    _, pval_acc = corrected_ttest(np.array(acc)-np.array(acc_sh))
+    tstat_acc, pval_acc = corrected_ttest(np.array(acc)-np.array(acc_sh))
     # Make pval string
     if pval_acc <= 0.001:
         pval_string = 'p\u22640.001'
     else:
-        pval_string = 'p='+str(np.around(pval_acc, decimals=3))
+        pval_string = 'p={:.3f}'.format(pval_acc)
     # Make title string
     title_str = (
-        task['ANALYSIS_NAME']+' ' +
-        'predicting'+' ' +
+        'Analysis name:'+' ' +
+        task['ANALYSIS_NAME']+'\n' +
+        'Performance of predicting'+' ' +
         task['y_name'][0]+'\n' +
-        'Orig. data balanced acc mean'+r'$\pm$'+'std | median: {:.2f}' +
-        r'$\pm$'+'{:.2f} | {:.2f}'+'\n' +
-        'Shuf. data balanced acc mean'+r'$\pm$'+'std | median: {:.2f}' +
-        r'$\pm$'+'{:.2f} | {:.2f}'+'\n' +
-        'p-value of orig. vs shuffled mean: ').format(
+        'Original outcome balanced acc: mean'+r'$\pm$'+'std {:.2f}' +
+        r'$\pm$'+'{:.2f} | med {:.2f}'+'\n' +
+        'Shuffled outcome balanced acc: mean'+r'$\pm$'+'std {:.2f}' +
+        r'$\pm$'+'{:.2f} | med {:.2f}'+'\n' +
+        'Original vs. shuffled outcome: ').format(
         np.mean(acc)*100,
         np.std(acc)*100,
         np.median(acc)*100,
@@ -690,10 +708,12 @@ def print_classification_confusion(task, results, plots_path):
     # Save figure -------------------------------------------------------------
     # Make save path
     save_path = (
-        plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+        plots_path+'/' +
+        task['ANALYSIS_NAME']+'_' +
+        task['y_name'][0]+'_' +
         '1'+'_' +
         '0'+'_' +
-        task['y_name'][0])[:150]
+        'performance')[:150]
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -804,8 +824,9 @@ def print_classification_violin(task, results, plots_path):
             alpha=.3)
     # Make title string
     title_str = (
-        task['ANALYSIS_NAME']+' ' +
-        'predicting'+' ' +
+        'Analysis name:'+' ' +
+        task['ANALYSIS_NAME']+'\n' +
+        'Performance of predicting'+' ' +
         task['y_name'][0])
     # set title
     plt.title(title_str, fontsize=10)
@@ -813,11 +834,12 @@ def print_classification_violin(task, results, plots_path):
     # Save figure -------------------------------------------------------------
     # Make save path
     save_path = (
-        plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-        '1'+'_' +
-        '1'+'_' +
+        plots_path+'/' +
+        task['ANALYSIS_NAME']+'_' +
         task['y_name'][0]+'_' +
-        'distribution')[:150]
+        '1'+'_' +
+        '1'+'_' +
+        'performance_distribution')[:150]
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -870,11 +892,10 @@ def get_shap_effects(task, explainations, c_class=-1):
     # Case 3: no interaction and binary
     elif not task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'binary':
         # SHAP effects
-        shap_effects = [np.mean(np.abs(k.values[:, :, c_class]), axis=0)
+        shap_effects = [np.mean(np.abs(k.values), axis=0)
                         for k in explainations]
         # Base value
-        base = np.mean(np.hstack([k[:, :, c_class].base_values
-                                  for k in explainations]))
+        base = np.mean(np.hstack([k.base_values for k in explainations]))
     # Case 4: interaction and binary
     elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'binary':
         # Get SHAP effects
@@ -930,12 +951,8 @@ def print_shap_effects(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression
-    if task['OBJECTIVE'] == 'regression':
-        # Set n_classes to 1
-        n_classes = 1
-    # If binary and interactions
-    elif (task['OBJECTIVE'] == 'binary' and task['SHAP_INTERACTIONS']):
+    # If regression or binary
+    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
         # Set n_classes to 1
         n_classes = 1
     # Other cases
@@ -996,20 +1013,19 @@ def print_shap_effects(task, results, plots_path):
         ax.grid(axis='y', color='#bbbbbb', linestyle='dotted', alpha=.3)
         # Make title string
         title_str = (
-            task['ANALYSIS_NAME']+' ' +
-            'SHAP effects for'+' ' +
+            'Analysis name:'+' ' +
+            task['ANALYSIS_NAME']+'\n' +
+            'Total effect average SHAP values of'+' ' +
             task['y_name'][0]+'\n' +
-            'mean(|SHAP values|) = mean absolute deviation from expected' +
+            'mean(|SHAP values|) = mean absolute change from expected' +
             ' value (' +
             str(np.round(base, decimals=2)) +
             ')'
             )
-        # Add class if binary or multiclass (interaction)
-        if (task['OBJECTIVE'] == 'multiclass' or
-            (task['OBJECTIVE'] == 'binary' and
-             not task['SHAP_INTERACTIONS'])):
+        # Add class if multiclass
+        if task['OBJECTIVE'] == 'multiclass':
             # Make title string
-            title_str = title_str+' class: '+str(c_class)
+            title_str = title_str+'\n class: '+str(c_class)
         # Set title
         ax.set_title(title_str, fontsize=10)
 
@@ -1039,9 +1055,9 @@ def print_shap_effects(task, results, plots_path):
             if pval_se[c_pred] <= 0.001:
                 pval_string = 'p\u22640.001'
             else:
-                pval_string = 'p='+str(np.around(pval_se[c_pred], decimals=3))
-            # Make test string
-            txt_str = str(np.around(c_val, decimals=2))+' | '+pval_string
+                pval_string = 'p={:.3f}'.format(pval_se[c_pred])
+            # Make text string
+            txt_str = ('{:.2f}'+' | '+pval_string).format(c_val)
             # Add values to plot
             ax.text(
                 c_val+shap_effects_se_mean.max()*0.01,
@@ -1053,23 +1069,18 @@ def print_shap_effects(task, results, plots_path):
         # Get x limits
         x_left, x_right = plt.xlim()
         # Set x limits
-        plt.xlim(x_left, x_right + x_right*.1)
+        plt.xlim(x_left, x_right + x_right*.15)
 
         # Save plot -----------------------------------------------------------
         # Make save path
         save_path = (
-            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            plots_path+'/' +
+            task['ANALYSIS_NAME']+'_' +
+            task['y_name'][0]+'_' +
             '2'+'_' +
             '0'+'_' +
             str(c_class)+'_' +
-            task['y_name'][0]+'_' +
-            'shap_effects')[:150]
-        # Add class if binary or multiclass (interaction)
-        if (task['OBJECTIVE'] == 'multiclass' or
-            (task['OBJECTIVE'] == 'binary' and
-             not task['SHAP_INTERACTIONS'])):
-            # Make save path
-            save_path = save_path+'_class_'+str(c_class)
+            'shap_effect')[:150]
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -1102,12 +1113,8 @@ def print_shap_effects_distribution(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression
-    if task['OBJECTIVE'] == 'regression':
-        # Set n_classes to 1
-        n_classes = 1
-    # If binary and interactions
-    elif (task['OBJECTIVE'] == 'binary' and task['SHAP_INTERACTIONS']):
+    # If regression or binary
+    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
         # Set n_classes to 1
         n_classes = 1
     # Other cases
@@ -1211,39 +1218,32 @@ def print_shap_effects_distribution(task, results, plots_path):
         plt.legend(loc='lower right')
         # Make title string
         title_str = (
-            task['ANALYSIS_NAME']+' ' +
-            'SHAP effects distribution for'+' ' +
+            'Analysis name:'+' ' +
+            task['ANALYSIS_NAME']+'\n' +
+            'Total effect average SHAP values distribution of'+' ' +
             task['y_name'][0]+'\n' +
-            'mean(|SHAP values|) = mean absolute deviation from expected' +
+            'mean(|SHAP values|) = mean absolute change from expected' +
             ' value (' +
             str(np.round(base, decimals=2)) +
             ')'
             )
-        # Add class if binary or multiclass (interaction)
-        if (task['OBJECTIVE'] == 'multiclass' or
-            (task['OBJECTIVE'] == 'binary' and
-             not task['SHAP_INTERACTIONS'])):
+        # Add class if multiclass
+        if task['OBJECTIVE'] == 'multiclass':
             # Make title string
-            title_str = title_str+' class: '+str(c_class)
+            title_str = title_str+'\n class: '+str(c_class)
         # Add title
         ax.set_title(title_str, fontsize=10)
 
         # Save plots and results ----------------------------------------------
         # Make save path
         save_path = (
-            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            plots_path+'/' +
+            task['ANALYSIS_NAME']+'_' +
+            task['y_name'][0]+'_' +
             '2'+'_' +
             '1'+'_' +
             str(c_class)+'_' +
-            task['y_name'][0]+'_' +
-            'shap_effects_distribution')[:150]
-        # Add class if no interactions and binary or multiclass
-        # Add class if binary or multiclass (interaction)
-        if (task['OBJECTIVE'] == 'multiclass' or
-            (task['OBJECTIVE'] == 'binary' and
-             not task['SHAP_INTERACTIONS'])):
-            # Make save path
-            save_path = save_path+'_class_'+str(c_class)
+            'shap_effect_distribution')[:150]
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -1325,10 +1325,9 @@ def get_shap_values(task, explainations, c_class=-1):
     elif not task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'binary':
         # Explainer object
         shap_explainations = Explanation(
-            np.vstack([k[:, :, c_class].values for k in explainations]),
-            base_values=np.hstack([k[:, :, c_class].base_values
-                                   for k in explainations]),
-            data=np.vstack([k[:, :, c_class].data for k in explainations]),
+            np.vstack([k.values for k in explainations]),
+            base_values=np.hstack([k.base_values for k in explainations]),
+            data=np.vstack([k.data for k in explainations]),
             display_data=None,
             instance_names=None,
             feature_names=explainations[0].feature_names,
@@ -1342,8 +1341,7 @@ def get_shap_values(task, explainations, c_class=-1):
             clustering=None,
             compute_time=np.sum([k.compute_time for k in explainations]))
         # Base value
-        base = np.mean(np.hstack([k[:, :, c_class].base_values
-                                  for k in explainations]))
+        base = np.mean(np.hstack([k.base_values for k in explainations]))
     # Case 4: interaction and binary
     elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'binary':
         # Explainer object
@@ -1439,12 +1437,8 @@ def print_shap_values(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression
-    if task['OBJECTIVE'] == 'regression':
-        # Set n_classes to 1
-        n_classes = 1
-    # If binary and interactions
-    elif (task['OBJECTIVE'] == 'binary' and task['SHAP_INTERACTIONS']):
+    # If regression or binary
+    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
         # Set n_classes to 1
         n_classes = 1
     # Other cases
@@ -1506,20 +1500,18 @@ def print_shap_values(task, results, plots_path):
         plt.yticks(fontsize=10)
         # Make title string
         title_str = (
-            task['ANALYSIS_NAME']+' ' +
-            'SHAP values for'+' ' +
+            'Analysis name:'+' ' +
+            task['ANALYSIS_NAME']+'\n' +
+            'Total effect SHAP values of'+' ' +
             task['y_name'][0]+'\n' +
-            'mean(|SHAP values|) = mean absolute deviation from expected' +
-            ' value (' +
+            'SHAP values = change from expected value (' +
             str(np.round(base, decimals=2)) +
             ')'
             )
-        # Add class if binary or multiclass (interaction)
-        if (task['OBJECTIVE'] == 'multiclass' or
-            (task['OBJECTIVE'] == 'binary' and
-             not task['SHAP_INTERACTIONS'])):
+        # Add class if multiclass
+        if task['OBJECTIVE'] == 'multiclass':
             # Make title string
-            title_str = title_str+' class: '+str(c_class)
+            title_str = title_str+'\n class: '+str(c_class)
         # Add title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -1532,18 +1524,13 @@ def print_shap_values(task, results, plots_path):
         # Save plot -----------------------------------------------------------
         # Make save path
         save_path = (
-            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            plots_path+'/' +
+            task['ANALYSIS_NAME']+'_' +
+            task['y_name'][0]+'_' +
             '2'+'_' +
             '2'+'_' +
             str(c_class)+'_' +
-            task['y_name'][0]+'_' +
             'shap_values')[:150]
-        # Add class if binary or multiclass (interaction)
-        if (task['OBJECTIVE'] == 'multiclass' or
-            (task['OBJECTIVE'] == 'binary' and
-             not task['SHAP_INTERACTIONS'])):
-            # Make save path
-            save_path = save_path+'_class_'+str(c_class)
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -1576,12 +1563,8 @@ def print_shap_dependences(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression
-    if task['OBJECTIVE'] == 'regression':
-        # Set n_classes to 1
-        n_classes = 1
-    # If binary and interactions
-    elif (task['OBJECTIVE'] == 'binary' and task['SHAP_INTERACTIONS']):
+    # If regression or binary
+    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
         # Set n_classes to 1
         n_classes = 1
     # Other cases
@@ -1614,6 +1597,20 @@ def print_shap_dependences(task, results, plots_path):
         for idx, c_pred in enumerate(shap_explainations.feature_names):
             # Make figure
             fig, ax = plt.subplots(figsize=(8, 5))
+            # Make title string
+            title_str = (
+                'Analysis name:'+' ' +
+                task['ANALYSIS_NAME']+'\n' +
+                'Total effect SHAP values of'+' ' +
+                task['y_name'][0]+'\n' +
+                'SHAP values = change from expected value (' +
+                str(np.round(base, decimals=2)) +
+                ')'
+                )
+            # Add class if multiclass
+            if task['OBJECTIVE'] == 'multiclass':
+                # Make title string
+                title_str = title_str+'\n class: '+str(c_class)
             # Plot SHAP Scatter plot
             scatter(
                 shap_explainations[:, idx],
@@ -1623,60 +1620,41 @@ def print_shap_dependences(task, results, plots_path):
                 dot_size=16,
                 x_jitter='auto',
                 alpha=.5,
-                title=None,
+                title=title_str,
                 xmin=None,
                 xmax=None,
                 ymin=None,
                 ymax=None,
                 overlay=None,
                 ax=ax,
-                ylabel='SHAP values',
                 show=False)
             # Get the current figure and axes objects.
             _, ax = plt.gcf(), plt.gca()
+            # Set title size
+            ax.title.set_size(10)
             # Set x label size
             plt.xlabel(ax.get_xlabel(), fontsize=10)
             # Set x ticks size
             plt.xticks(fontsize=10)
+            # Make y label
+            y_label = 'Total effect SHAP values of\n' + c_pred
             # Set y label size
-            plt.ylabel(ax.get_ylabel(), fontsize=10)
+            plt.ylabel(y_label, fontsize=10)
             # Set y ticks size
             plt.yticks(fontsize=10)
-            # Make title string
-            title_str = (
-                task['ANALYSIS_NAME']+' ' +
-                'SHAP values for'+' ' +
-                task['y_name'][0]+'\n' +
-                'SHAP values = deviation from expected value (' +
-                str(np.round(base, decimals=2)) +
-                ')'
-                )
-            # Add class if binary or multiclass (interaction)
-            if (task['OBJECTIVE'] == 'multiclass' or
-                (task['OBJECTIVE'] == 'binary' and
-                 not task['SHAP_INTERACTIONS'])):
-                # Make title string
-                title_str = title_str+' class: '+str(c_class)
-            # Add title
-            plt.title(title_str, fontsize=10)
 
             # Save plot -------------------------------------------------------
             # Make save path
             save_path = (
-                plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+                plots_path+'/' +
+                task['ANALYSIS_NAME']+'_' +
+                task['y_name'][0]+'_' +
                 '3'+'_' +
                 str(c_class)+'_' +
                 str(idx)+'_' +
-                task['y_name'][0]+'_' +
-                'shap_values_dependency'+'_' +
-                str(c_pred))[:150]
-            # Add class if no interactions and binary or multiclass
-            # Add class if binary or multiclass (interaction)
-            if (task['OBJECTIVE'] == 'multiclass' or
-                (task['OBJECTIVE'] == 'binary' and
-                 not task['SHAP_INTERACTIONS'])):
-                # Make save path
-                save_path = save_path+'_class_'+str(c_class)
+                'dependency'+'_' +
+                c_pred)[:150]
+
             # Save figure
             plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
@@ -1762,12 +1740,8 @@ def print_shap_effects_interactions(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression
-    if task['OBJECTIVE'] == 'regression':
-        # Set n_classes to 1
-        n_classes = 1
-    # If binary and interactions
-    elif (task['OBJECTIVE'] == 'binary' and task['SHAP_INTERACTIONS']):
+    # If regression or binary
+    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
         # Set n_classes to 1
         n_classes = 1
     # Other cases
@@ -1821,7 +1795,7 @@ def print_shap_effects_interactions(task, results, plots_path):
         x_names_count = len(task['x_names'])
 
         # Make labels with pvales ---------------------------------------------
-        # Get p values
+        # Init p values
         pval = np.zeros(
             (shap_effects_inter.shape[1],
              shap_effects_inter.shape[2]))
@@ -1854,12 +1828,12 @@ def print_shap_effects_interactions(task, results, plots_path):
             if pval[x, y] <= 0.001:
                 pval_string = 'p\u22640.001'
             else:
-                pval_string = 'p='+str(np.around(pval[x, y], decimals=3))
+                pval_string = 'p={:.3f}'.format(pval[x, y])
             # Make label
             interaction_labels_df.iloc[x, y] = (
-                str(np.around(shap_effects_inter_df.iloc[x, y],
-                              decimals=2)) +
-                '\n'+pval_string)
+                '{:.2f}' +
+                '\n' +
+                pval_string).format(shap_effects_inter_df.iloc[x, y])
         # Index labels dataframe
         interaction_labels_df.index = shap_effects_inter_df.index
         # Column labels
@@ -1874,8 +1848,8 @@ def print_shap_effects_interactions(task, results, plots_path):
         # Plot interaction effects --------------------------------------------
         # Create figure
         fig, ax = plt.subplots(
-            figsize=(x_names_max_len*.1+x_names_count*1+1,
-                     x_names_max_len*.1+x_names_count*1+1))
+            figsize=(x_names_max_len*.15+x_names_count*1.5+1.5,
+                     x_names_max_len*.15+x_names_count*1.5+1.5))
         # Make colorbar string
         clb_str = ('mean(|SHAP value|)')
         # Plot confusion matrix
@@ -1910,19 +1884,19 @@ def print_shap_effects_interactions(task, results, plots_path):
         plt.yticks(rotation=0, fontsize=10)
         # Make title string
         title_str = (
-            task['ANALYSIS_NAME']+' ' +
-            'SHAP effects for'+' ' +
+            'Analysis name:'+' ' +
+            task['ANALYSIS_NAME']+'\n' +
+            'Interaction effect average SHAP values of'+' ' +
             task['y_name'][0]+'\n' +
-            'mean(|SHAP values|) = deviation from expected value (' +
+            'mean(|SHAP values|) = mean absolute change from expected ' +
+            'value (' +
             str(np.round(base_inter, decimals=2)) +
             ')'
             )
-        # Add class if binary or multiclass (interaction)
-        if (task['OBJECTIVE'] == 'multiclass' or
-            (task['OBJECTIVE'] == 'binary' and
-             not task['SHAP_INTERACTIONS'])):
+        # Add class if multiclass
+        if task['OBJECTIVE'] == 'multiclass':
             # Make title string
-            title_str = title_str+' class: '+str(c_class)
+            title_str = title_str+'\n class: '+str(c_class)
         # Add title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -1936,17 +1910,12 @@ def print_shap_effects_interactions(task, results, plots_path):
         # Save plot -----------------------------------------------------------
         # Make save path
         save_path = (
-            plots_path+'/'+task['ANALYSIS_NAME']+'_' +
+            plots_path+'/' +
+            task['ANALYSIS_NAME']+'_' +
+            task['y_name'][0]+'_' +
             '4'+'_' +
             str(c_class)+'_' +
-            task['y_name'][0]+'_' +
-            'shap_effects_interactions')[:150]
-        # Add class if binary or multiclass (interaction)
-        if (task['OBJECTIVE'] == 'multiclass' or
-            (task['OBJECTIVE'] == 'binary' and
-             not task['SHAP_INTERACTIONS'])):
-            # Make save path
-            save_path = save_path+'_class_'+str(c_class)
+            'interaction_effect')[:150]
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -1979,12 +1948,8 @@ def print_shap_interaction_values(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression
-    if task['OBJECTIVE'] == 'regression':
-        # Set n_classes to 1
-        n_classes = 1
-    # If binary and interactions
-    elif (task['OBJECTIVE'] == 'binary' and task['SHAP_INTERACTIONS']):
+    # If regression or binary
+    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
         # Set n_classes to 1
         n_classes = 1
     # Other cases
@@ -2000,101 +1965,99 @@ def print_shap_interaction_values(task, results, plots_path):
                                             results['explainations'],
                                             c_class)
 
-        # Print shap values dependencies --------------------------------------
-        # Make list of permutations
-        permutations_list = (
-            [(i, i) for i in shap_values.feature_names] +
-            list(permutations(shap_values.feature_names, 2)))
-        # Loop over predictor pairs
-        for idx, ind in enumerate(permutations_list):
-            # Make figure
-            fig, ax = plt.subplots(figsize=(8, 5))
-            # Plot SHAP dependence
-            dependence_plot(
-                ind,
-                shap_values=shap_values.values,
-                features=pd.DataFrame(
-                    shap_values.data,
-                    columns=shap_values.feature_names),
-                feature_names=shap_values.feature_names,
-                display_features=None,
-                interaction_index='auto',
-                color='#1E88E5',
-                axis_color='#333333',
-                cmap=None,
-                dot_size=16,
-                x_jitter=0,
-                alpha=.66,
-                title=None,
-                xmin=None,
-                xmax=None,
-                ax=ax,
-                show=False,
-                ymin=None,
-                ymax=None)
-            # Get the current figure and axes objects.
-            _, ax = plt.gcf(), plt.gca()
-            # Set x label size
-            ax.set_xlabel(ax.get_xlabel(), fontsize=10)
-            # Set x ticks size
-            plt.xticks(fontsize=10)
-            # Set y label size
-            plt.ylabel(ax.get_ylabel(), fontsize=10)
-            # Set y ticks size
-            plt.yticks(fontsize=10)
-            # Make title string
-            title_str = (
-                task['ANALYSIS_NAME']+' ' +
-                'SHAP interaction values for'+' ' +
-                task['y_name'][0]+'\n' +
-                'SHAP values = deviation from expected value (' +
-                str(np.round(np.mean(np.hstack(
-                    [k.base_values for k in results['explainations']])),
-                    decimals=2)) +
-                ')'
-                )
-            # Add class if binary or multiclass (interaction)
-            if (task['OBJECTIVE'] == 'multiclass' or
-                (task['OBJECTIVE'] == 'binary' and
-                 not task['SHAP_INTERACTIONS'])):
+        # Print shap value interaction dependencies ---------------------------
+        count = 0
+        for i in range(shap_values.shape[1]):
+            for k in range(shap_values.shape[2]):
+                # Make figure
+                fig, ax = plt.subplots(figsize=(8, 5))
                 # Make title string
-                title_str = title_str+' class: '+str(c_class)
-            # Add title
-            ax.set_title(title_str, fontsize=10)
-            # Check if mor than 1 axes are present
-            if len(fig.axes) > 1:
-                # Get colorbar
-                cb_ax = fig.axes[1]
-                # Modifying color bar tick size
-                cb_ax.tick_params(labelsize=10)
-                # Modifying color bar fontsize
-                cb_ax.set_ylabel(cb_ax.get_ylabel(), fontsize=10)
+                title_str = (
+                    'Analysis name:'+' ' +
+                    task['ANALYSIS_NAME']+'\n' +
+                    'Interaction effect SHAP values for'+' ' +
+                    task['y_name'][0]+'\n' +
+                    'SHAP values = change from expected value (' +
+                    str(np.round(np.mean(np.hstack(
+                        [k.base_values for k in results['explainations']])),
+                        decimals=2)) +
+                    ')'
+                    )
+                # Add class if multiclass
+                if task['OBJECTIVE'] == 'multiclass':
+                    # Make title string
+                    title_str = title_str+'\n class: '+str(c_class)
+                # Plot SHAP Scatter plot
+                scatter(
+                    shap_values[:, i, k],
+                    color=shap_values[:, k, k],
+                    hist=True,
+                    axis_color='#333333',
+                    dot_size=16,
+                    x_jitter='auto',
+                    alpha=.5,
+                    title=title_str,
+                    xmin=None,
+                    xmax=None,
+                    ymin=None,
+                    ymax=None,
+                    overlay=None,
+                    ax=ax,
+                    show=False)
+                # Get the current figure and axes objects.
+                _, ax = plt.gcf(), plt.gca()
+                # Set title size
+                ax.title.set_size(10)
+                # Set x label size
+                ax.set_xlabel(ax.get_xlabel(), fontsize=10)
+                # Set x ticks size
+                plt.xticks(fontsize=10)
+                # Check if exclusive effect
+                if i == k:
+                    # Make y label
+                    y_label = ('Exclusive effect SHAP values of\n' +
+                               shap_values.feature_names[i])
+                else:
+                    # Make y label
+                    y_label = ('Interaction effect SHAP values of \n' +
+                               shap_values.feature_names[i] +
+                               ' & ' +
+                               shap_values.feature_names[k])
+                # Set y label size
+                plt.ylabel(y_label, fontsize=10)
+                # Set y ticks size
+                plt.yticks(fontsize=10)
+                # Check if mor than 1 axes are present
+                if len(fig.axes) > 1:
+                    # Get colorbar
+                    cb_ax = fig.axes[1]
+                    # Modifying color bar tick size
+                    cb_ax.tick_params(labelsize=10)
+                    # Modifying color bar fontsize
+                    cb_ax.set_ylabel(cb_ax.get_ylabel(), fontsize=10)
 
-            # Save plot -------------------------------------------------------
-            # Make save path
-            save_path = (
-                plots_path+'/'+task['ANALYSIS_NAME']+'_' +
-                '5'+'_' +
-                str(c_class)+'_' +
-                str(idx)+'_' +
-                task['y_name'][0]+'_' +
-                'shap_interaction_values'+'_' +
-                ind[0]+'_' +
-                ind[1])[:150]
-            # Add class if binary or multiclass (interaction)
-            if (task['OBJECTIVE'] == 'multiclass' or
-                (task['OBJECTIVE'] == 'binary' and
-                 not task['SHAP_INTERACTIONS'])):
+                # Save plot ---------------------------------------------------
                 # Make save path
-                save_path = save_path+'_class_'+str(c_class)
-            # Save figure
-            plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
-            # Check if save as svg is enabled
-            if task['AS_SVG']:
+                save_path = (
+                    plots_path+'/' +
+                    task['ANALYSIS_NAME']+'_' +
+                    task['y_name'][0]+'_' +
+                    '5'+'_' +
+                    str(c_class)+'_' +
+                    str(count)+'_' +
+                    'dependeny_interaction'+'_' +
+                    shap_values.feature_names[i]+'_' +
+                    shap_values.feature_names[k])[:150]
                 # Save figure
-                plt.savefig(save_path+'.svg',  bbox_inches='tight')
-            # Show figure
-            plt.show()
+                plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
+                # Check if save as svg is enabled
+                if task['AS_SVG']:
+                    # Save figure
+                    plt.savefig(save_path+'.svg',  bbox_inches='tight')
+                # Increment count
+                count += 1
+                # Show figure
+                plt.show()
 
     # Return None -------------------------------------------------------------
     return
