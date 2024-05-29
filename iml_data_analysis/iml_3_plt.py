@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Plotting (PLT)
-v306
+v321
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -131,8 +131,8 @@ def corrected_ttest(differences, n_tst_over_n_trn=0.25):
     # Compute t statistics and p value ----------------------------------------
     # Get mean of differences
     mean = np.mean(differences)
-    # Get corrected standard deviation
-    std = corrected_std(differences, n_tst_over_n_trn)
+    # Get corrected standard deviation, make sure std is not exactly zero
+    std = max(1e-6, corrected_std(differences, n_tst_over_n_trn))
     # Compute t statistics
     t_stat = mean / std
     # Compute p value for one-tailed t-test
@@ -183,13 +183,12 @@ def print_parameter_distributions(task, results, plots_path):
         # Add x label
         ax.set_xlabel(name)
         # Add y label
-        ax.set_ylabel('Number')
+        ax.set_ylabel('Count')
         # Set title
         ax.set_title(
-            'Analysis name:'+' ' +
             task['ANALYSIS_NAME']+'\n' +
             'Parameter distribution of predicting'+' ' +
-            task['y_name'][0],
+            task['y_name'],
             fontsize=10)
 
         # Save figure ---------------------------------------------------------
@@ -197,7 +196,7 @@ def print_parameter_distributions(task, results, plots_path):
         save_path = (
             plots_path+'/' +
             task['ANALYSIS_NAME']+'_' +
-            task['y_name'][0]+'_' +
+            task['y_name']+'_' +
             '0'+'_' +
             str(idx)+'_' +
             'parameter'+'_' +
@@ -286,10 +285,9 @@ def print_regression_scatter(task, results, plots_path):
         max(true_values) + true_values_range/20)
     # Set title
     ax.set_title(
-        'Analysis name:'+' ' +
         task['ANALYSIS_NAME']+'\n' +
         'Performance of predicting'+' ' +
-        task['y_name'][0],
+        task['y_name'],
         fontsize=10)
     # Set xlabel
     ax.set_xlabel('Predicted values', fontsize=10)
@@ -383,7 +381,7 @@ def print_regression_scatter(task, results, plots_path):
     save_path = (
         plots_path+'/' +
         task['ANALYSIS_NAME']+'_' +
-        task['y_name'][0]+'_' +
+        task['y_name']+'_' +
         '1'+'_' +
         '0'+'_' +
         'performance')[:150]
@@ -446,7 +444,7 @@ def print_regression_violin(task, results, plots_path):
 
     # Make plot ---------------------------------------------------------------
     # Make figure
-    fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(8, len(metrics)*.75+1))
+    fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(8, len(metrics)*1+1))
     # Set tight figure layout
     fig.tight_layout()
     # Make color palette
@@ -503,10 +501,9 @@ def print_regression_violin(task, results, plots_path):
             alpha=.3)
     # Make title string
     title_str = (
-        'Analysis name:'+' ' +
         task['ANALYSIS_NAME']+'\n' +
         'Performance of predicting'+' ' +
-        task['y_name'][0])
+        task['y_name'])
     # set title
     fig.axes[0].set_title(title_str, fontsize=10)
 
@@ -515,7 +512,7 @@ def print_regression_violin(task, results, plots_path):
     save_path = (
         plots_path+'/' +
         task['ANALYSIS_NAME']+'_' +
-        task['y_name'][0]+'_' +
+        task['y_name']+'_' +
         '1'+'_' +
         '1'+'_' +
         'performance_distribution')[:150]
@@ -557,8 +554,6 @@ def print_classification_confusion(task, results, plots_path):
     true_values = [i['y_true'] for i in results['scores']]
     # Predicted values
     pred_values = [i['y_pred'] for i in results['scores']]
-    # Sample weights  list
-    # sample_weights = [i['class_weights'] for i in results['scores']]
     # Accuracy
     acc = [i['acc'] for i in results['scores']]
     # Schuffle accuracy
@@ -687,10 +682,9 @@ def print_classification_confusion(task, results, plots_path):
         pval_string = 'p={:.3f}'.format(pval_acc)
     # Make title string
     title_str = (
-        'Analysis name:'+' ' +
         task['ANALYSIS_NAME']+'\n' +
         'Performance of predicting'+' ' +
-        task['y_name'][0]+'\n' +
+        task['y_name']+'\n' +
         'Original outcome balanced acc: mean'+r'$\pm$'+'std {:.2f}' +
         r'$\pm$'+'{:.2f} | med {:.2f}'+'\n' +
         'Shuffled outcome balanced acc: mean'+r'$\pm$'+'std {:.2f}' +
@@ -710,7 +704,7 @@ def print_classification_confusion(task, results, plots_path):
     save_path = (
         plots_path+'/' +
         task['ANALYSIS_NAME']+'_' +
-        task['y_name'][0]+'_' +
+        task['y_name']+'_' +
         '1'+'_' +
         '0'+'_' +
         'performance')[:150]
@@ -767,7 +761,7 @@ def print_classification_violin(task, results, plots_path):
 
     # Make plot ---------------------------------------------------------------
     # Make figure
-    fig, ax = plt.subplots(figsize=(8, len(metrics)*.75+1))
+    fig, ax = plt.subplots(figsize=(8, len(metrics)*1+1))
     # Make color palette
     mypal = {'original': '#777777', 'shuffled': '#eeeeee'}
     # Put ax into list
@@ -824,10 +818,9 @@ def print_classification_violin(task, results, plots_path):
             alpha=.3)
     # Make title string
     title_str = (
-        'Analysis name:'+' ' +
         task['ANALYSIS_NAME']+'\n' +
         'Performance of predicting'+' ' +
-        task['y_name'][0])
+        task['y_name'])
     # set title
     plt.title(title_str, fontsize=10)
 
@@ -836,7 +829,7 @@ def print_classification_violin(task, results, plots_path):
     save_path = (
         plots_path+'/' +
         task['ANALYSIS_NAME']+'_' +
-        task['y_name'][0]+'_' +
+        task['y_name']+'_' +
         '1'+'_' +
         '1'+'_' +
         'performance_distribution')[:150]
@@ -991,7 +984,7 @@ def print_shap_effects(task, results, plots_path):
         # Make horizontal bar plot
         shap_effects_se_mean_sort.plot(
             kind='barh',
-            figsize=(x_names_max_len*.1+7, x_names_count*.4+1),
+            figsize=(x_names_max_len*.1+8, x_names_count*.4+1),
             color='#777777',
             fontsize=10)
         # Get the current figure and axes objects.
@@ -1013,15 +1006,11 @@ def print_shap_effects(task, results, plots_path):
         ax.grid(axis='y', color='#bbbbbb', linestyle='dotted', alpha=.3)
         # Make title string
         title_str = (
-            'Analysis name:'+' ' +
             task['ANALYSIS_NAME']+'\n' +
-            'Total effect average SHAP values of'+' ' +
-            task['y_name'][0]+'\n' +
-            'mean(|SHAP values|) = mean absolute change from expected' +
-            ' value (' +
-            str(np.round(base, decimals=2)) +
-            ')'
-            )
+            'mean(|SHAP values|): mean absolute marginal change in ' +
+            task['y_name']+'\n' +
+            ' from it\'s expected value of ' +
+            str(np.round(base, decimals=2)))
         # Add class if multiclass
         if task['OBJECTIVE'] == 'multiclass':
             # Make title string
@@ -1076,7 +1065,7 @@ def print_shap_effects(task, results, plots_path):
         save_path = (
             plots_path+'/' +
             task['ANALYSIS_NAME']+'_' +
-            task['y_name'][0]+'_' +
+            task['y_name']+'_' +
             '2'+'_' +
             '0'+'_' +
             str(c_class)+'_' +
@@ -1175,7 +1164,7 @@ def print_shap_effects_distribution(task, results, plots_path):
         # Plot ----------------------------------------------------------------
         # Make figure
         fig, ax = plt.subplots(
-            figsize=(x_names_max_len*.1+7,
+            figsize=(x_names_max_len*.1+8,
                      x_names_count*.4+1))
         # Make color palette
         mypal = {'original': '#777777', 'shuffled': '#eeeeee'}
@@ -1218,15 +1207,11 @@ def print_shap_effects_distribution(task, results, plots_path):
         plt.legend(loc='lower right')
         # Make title string
         title_str = (
-            'Analysis name:'+' ' +
             task['ANALYSIS_NAME']+'\n' +
-            'Total effect average SHAP values distribution of'+' ' +
-            task['y_name'][0]+'\n' +
-            'mean(|SHAP values|) = mean absolute change from expected' +
-            ' value (' +
-            str(np.round(base, decimals=2)) +
-            ')'
-            )
+            'mean(|SHAP values|): mean absolute marginal change in ' +
+            task['y_name']+'\n' +
+            ' from it\'s expected value of ' +
+            str(np.round(base, decimals=2)))
         # Add class if multiclass
         if task['OBJECTIVE'] == 'multiclass':
             # Make title string
@@ -1239,7 +1224,7 @@ def print_shap_effects_distribution(task, results, plots_path):
         save_path = (
             plots_path+'/' +
             task['ANALYSIS_NAME']+'_' +
-            task['y_name'][0]+'_' +
+            task['y_name']+'_' +
             '2'+'_' +
             '1'+'_' +
             str(c_class)+'_' +
@@ -1486,7 +1471,7 @@ def print_shap_values(task, results, plots_path):
             show=False,
             log_scale=False,
             color_bar=True,
-            plot_size=(x_names_max_len*.1+7, x_names_count*.4+1),
+            plot_size=(x_names_max_len*.1+8, x_names_count*.4+1),
             color_bar_label='Predictor value')
         # Get the current figure and axes objects.
         fig, ax = plt.gcf(), plt.gca()
@@ -1500,14 +1485,11 @@ def print_shap_values(task, results, plots_path):
         plt.yticks(fontsize=10)
         # Make title string
         title_str = (
-            'Analysis name:'+' ' +
             task['ANALYSIS_NAME']+'\n' +
-            'Total effect SHAP values of'+' ' +
-            task['y_name'][0]+'\n' +
-            'SHAP values = change from expected value (' +
-            str(np.round(base, decimals=2)) +
-            ')'
-            )
+            'SHAP values: marginal change in ' +
+            task['y_name']+'\n' +
+            ' from it\'s expected value of ' +
+            str(np.round(base, decimals=2)))
         # Add class if multiclass
         if task['OBJECTIVE'] == 'multiclass':
             # Make title string
@@ -1526,7 +1508,7 @@ def print_shap_values(task, results, plots_path):
         save_path = (
             plots_path+'/' +
             task['ANALYSIS_NAME']+'_' +
-            task['y_name'][0]+'_' +
+            task['y_name']+'_' +
             '2'+'_' +
             '2'+'_' +
             str(c_class)+'_' +
@@ -1599,14 +1581,11 @@ def print_shap_dependences(task, results, plots_path):
             fig, ax = plt.subplots(figsize=(8, 5))
             # Make title string
             title_str = (
-                'Analysis name:'+' ' +
                 task['ANALYSIS_NAME']+'\n' +
-                'Total effect SHAP values of'+' ' +
-                task['y_name'][0]+'\n' +
-                'SHAP values = change from expected value (' +
-                str(np.round(base, decimals=2)) +
-                ')'
-                )
+                'SHAP values: marginal change in ' +
+                task['y_name']+'\n' +
+                ' from it\'s expected value of ' +
+                str(np.round(base, decimals=2)))
             # Add class if multiclass
             if task['OBJECTIVE'] == 'multiclass':
                 # Make title string
@@ -1637,7 +1616,7 @@ def print_shap_dependences(task, results, plots_path):
             # Set x ticks size
             plt.xticks(fontsize=10)
             # Make y label
-            y_label = 'Total effect SHAP values of\n' + c_pred
+            y_label = 'Marginal SHAP values'
             # Set y label size
             plt.ylabel(y_label, fontsize=10)
             # Set y ticks size
@@ -1648,7 +1627,7 @@ def print_shap_dependences(task, results, plots_path):
             save_path = (
                 plots_path+'/' +
                 task['ANALYSIS_NAME']+'_' +
-                task['y_name'][0]+'_' +
+                task['y_name']+'_' +
                 '3'+'_' +
                 str(c_class)+'_' +
                 str(idx)+'_' +
@@ -1884,15 +1863,11 @@ def print_shap_effects_interactions(task, results, plots_path):
         plt.yticks(rotation=0, fontsize=10)
         # Make title string
         title_str = (
-            'Analysis name:'+' ' +
             task['ANALYSIS_NAME']+'\n' +
-            'Interaction effect average SHAP values of'+' ' +
-            task['y_name'][0]+'\n' +
-            'mean(|SHAP values|) = mean absolute change from expected ' +
-            'value (' +
-            str(np.round(base_inter, decimals=2)) +
-            ')'
-            )
+            'mean(|SHAP values|): mean absolute partial change in ' +
+            task['y_name']+'\n' +
+            ' from it\'s expected value of ' +
+            str(np.round(base, decimals=2)))
         # Add class if multiclass
         if task['OBJECTIVE'] == 'multiclass':
             # Make title string
@@ -1912,7 +1887,7 @@ def print_shap_effects_interactions(task, results, plots_path):
         save_path = (
             plots_path+'/' +
             task['ANALYSIS_NAME']+'_' +
-            task['y_name'][0]+'_' +
+            task['y_name']+'_' +
             '4'+'_' +
             str(c_class)+'_' +
             'interaction_effect')[:150]
@@ -1973,16 +1948,13 @@ def print_shap_interaction_values(task, results, plots_path):
                 fig, ax = plt.subplots(figsize=(8, 5))
                 # Make title string
                 title_str = (
-                    'Analysis name:'+' ' +
                     task['ANALYSIS_NAME']+'\n' +
-                    'Interaction effect SHAP values for'+' ' +
-                    task['y_name'][0]+'\n' +
-                    'SHAP values = change from expected value (' +
+                    'SHAP values: partial change in ' +
+                    task['y_name']+'\n' +
+                    ' from it\'s expected value of ' +
                     str(np.round(np.mean(np.hstack(
                         [k.base_values for k in results['explainations']])),
-                        decimals=2)) +
-                    ')'
-                    )
+                        decimals=2)))
                 # Add class if multiclass
                 if task['OBJECTIVE'] == 'multiclass':
                     # Make title string
@@ -2012,17 +1984,8 @@ def print_shap_interaction_values(task, results, plots_path):
                 ax.set_xlabel(ax.get_xlabel(), fontsize=10)
                 # Set x ticks size
                 plt.xticks(fontsize=10)
-                # Check if exclusive effect
-                if i == k:
-                    # Make y label
-                    y_label = ('Exclusive effect SHAP values of\n' +
-                               shap_values.feature_names[i])
-                else:
-                    # Make y label
-                    y_label = ('Interaction effect SHAP values of \n' +
-                               shap_values.feature_names[i] +
-                               ' & ' +
-                               shap_values.feature_names[k])
+                # Make y label
+                y_label = 'Partial SHAP values'
                 # Set y label size
                 plt.ylabel(y_label, fontsize=10)
                 # Set y ticks size
@@ -2041,7 +2004,7 @@ def print_shap_interaction_values(task, results, plots_path):
                 save_path = (
                     plots_path+'/' +
                     task['ANALYSIS_NAME']+'_' +
-                    task['y_name'][0]+'_' +
+                    task['y_name']+'_' +
                     '5'+'_' +
                     str(c_class)+'_' +
                     str(count)+'_' +
@@ -2073,30 +2036,30 @@ def main():
     '''
 
     ###########################################################################
-    # Specify plot task
+    # Specify plot tasks
     ###########################################################################
 
-    # Plot hyper parameter distributions
+    # Plot hyper parameter distributions. bool (default: True)
     PPD = True
-    # Plot SHAP interactions
+    # Plot SHAP interactions. bool (default: True)
     PSI = True
-    # Do multiple comparison correction
+    # Do multiple comparison correction. bool (default: False)
     MCC = False
-    # Save plots additionally as svg
+    # Save plots additionally as svg. bool (default: False)
     AS_SVG = False
 
     ###########################################################################
 
     # Load result paths -------------------------------------------------------
     res_paths = [f.name for f in os.scandir('.')
-                 if f.is_dir() and f.name.startswith('res_ml_')]
+                 if f.is_dir() and f.name.startswith('res_iml_')]
 
     # Loop over result paths --------------------------------------------------
     for res_path in res_paths:
-        # Load task paths
+        # Get task paths
         task_paths = [f.name for f in os.scandir('./'+str(res_path)+'/')
                       if f.name.endswith('_task.pickle')]
-        # Load result paths
+        # Get result paths
         results_paths = [f.name for f in os.scandir('./'+str(res_path)+'/')
                          if f.name.endswith('_results.pickle')]
 
@@ -2113,7 +2076,7 @@ def main():
             # Load results
             results = lfp(res_path+'/'+results_paths[i_task])
             # Plots path
-            plots_path = res_path+'/'+task['y_name'][0]+'_plots'
+            plots_path = res_path+'/'+task['y_name']+'_plots'
             # Create plots dir
             create_dir(plots_path)
 

@@ -1,10 +1,11 @@
 # *- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Exploratory Data Analysis (EDA)
-v142
+v167
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
+import math as mth
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -12,14 +13,21 @@ import pandas as pd
 import seaborn as sns
 import shutil
 import warnings
+from itertools import permutations
+from lightgbm import LGBMClassifier
+from lightgbm import LGBMRegressor
+from scipy.stats import loguniform
+from scipy.stats import uniform
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
+from sklearn.metrics import balanced_accuracy_score
+from sklearn.metrics import r2_score
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import TargetEncoder
-
-warnings.filterwarnings('ignore', 'The figure layout has changed to tight')
+from sklearn_repeated_group_k_fold import RepeatedGroupKFold
 
 
 def create_dir(path):
@@ -46,19 +54,272 @@ def create_dir(path):
     return
 
 
-def eda(task, x, y):
+def prepare(objective=None):
     '''
-    Carries out exploratory data analysis, incl.:
-    distribuation (violinplot),
-    pairplots,
-    correlation (heatmap),
-    PCA,
-    outlier.
+    Prepare estimator, prepare seach_space.
+
+    Parameters
+    ----------
+    objective : string
+        String with objective describtion variables.
+
+    Returns
+    -------
+    estimator : scikit-learn compatible estimator
+        Prepared estimator object.
+    space : dict
+        Space that should be searched for optimale parameters.
+    '''
+
+    # Make estimator ----------------------------------------------------------
+    # Regression
+    if objective == 'regression':
+        # Estimator
+        estimator = LGBMRegressor(
+            boosting_type='gbdt',
+            num_leaves=100,
+            max_depth=-1,
+            learning_rate=0.1,
+            n_estimators=100,
+            subsample_for_bin=100000,
+            objective='huber',
+            min_split_gain=0,
+            min_child_weight=0.0001,
+            min_child_samples=10,
+            subsample=1,
+            subsample_freq=0,
+            colsample_bytree=1,
+            reg_alpha=0,
+            reg_lambda=0,
+            random_state=None,
+            n_jobs=1,
+            importance_type='gain',
+            **{'data_random_seed': None,
+               'data_sample_strategy': 'bagging',
+               'extra_seed': None,
+               'feature_fraction_seed': None,
+               'feature_pre_filter': False,
+               'force_col_wise': True,
+               'min_data_in_bin': 1,
+               'use_quantized_grad': True,
+               'verbosity': -1,
+               })
+    # Classification
+    elif objective == 'binary' or objective == 'multiclass':
+        # Estimator
+        estimator = LGBMClassifier(
+            boosting_type='gbdt',
+            num_leaves=100,
+            max_depth=-1,
+            learning_rate=0.1,
+            n_estimators=100,
+            subsample_for_bin=100000,
+            objective=objective,
+            class_weight='balanced',
+            min_split_gain=0,
+            min_child_weight=0.0001,
+            min_child_samples=10,
+            subsample=1,
+            subsample_freq=0,
+            colsample_bytree=1,
+            reg_alpha=0,
+            reg_lambda=0,
+            random_state=None,
+            n_jobs=1,
+            importance_type='gain',
+            **{'data_random_seed': None,
+               'data_sample_strategy': 'bagging',
+               'extra_seed': None,
+               'feature_fraction_seed': None,
+               'feature_pre_filter': False,
+               'force_col_wise': True,
+               'min_data_in_bin': 1,
+               'use_quantized_grad': True,
+               'verbosity': -1,
+               })
+    # Other
+    else:
+        # Raise error
+        raise ValueError('OBJECTIVE not found.')
+
+    # Make search space -------------------------------------------------------
+    # Search space
+    space = {
+        'estimator__colsample_bytree': uniform(0.1, 0.9),
+        'estimator__extra_trees': [True, False],
+        'estimator__path_smooth': loguniform(1, 100),
+        }
+
+    # Return estimator and space ----------------------------------------------
+    return estimator, space
+
+
+def split_data(df, i_trn, i_tst):
+    '''
+    Split dataframe in training and testing dataframes.
+
+    Parameters
+    ----------
+    df : dataframe
+        Dataframe holding the data to split.
+    i_trn : numpy array
+        Array with indices of training data.
+    i_tst : numpy array
+        Array with indices of testing data.
+
+    Returns
+    -------
+    df_trn : dataframe
+        Dataframe holding the training data.
+    df_tst : dataframe
+         Dataframe holding the testing data.
+    '''
+
+    # Split dataframe via index -----------------------------------------------
+    # Dataframe is not empty
+    if not df.empty:
+        # Make split
+        df_trn = df.iloc[i_trn].reset_index(drop=True)
+        # Make split
+        df_tst = df.iloc[i_tst].reset_index(drop=True)
+    # Dataframe is empty
+    else:
+        # Make empty dataframes
+        df_trn, df_tst = pd.DataFrame(), pd.DataFrame()
+
+    # Return train test dataframes --------------------------------------------
+    return df_trn, df_tst
+
+
+def compute_redundancy(task=None, g=None, x=None, y=None, objective=None):
+    '''
+    Compute redundancy score (R²) of between x and y.
 
     Parameters
     ----------
     task : dictionary
         Dictionary holding the task describtion variables.
+    g : series
+        Series holding the group data.
+    x : series
+        Series holding the predictor data.
+    y : series
+        Series holding the target data.
+    objective : string
+        String with objective describtion variables.
+
+    Returns
+    -------
+    redundacy : float
+        Redundancy score (0-1). R² for regression, adjusted balanced accuracy
+        for classification.
+    '''
+
+    # Initialize results lists ------------------------------------------------
+    # Initialize score list
+    scores = []
+    # Get estimator and space
+    estimator, space = prepare(objective)
+
+    # Main cross-validation loop ----------------------------------------------
+    # Calculate number of repetition for outer CV
+    task['n_rep_outer_cv'] = mth.ceil(task['N_PRED_OUTER_CV']/g.shape[0])
+    # Instatiate main cv splitter with fixed random state for comparison
+    cv = RepeatedGroupKFold(
+        n_splits=task['N_CV_FOLDS'],
+        n_repeats=task['n_rep_outer_cv'],
+        random_state=None)
+    # Loop over main (outer) cross validation splits
+    for i_cv, (i_trn, i_tst) in enumerate(cv.split(g, groups=g)):
+
+        # Split data ----------------------------------------------------------
+        # Split groups
+        g_trn, g_tst = split_data(g, i_trn, i_tst)
+        # Split targets
+        y_trn, y_tst = split_data(y, i_trn, i_tst)
+        # Split predictors
+        x_trn, x_tst = split_data(x, i_trn, i_tst)
+
+        # Get scorer ----------------------------------------------------------
+        # Regression
+        if objective == 'regression':
+            # R² score
+            scorer = 'r2'
+        # Classification
+        elif objective == 'binary' or objective == 'multiclass':
+            # Balanced accuracy for classification
+            scorer = 'balanced_accuracy'
+        # Other
+        else:
+            # Raise error
+            raise ValueError('OBJECTIVE not found.')
+
+        # Tune analysis pipeline ----------------------------------------------
+        # Choose n_repeats to approx N_SAMPLES_INNER_CV predictions
+        task['n_rep_inner_cv'] = mth.ceil(
+            task['N_PRED_INNER_CV'] / g_trn.shape[0])
+        # Instatiate random parameter search
+        search = RandomizedSearchCV(
+            estimator,
+            space,
+            n_iter=task['N_SAMPLES_RS'],
+            scoring=scorer,
+            n_jobs=task['N_JOBS'],
+            refit=True,
+            cv=RepeatedGroupKFold(n_splits=task['N_CV_FOLDS'],
+                                  n_repeats=task['n_rep_inner_cv'],
+                                  random_state=None),
+            verbose=0,
+            pre_dispatch='2*n_jobs',
+            random_state=None,
+            error_score=0,
+            return_train_score=False)
+        # Random search for best parameter
+        search.fit(x_trn, y_trn.squeeze(), groups=g_trn)
+
+        # Predict -------------------------------------------------------------
+        # Predict test samples
+        y_pred = search.best_estimator_.predict(x_tst)
+
+        # Score results -------------------------------------------------------
+        # Regression
+        if objective == 'regression':
+            # Score predictions in terms of R²
+            scores.append(r2_score(y_tst, y_pred))
+        # Classification
+        elif objective == 'binary' or objective == 'multiclass':
+            # Calculate model fit in terms of acc
+            scores.append(balanced_accuracy_score(
+                y_tst, y_pred, adjusted=True))
+        # Other
+        else:
+            # Raise error
+            raise ValueError('OBJECTIVE not found.')
+
+    # Process scores ----------------------------------------------------------
+    # Limit redundancy score to be bigger than or equal to 0
+    redundancy = max(0, np.mean(scores))
+
+    # Return redundancy -------------------------------------------------------
+    return redundancy
+
+
+def eda(task, g, x, y):
+    '''
+    Carries out exploratory data analysis, incl.:
+    1D data distribuation (violinplot),
+    2D data distribution (pairplots),
+    data correlation (heatmap),
+    data linear dimensions (via PCA),
+    redundancy of predictors (via LightGBM prediction accuracy),
+    outlier in data (via isolation Forests).
+
+    Parameters
+    ----------
+    task : dictionary
+        Dictionary holding the task describtion variables.
+    g : dataframe
+        Dataframe holding the group data.
     x : dataframe
         Dataframe holding the predictor data.
     y : dataframe
@@ -75,7 +336,7 @@ def eda(task, x, y):
         categories='auto',
         target_type='continuous',
         smooth='auto',
-        cv=5,
+        cv=task['N_CV_FOLDS'],
         shuffle=True,
         random_state=None)
     # Get categorical predictors for target-encoder
@@ -102,9 +363,9 @@ def eda(task, x, y):
     # Do preprocessing
     z = pre_pipe.fit_transform(z, y.squeeze())
 
-    # Distributions -----------------------------------------------------------
-    # Do VIOLINPLOTS?
-    if task['VIOLINPLOTS']:
+    # 1D data distributions ---------------------------------------------------
+    # Do 1D data distribution plot?
+    if task['DATA_DISTRIBUTION_1D']:
         # x names lengths
         x_names_max_len = max([len(i) for i in task['x_names']])
         # x names count
@@ -125,7 +386,7 @@ def eda(task, x, y):
             orient='h',
             linewidth=1,
             color='#777777',
-            saturation=1,
+            saturation=1.0,
             ax=ax)
         # Remove top, right and left frame elements
         ax.spines['top'].set_visible(False)
@@ -143,7 +404,8 @@ def eda(task, x, y):
             linestyle='dotted',
             alpha=.3)
         # Make title string
-        title_str = (task['ANALYSIS_NAME']+' '+'data distributions \n')
+        title_str = (task['ANALYSIS_NAME']+'\n' +
+                     '1D data distributions (violin plot)\n')
         # set title
         plt.title(title_str, fontsize=10)
 
@@ -151,7 +413,7 @@ def eda(task, x, y):
         # Make save path
         save_path = (
             task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_1_distribuations')
+            '_'+task['y_name'][0]+'_eda_1_1d_distribuation')
         # Save figure in .png format
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -161,9 +423,9 @@ def eda(task, x, y):
         # Show plot
         plt.show()
 
-    # Pairplots ---------------------------------------------------------------
-    # Do PAIRPLOTS?
-    if task['PAIRPLOTS']:
+    # 2D data distribution ----------------------------------------------------
+    # Do 2D data distribution plot?
+    if task['DATA_DISTRIBUTION_2D']:
         # Make pairplot
         pair_plot = sns.pairplot(
             z,
@@ -172,7 +434,8 @@ def eda(task, x, y):
             plot_kws={'color': '#777777'},
             diag_kws={'color': '#777777'})
         # Make title string
-        title_str = (task['ANALYSIS_NAME']+' '+'data pair plots \n')
+        title_str = (task['ANALYSIS_NAME']+'\n' +
+                     '2D data distributions (pair plot)\n')
         # set title
         pair_plot.fig.suptitle(title_str, fontsize=10, y=1.0)
         # Add variable kde to plot
@@ -182,7 +445,7 @@ def eda(task, x, y):
         # Make save path
         save_path = (
             task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_2_pairplots')
+            '_'+task['y_name'][0]+'_eda_2_2d_distribution')
         # Save figure in .png format
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -192,19 +455,19 @@ def eda(task, x, y):
         # Show plot
         plt.show()
 
-    # Correlation -------------------------------------------------------------
-    # Do HEATMAP?
-    if task['HEATMAP']:
+    # Correlations ------------------------------------------------------------
+    # Do correlation heatmap plot?
+    if task['DATA_CORRELATIONS']:
         # x names lengths
         x_names_max_len = max([len(i) for i in task['x_names']])
         # x names count
         x_names_count = len(task['x_names'])
         # Create a figure
         fig, ax = plt.subplots(
-            figsize=(x_names_count*.5+x_names_max_len*.1+1,
-                     x_names_count*.5+x_names_max_len*.1+1))
+            figsize=(x_names_count*.6+x_names_max_len*.1+1,
+                     x_names_count*.6+x_names_max_len*.1+1))
         # Make colorbar string
-        clb_str = ('correlation coefficient')
+        clb_str = ('correlation (-1 to 1)')
         # Print correlations
         sns.heatmap(
             z.corr(),
@@ -231,7 +494,8 @@ def eda(task, x, y):
         # This sets the xticks 'sideways' with 90
         plt.xticks(rotation=90)
         # Make title string
-        title_str = (task['ANALYSIS_NAME']+' '+'data correlations \n')
+        title_str = (task['ANALYSIS_NAME']+'\n' +
+                     'Linear correlation coefficients (heatmap)\n')
         # set title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -256,9 +520,9 @@ def eda(task, x, y):
         # Show plot
         plt.show()
 
-    # PCA and linear dependency -----------------------------------------------
-    # Do PCA?
-    if task['PCA']:
+    # Linear dimensions analysis with PCA -------------------------------------
+    # Do linear dimensions analysis?
+    if task['DATA_LINEAR_DIMENSIONS']:
         # Check for NaN values
         if not z.isnull().values.any():
             # Instanciate PCA
@@ -275,7 +539,7 @@ def eda(task, x, y):
             # x names count
             x_names_count = len(task['x_names'])
             # Make figure
-            fig, ax = plt.subplots(figsize=(max((1+x_names_count*.30), 16), 4))
+            fig, ax = plt.subplots(figsize=(min((1+x_names_count*.6), 16), 4))
             # Plot data
             ax.plot(
                 pca.explained_variance_ratio_,
@@ -337,8 +601,8 @@ def eda(task, x, y):
                 bbox_transform=ax.transAxes)
             # Make title string
             title_str = (
-                task['ANALYSIS_NAME']+' ' +
-                'data principle components variance contribution \n')
+                task['ANALYSIS_NAME']+'\n' +
+                'Linear dimensions via PCA\n')
             # set title
             plt.title(title_str, fontsize=10)
 
@@ -346,7 +610,7 @@ def eda(task, x, y):
             # Make save path
             save_path = (
                 task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                '_'+task['y_name'][0]+'_eda_4_pca')
+                '_'+task['y_name'][0]+'_eda_4_data_linear_dim')
             # Save figure in .png format
             plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
@@ -360,14 +624,124 @@ def eda(task, x, y):
             # Raise warning
             warnings.warn('PCA skipped because of NaN values.')
 
-    # Outlier dection with Isolation Forests ----------------------------------
-    # Do OUTLIER detection?
-    if task['OUTLIER']:
+    # Data redundancy via LigthGBM --------------------------------------------
+    # Do data redundancy analysis?
+    if task['DATA_REDUNDANCY']:
+        # Make redundancy matrix
+        redundancy = np.ones((len(list(z.columns)), len(list(z.columns))))
+        # Make pairs
+        for (id_pred1, id_pred2) in permutations(pd.factorize(
+                pd.Series(z.columns))[0], 2):
+            # Make a mapping list between number and name
+            mapping = list(z.columns)
+            # Select task continous prediction target
+            if mapping[id_pred2] in task['X_CON_NAMES']:
+                # Select objective
+                objective = 'regression'
+                # Get predictor data
+                xt = pd.DataFrame(z[mapping[id_pred1]])
+                # Get target data
+                yt = pd.DataFrame(z[mapping[id_pred2]])
+            # Select task binary prediction target
+            elif mapping[id_pred2] in task['X_CAT_BIN_NAMES']:
+                # Select objective
+                objective = 'binary'
+                # Get predictor data
+                xt = pd.DataFrame(z[mapping[id_pred1]])
+                # Get target data
+                yt = pd.DataFrame(pd.factorize(z[mapping[id_pred2]])[0],
+                                  columns=[mapping[id_pred2]])
+            # Select task multi class prediction target trat as regression
+            elif mapping[id_pred2] in task['X_CAT_MULT_NAMES']:
+                # Select objective
+                objective = 'regression'
+                # Get predictor data
+                xt = pd.DataFrame(z[mapping[id_pred1]])
+                # Get target data
+                yt = pd.DataFrame(z[mapping[id_pred2]])
+            # Select task target objective
+            elif mapping[id_pred2] in task['Y_NAMES']:
+                # Select objective
+                objective = task['OBJECTIVE']
+                # Get predictor data
+                xt = pd.DataFrame(z[mapping[id_pred1]])
+                # Get target data select by objective regression
+                if objective == 'regression':
+                    # Get target data
+                    yt = pd.DataFrame(z[mapping[id_pred2]])
+                # Get target data select by objective other than regression
+                else:
+                    # Get target data
+                    yt = pd.DataFrame(pd.factorize(z[mapping[id_pred2]])[0],
+                                      columns=[mapping[id_pred2]])
+            # Other target objective
+            else:
+                # Raise error
+                raise ValueError('OBJECTIVE not found.')
+            # Compute redundancy of current pair
+            redundancy[id_pred1, id_pred2] = compute_redundancy(
+                task=task, g=g, x=xt, y=yt, objective=objective)
+        # Names lengths
+        names_max_len = max([len(i) for i in list(z.columns)])
+        # Names count
+        names_count = len(list(z.columns))
+        # Create a figure
+        fig, ax = plt.subplots(
+            figsize=(names_count*.6+names_max_len*.1+1,
+                     names_count*.6+names_max_len*.1+1))
+        # Make colorbar string
+        clb_str = ('redundancy (0 to 1)')
+        # Print redundancy
+        sns.heatmap(
+            redundancy,
+            vmin=0,
+            vmax=1,
+            cmap='Greys',
+            center=None,
+            robust=True,
+            annot=True,
+            fmt='.2f',
+            annot_kws={'size': 10},
+            linewidths=.5,
+            linecolor='#999999',
+            cbar=True,
+            cbar_kws={'label': clb_str, 'shrink': 0.6},
+            cbar_ax=None,
+            square=True,
+            xticklabels=list(z.columns),
+            yticklabels=list(z.columns),
+            mask=None,
+            ax=ax)
+        # Make title string
+        title_str = (task['ANALYSIS_NAME']+'\n' +
+                     'Non-linear redundancy via ' +
+                     'pairwise predictions (heatmap)\n' +
+                     'y-axis: predictors, x-axis: prediction targets\n')
+        # set title
+        plt.title(title_str, fontsize=10)
+
+        # Save figure -----------------------------------------------------
+        # Make save path
+        save_path = (
+            task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
+            '_'+task['y_name'][0]+'_eda_5_redundancy')
+        # Save figure in .png format
+        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
+        # Check if save as svg is enabled
+        if task['AS_SVG']:
+            # Save figure in .svg format
+            plt.savefig(save_path+'.svg', bbox_inches='tight')
+        # show figure
+        plt.show()
+
+    # Outlier dection via Isolation Forests -----------------------------------
+    # Do outlier detection in data?
+    if task['DATA_OUTLIER']:
         # Check for NaN values
         if not z.isnull().values.any():
             # Instanciate isolation forest
             iForest = IsolationForest(
-                n_estimators=1000,
+                n_estimators=10000,
                 max_samples='auto',
                 contamination='auto',
                 max_features=1.0,
@@ -397,12 +771,12 @@ def eda(task, x, y):
             # Add x label
             ax.set_xlabel('Isolation Forest outlier score')
             # Add y label
-            ax.set_ylabel('Number of samples')
+            ax.set_ylabel('Count')
             # Create title string
             title_str = (
-                task['ANALYSIS_NAME']+' ' +
-                'data outlier detection | Isolation Forest | ' +
-                'outlier {:.1f} % \n')
+                task['ANALYSIS_NAME']+'\n' +
+                'Outlier detection via Isolation Forest: ' +
+                '{:.1f}% potential outliers\n')
             # Add title
             ax.set_title(
                 title_str.format(np.sum(outlier == -1)/len(outlier)*100))
@@ -411,7 +785,7 @@ def eda(task, x, y):
             # Make save path
             save_path = (
                 task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                '_'+task['y_name'][0]+'_eda_5_outlier')
+                '_'+task['y_name'][0]+'_eda_6_outlier')
             # Save outlier data
             outlier_df.to_excel(save_path+'.xlsx')
             # Save figure in .png format
@@ -445,73 +819,91 @@ def main():
     ###########################################################################
 
     # 1. Specify task ---------------------------------------------------------
-    # Specify max number of samples. (default: 1000)
-    MAX_SAMPLES = 1000
-    # Do VIOLINPLOTS in EDA?
-    VIOLINPLOTS = True
-    # Do PAIRPLOTS in EDA?
-    PAIRPLOTS = True
-    # Do correlation HEATMAP in EDA?
-    HEATMAP = True
-    # Do PCA in EDA?
-    PCA = True
-    # Use Isolation Forest to automatically detect OUTLIERs in EDA?
-    OUTLIER = True
-    # Save plots additionally AS_SVG?
+    # Specify max number of samples. int (default: 10000)
+    MAX_SAMPLES = 10000
+    # Do 1D data distribution violon plot in EDA? bool (default: True)
+    DATA_DISTRIBUTION_1D = True
+    # Do 2D data distribution pair plot in EDA? bool (default: True)
+    DATA_DISTRIBUTION_2D = True
+    # Do data correlation heatmap in EDA? bool (default: True)
+    DATA_CORRELATIONS = True
+    # Do linear dimensions analysis with PCA in EDA? bool (default: True)
+    DATA_LINEAR_DIMENSIONS = True
+    # Do data redundancy analysis in EDA? (default: True)
+    DATA_REDUNDANCY = True
+    # Use Isolation Forest to detect outliers in EDA? bool (default: True)
+    DATA_OUTLIER = True
+    # Number parallel processing jobs. int (-1=all, -2=all-1)
+    N_JOBS = -2
+    # Number of folds in CV. int (default: 5)
+    N_CV_FOLDS = 5
+    # Number of predictions in outer CV. int (default: 10000)
+    N_PRED_OUTER_CV = 10000
+    # Number of tries in random search. int (default: 100)
+    N_SAMPLES_RS = 100
+    # Number of predictions in inner CV. int (default: 1000)
+    N_PRED_INNER_CV = 1000
+    # Save plots additionally AS_SVG? bool (default: False)
     AS_SVG = False
 
     # 2. Specify data ---------------------------------------------------------
 
-    # Cancer data - classification 2 class, unbalanced classes
-    # Specifiy an analysis name
-    ANALYSIS_NAME = 'cancer'
-    # Specify path to data. string
-    PATH_TO_DATA = 'data/cancer_20230927.xlsx'
-    # Specify sheet name. string
-    SHEET_NAME = 'data'
-    # Specify continous predictor names. list of string or []
-    X_CON_NAMES = [
-        'mean_radius',
-        'mean_texture',
-        'mean_perimeter',
-        'mean_area',
-        'mean_smoothness',
-        'mean_compactness',
-        'mean_concavity',
-        'mean_concave_points',
-        'mean_symmetry',
-        'mean_fractal_dimension',
-        'radius_error',
-        'texture_error',
-        'perimeter_error',
-        'area_error',
-        'smoothness_error',
-        'compactness_error',
-        'concavity_error',
-        'concave_points_error',
-        'symmetry_error',
-        'fractal_dimension_error',
-        'worst_radius',
-        'worst_texture',
-        'worst_perimeter',
-        'worst_area',
-        'worst_smoothness',
-        'worst_compactness',
-        'worst_concavity',
-        'worst_concave_points',
-        'worst_symmetry',
-        'worst_fractal_dimension',
-        ]
-    # Specify binary categorical predictor names. list of string or []
-    X_CAT_BIN_NAMES = []
-    # Specify multi categorical predictor names. list of string or []
-    X_CAT_MULT_NAMES = []
-    # Specify target name(s). list of strings or []
-    Y_NAMES = [
-        'target',
-        ]
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
+    # # Cancer data - classification 2 class, unbalanced classes
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'cancer'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/cancer_20230927.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'binary'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'mean_radius',
+    #     'mean_texture',
+    #     'mean_perimeter',
+    #     'mean_area',
+    #     'mean_smoothness',
+    #     'mean_compactness',
+    #     'mean_concavity',
+    #     'mean_concave_points',
+    #     'mean_symmetry',
+    #     'mean_fractal_dimension',
+    #     'radius_error',
+    #     'texture_error',
+    #     'perimeter_error',
+    #     'area_error',
+    #     'smoothness_error',
+    #     'compactness_error',
+    #     'concavity_error',
+    #     'concave_points_error',
+    #     'symmetry_error',
+    #     'fractal_dimension_error',
+    #     'worst_radius',
+    #     'worst_texture',
+    #     'worst_perimeter',
+    #     'worst_area',
+    #     'worst_smoothness',
+    #     'worst_compactness',
+    #     'worst_concavity',
+    #     'worst_concave_points',
+    #     'worst_symmetry',
+    #     'worst_fractal_dimension',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'target',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
 
     # # Covid data - classification 2 class
     # # Specifiy an analysis name
@@ -520,6 +912,12 @@ def main():
     # PATH_TO_DATA = 'data/covid_20240221.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'binary'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = []
     # # Specify binary categorical predictor names. list of string or []
@@ -536,29 +934,63 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
+    # Diabetes data - regression, binary category predictor
+    # Specifiy an analysis name
+    ANALYSIS_NAME = 'diabetes'
+    # Specify path to data. string
+    PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
+    # Specify sheet name. string
+    SHEET_NAME = 'data'
+    # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    OBJECTIVE = 'regression'
+    # Specify grouping for CV split. list of string
+    G_NAME = [
+        'sample_id',
+        ]
+    # Specify continous predictor names. list of string or []
+    X_CON_NAMES = [
+        'age',
+        'bmi',
+        'bp',
+        's1',
+        's2',
+        's3',
+        's4',
+        's5',
+        's6',
+        ]
+    # Specify binary categorical predictor names. list of string or []
+    X_CAT_BIN_NAMES = [
+        'sex',
+        ]
+    # Specify multi categorical predictor names. list of string or []
+    X_CAT_MULT_NAMES = []
+    # Specify target name(s). list of strings or []
+    Y_NAMES = [
+        'progression',
+        ]
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
+
     # # Diabetes data - regression, binary category predictor
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'diabetes'
+    # ANALYSIS_NAME = 'diabetes_singlepred'
     # # Specify path to data. string
     # PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'regression'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
-    #     'age',
     #     'bmi',
-    #     'bp',
-    #     's1',
-    #     's2',
-    #     's3',
-    #     's4',
-    #     's5',
-    #     's6',
     #     ]
     # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = [
-    #     'sex',
-    #     ]
+    # X_CAT_BIN_NAMES = []
     # # Specify multi categorical predictor names. list of string or []
     # X_CAT_MULT_NAMES = []
     # # Specify target name(s). list of strings or []
@@ -575,6 +1007,12 @@ def main():
     # PATH_TO_DATA = 'data/digit_20230809.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'multiclass'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = []
     # # Specify binary categorical predictor names. list of string or []
@@ -659,6 +1097,12 @@ def main():
     # PATH_TO_DATA = 'data/housing_20230907.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'regression'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
     #     'median_income',
@@ -690,6 +1134,12 @@ def main():
     # PATH_TO_DATA = 'data/iris_20230809.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data_2class'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'binary'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
     #     'sepal_length',
@@ -715,6 +1165,12 @@ def main():
     # PATH_TO_DATA = 'data/iris_20230809.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data_3class'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'multiclass'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
     #     'sepal_length',
@@ -740,6 +1196,12 @@ def main():
     # PATH_TO_DATA = 'data/radon_20230809.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'regression'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
     #     'Uppm',
@@ -768,15 +1230,23 @@ def main():
     # Create task variable ----------------------------------------------------
     task = {
         'MAX_SAMPLES': MAX_SAMPLES,
-        'VIOLINPLOTS': VIOLINPLOTS,
-        'PAIRPLOTS': PAIRPLOTS,
-        'HEATMAP': HEATMAP,
-        'PCA': PCA,
-        'OUTLIER': OUTLIER,
+        'N_JOBS': N_JOBS,
+        'N_CV_FOLDS': N_CV_FOLDS,
+        'DATA_DISTRIBUTION_1D': DATA_DISTRIBUTION_1D,
+        'DATA_DISTRIBUTION_2D': DATA_DISTRIBUTION_2D,
+        'DATA_CORRELATIONS': DATA_CORRELATIONS,
+        'DATA_LINEAR_DIMENSIONS': DATA_LINEAR_DIMENSIONS,
+        'DATA_REDUNDANCY': DATA_REDUNDANCY,
+        'N_PRED_OUTER_CV': N_PRED_OUTER_CV,
+        'N_PRED_INNER_CV': N_PRED_INNER_CV,
+        'N_SAMPLES_RS': N_SAMPLES_RS,
+        'DATA_OUTLIER': DATA_OUTLIER,
         'AS_SVG': AS_SVG,
         'ANALYSIS_NAME': ANALYSIS_NAME,
         'PATH_TO_DATA': PATH_TO_DATA,
         'SHEET_NAME': SHEET_NAME,
+        'OBJECTIVE': OBJECTIVE,
+        'G_NAME': G_NAME,
         'X_CON_NAMES': X_CON_NAMES,
         'X_CAT_BIN_NAMES': X_CAT_BIN_NAMES,
         'X_CAT_MULT_NAMES': X_CAT_MULT_NAMES,
@@ -793,6 +1263,14 @@ def main():
     shutil.copy('iml_1_eda.py', path_to_results+'/iml_1_eda.py')
 
     # Load data ---------------------------------------------------------------
+    # Load groups from excel file
+    G = pd.read_excel(
+        task['PATH_TO_DATA'],
+        sheet_name=task['SHEET_NAME'],
+        header=0,
+        usecols=task['G_NAME'],
+        dtype=np.float64,
+        skiprows=task['SKIP_ROWS'])
     # Load predictors from excel file
     X = pd.read_excel(
         task['PATH_TO_DATA'],
@@ -823,6 +1301,8 @@ def main():
         # Deal with NaNs in the target ----------------------------------------
         # Get current target and remove NaNs
         y = Y[y_name].to_frame().dropna()
+        # Use y index for groups and reset index
+        g = G.reindex(index=y.index).reset_index(drop=True)
         # Use y index for predictors and reset index
         x = X.reindex(index=y.index).reset_index(drop=True)
         # Reset index of target
@@ -832,14 +1312,20 @@ def main():
         # Subsample predictors
         x = x.sample(
             n=min(x.shape[0], task['MAX_SAMPLES']),
-            random_state=3141592,
+            random_state=None,
             ignore_index=False)
+        # Slice group to fit subsampled predictors
+        g = g.loc[x.index, :].reset_index(drop=True)
         # Slice targets to fit subsampled predictors
         y = y.loc[x.index, :].reset_index(drop=True)
         # Reset index of predictors
         x = x.reset_index(drop=True)
 
         # Store data ----------------------------------------------------------
+        # Save groups
+        g.to_excel(
+            path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
+            '_data_g.xlsx')
         # Save predictors
         x.to_excel(
             path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
@@ -851,7 +1337,7 @@ def main():
 
         # Exploratory data analysis (EDA) -------------------------------------
         # Run EDA
-        eda(task, x, y)
+        eda(task, g, x, y)
 
     # Return ------------------------------------------------------------------
     return

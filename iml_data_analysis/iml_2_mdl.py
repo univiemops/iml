@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Modelling (MDL)
-v763
+v783
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -81,7 +81,7 @@ def prepare(task):
         categories=task['te_categories'],
         target_type='continuous',
         smooth='auto',
-        cv=5,
+        cv=task['N_CV_FOLDS'],
         shuffle=True,
         random_state=None)
     # Get categorical predictors for target-encoder
@@ -102,7 +102,7 @@ def prepare(task):
         memory=None,
         verbose=False)
 
-    # Make predictor ----------------------------------------------------------
+    # Make estimator ----------------------------------------------------------
     # Regression
     if task['OBJECTIVE'] == 'regression':
         # Estimator
@@ -116,7 +116,7 @@ def prepare(task):
             objective='huber',
             min_split_gain=0,
             min_child_weight=0.0001,
-            min_child_samples=2,
+            min_child_samples=10,
             subsample=1,
             subsample_freq=0,
             colsample_bytree=1,
@@ -131,17 +131,10 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
-               'max_bin': 100,
                'min_data_in_bin': 1,
                'use_quantized_grad': True,
                'verbosity': -1,
                })
-        # Search space
-        space = {
-            'estimator__regressor__colsample_bytree': uniform(0.1, 0.9),
-            'estimator__regressor__extra_trees': [True, False],
-            'estimator__regressor__path_smooth': loguniform(1, 100),
-            }
         # Add scaler to the estimator
         estimator = TransformedTargetRegressor(
             regressor=estimator,
@@ -163,7 +156,7 @@ def prepare(task):
             class_weight='balanced',
             min_split_gain=0,
             min_child_weight=0.0001,
-            min_child_samples=2,
+            min_child_samples=10,
             subsample=1,
             subsample_freq=0,
             colsample_bytree=1,
@@ -178,17 +171,10 @@ def prepare(task):
                'feature_fraction_seed': None,
                'feature_pre_filter': False,
                'force_col_wise': True,
-               'max_bin': 100,
                'min_data_in_bin': 1,
                'use_quantized_grad': True,
                'verbosity': -1,
                })
-        # Search space
-        space = {
-            'estimator__colsample_bytree': uniform(0.1, 0.9),
-            'estimator__extra_trees': [True, False],
-            'estimator__path_smooth': loguniform(1, 100),
-            }
     # Other
     else:
         # Raise error
@@ -201,6 +187,14 @@ def prepare(task):
          ('estimator', estimator)],
         memory=None,
         verbose=False).set_output(transform='pandas')
+
+    # Make search space -------------------------------------------------------
+    # Search space
+    space = {
+        'estimator__regressor__colsample_bytree': uniform(0.1, 0.9),
+        'estimator__regressor__extra_trees': [True, False],
+        'estimator__regressor__path_smooth': loguniform(1, 100),
+        }
 
     # Return pipe and space ---------------------------------------------------
     return pipe, space
@@ -243,7 +237,7 @@ def split_data(df, i_trn, i_tst):
     return df_trn, df_tst
 
 
-def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
+def print_tune_summary(task, i_cv, hp_params, hp_score):
     '''
     Print best paramters and related score to console.
 
@@ -253,8 +247,6 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
         Dictionary holding the task describtion variables.
     i_cv : int
         Current cv repetition.
-    n_splits : int
-        Number of splits in inner cv
     hp_params : dictionary
         Best hyper params found.
     hp_score : dictionary
@@ -270,7 +262,7 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
     # Print data set
     print('Dataset: '+task['PATH_TO_DATA'])
     # Print prediction target
-    print('Predicting: '+task['y_name'][0])
+    print('Predicting: '+task['y_name'])
     # Cross-validation --------------------------------------------------------
     if task['TYPE'] == 'CV':
         # Regression
@@ -278,8 +270,8 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
             # Print general information
             print(
                 str(task['i_y'])+'.'+str(i_cv)+' | ' +
-                'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
-                'n rep inner cv: '+str(n_splits)+' | ' +
+                'n rep outer cv: '+str(task['n_rep_outer_cv'])+' | ' +
+                'n rep inner cv: '+str(task['n_rep_inner_cv'])+' | ' +
                 'best R²: '+str(np.round(hp_score, decimals=4)))
         # Classification
         elif (task['OBJECTIVE'] == 'binary' or
@@ -287,8 +279,8 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
             # Print general information
             print(
                 str(task['i_y'])+'.'+str(i_cv)+' | ' +
-                'n rep outer cv: '+str(task['N_REP_OUTER_CV'])+' | ' +
-                'n rep inner cv: '+str(n_splits)+' | ' +
+                'n rep outer cv: '+str(task['n_rep_outer_cv'])+' | ' +
+                'n rep inner cv: '+str(task['n_rep_inner_cv'])+' | ' +
                 'best acc: '+str(np.round(hp_score, decimals=4)))
         # Other
         else:
@@ -301,7 +293,7 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
             # Print general information
             print(
                 str(task['i_y'])+'.'+str(i_cv)+' | ' +
-                'n rep inner cv: '+str(n_splits)+' | ' +
+                'n rep inner cv: '+str(task['n_rep_inner_cv'])+' | ' +
                 'best R²: '+str(np.round(hp_score, decimals=4)))
         # Classification
         elif (task['OBJECTIVE'] == 'binary' or
@@ -309,7 +301,7 @@ def print_tune_summary(task, i_cv, n_splits, hp_params, hp_score):
             # Print general information
             print(
                 str(task['i_y'])+'.'+str(i_cv)+' | ' +
-                'n rep inner cv: '+str(n_splits)+' | ' +
+                'n rep inner cv: '+str(task['n_rep_inner_cv'])+' | ' +
                 'best acc: '+str(np.round(hp_score, decimals=4)))
         # Other
         else:
@@ -377,7 +369,7 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
 
     # Tune analysis pipeline --------------------------------------------------
     # Choose n_repeats to approx N_SAMPLES_INNER_CV predictions
-    n_repeats = mth.ceil(task['N_SAMPLES_INNER_CV'] / g_trn.shape[0])
+    task['n_rep_inner_cv'] = mth.ceil(task['N_PRED_INNER_CV'] / g_trn.shape[0])
     # Instatiate random parameter search
     search = RandomizedSearchCV(
         pipe,
@@ -386,8 +378,8 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
         scoring=scorer,
         n_jobs=task['N_JOBS'],
         refit=True,
-        cv=RepeatedGroupKFold(n_splits=5,
-                              n_repeats=n_repeats,
+        cv=RepeatedGroupKFold(n_splits=task['N_CV_FOLDS'],
+                              n_repeats=task['n_rep_inner_cv'],
                               random_state=None),
         verbose=0,
         pre_dispatch='2*n_jobs',
@@ -400,7 +392,6 @@ def tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn):
     print_tune_summary(
         task,
         i_cv,
-        n_repeats,
         search.best_params_,
         search.best_score_)
 
@@ -513,10 +504,16 @@ def get_explainations(task, pipe, x_trn, x_tst):
     '''
 
     # Get SHAP test data ------------------------------------------------------
+    # Gete max samples shap
+    task['MAX_SAMPLES_SHAP'] = min(
+        x_tst.shape[0],
+        mth.ceil(
+            task['N_SAMPLES_SHAP']/(task['n_rep_outer_cv']*task['N_CV_FOLDS']))
+        )
     # Subsample test data
     x_tst_shap_orig = x_tst.sample(
-        n=min(x_tst.shape[0], task['MAX_SAMPLES_SHAP']),
-        random_state=3141592,
+        n=task['MAX_SAMPLES_SHAP'],
+        random_state=314,
         ignore_index=True)
     # Transform shap test data
     x_tst_shap = pipe[0].transform(x_tst_shap_orig)
@@ -707,11 +704,13 @@ def cross_validation(task, g, x, y):
     pipe, space = prepare(task)
 
     # Main cross-validation loop ----------------------------------------------
+    # Calculate number of repetition for outer CV
+    task['n_rep_outer_cv'] = mth.ceil(task['N_PRED_OUTER_CV']/g.shape[0])
     # Instatiate main cv splitter with fixed random state for comparison
     cv = RepeatedGroupKFold(
-        n_splits=5,
-        n_repeats=task['N_REP_OUTER_CV'],
-        random_state=3141592)
+        n_splits=task['N_CV_FOLDS'],
+        n_repeats=task['n_rep_outer_cv'],
+        random_state=314)
     # Loop over main (outer) cross validation splits
     for i_cv, (i_trn, i_tst) in enumerate(cv.split(g, groups=g)):
         # Save loop start time
@@ -757,18 +756,16 @@ def cross_validation(task, g, x, y):
             'scores_sh': scores_sh,
             'explainations_sh': explainations_sh
             }
-        # Make save path
-        save_path = task['path_to_results']+'/'+task['y_name'][0]
         # Save results as pickle file
-        s2p(save_path+'_results.pickle', results)
+        s2p(task['save_path']+'_results.pickle', results)
         # Save task as pickle file
-        s2p(save_path+'_task.pickle', task)
+        s2p(task['save_path']+'_task.pickle', task)
 
         # Print current results -----------------------------------------------
         print_current_results(task, t_start, scores, scores_sh)
 
-    # Return None -------------------------------------------------------------
-    return
+    # Return results ----------------------------------------------------------
+    return results
 
 
 def train_test_split(task, g, x, y):
@@ -856,23 +853,21 @@ def train_test_split(task, g, x, y):
         'scores_sh': scores_sh,
         'explainations_sh': explainations_sh
         }
-    # Make save path
-    save_path = task['path_to_results']+'/'+task['y_name'][0]
     # Save results as pickle file
-    s2p(save_path+'_results.pickle', results)
+    s2p(task['save_path']+'_results.pickle', results)
     # Save task as pickle file
-    s2p(save_path+'_task.pickle', task)
+    s2p(task['save_path']+'_task.pickle', task)
 
     # Print current results ---------------------------------------------------
     print_current_results(task, t_start, scores, scores_sh)
 
-    # Return None -------------------------------------------------------------
-    return
+    # Return results ----------------------------------------------------------
+    return results
 
 
 def main():
     '''
-    Main function of the machine-learning based data analysis.
+    Main function of Interpretable Machine-Learning.
 
     Returns
     -------
@@ -880,7 +875,7 @@ def main():
     '''
 
     ###########################################################################
-    # Specify analysis
+    # Specify analysis tasks
     ###########################################################################
 
     # 1. Specify task ---------------------------------------------------------
@@ -891,77 +886,79 @@ def main():
     TYPE = 'CV'
     # Number parallel processing jobs. int (-1=all, -2=all-1)
     N_JOBS = -2
-    # CV: Number of outer CV repetitions. int (default: 10)
-    N_REP_OUTER_CV = 10
-    # CV & TT: Min number of predictions inner CV. int (default: 1000)
-    N_SAMPLES_INNER_CV = 1000
-    # Number of samples random search. int (default: 100)
+    # Number of folds in CV. int (default: 5)
+    N_CV_FOLDS = 5
+    # Number of predictions in outer CV (if TYPE='CV'). int (default: 10000)
+    N_PRED_OUTER_CV = 10000
+    # Number of tries in random search. int (default: 100)
     N_SAMPLES_RS = 100
-    # Number of samples SHAP. int (default: 100).
-    MAX_SAMPLES_SHAP = 100
+    # Number of predictions in inner CV. int (default: 1000)
+    N_PRED_INNER_CV = 1000
+    # Number of samples SHAP. int (default: 10000).
+    N_SAMPLES_SHAP = 10000
     # Get SHAP interactions. bool (default: True)
     SHAP_INTERACTIONS = True
 
     # 2. Specify data ---------------------------------------------------------
 
-    # Cancer data - classification 2 class, unbalanced classes
-    # Specifiy an analysis name
-    ANALYSIS_NAME = 'cancer'
-    # Specify path to data. string
-    PATH_TO_DATA = 'data/cancer_20230927.xlsx'
-    # Specify sheet name. string
-    SHEET_NAME = 'data'
-    # Specify task OBJECTIVE. string (regression, binary, multiclass)
-    OBJECTIVE = 'binary'
-    # Specify grouping for CV split. list of string
-    G_NAME = [
-        'sample_id',
-        ]
-    # Specify continous predictor names. list of string or []
-    X_CON_NAMES = [
-        'mean_radius',
-        'mean_texture',
-        'mean_perimeter',
-        'mean_area',
-        'mean_smoothness',
-        'mean_compactness',
-        'mean_concavity',
-        'mean_concave_points',
-        'mean_symmetry',
-        'mean_fractal_dimension',
-        'radius_error',
-        'texture_error',
-        'perimeter_error',
-        'area_error',
-        'smoothness_error',
-        'compactness_error',
-        'concavity_error',
-        'concave_points_error',
-        'symmetry_error',
-        'fractal_dimension_error',
-        'worst_radius',
-        'worst_texture',
-        'worst_perimeter',
-        'worst_area',
-        'worst_smoothness',
-        'worst_compactness',
-        'worst_concavity',
-        'worst_concave_points',
-        'worst_symmetry',
-        'worst_fractal_dimension',
-        ]
-    # Specify binary categorical predictor names. list of string or []
-    X_CAT_BIN_NAMES = []
-    # Specify multi categorical predictor names. list of string or []
-    X_CAT_MULT_NAMES = []
-    # Specify target name(s). list of strings or []
-    Y_NAMES = [
-        'target',
-        ]
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
-    # Specify index of rows for test set if TT. list of int or []
-    TEST_SET_IND = list(randint.rvs(0, 569, size=114))
+    # # Cancer data - classification 2 class, unbalanced classes
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'cancer'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'data/cancer_20230927.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # OBJECTIVE = 'binary'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'mean_radius',
+    #     'mean_texture',
+    #     'mean_perimeter',
+    #     'mean_area',
+    #     'mean_smoothness',
+    #     'mean_compactness',
+    #     'mean_concavity',
+    #     'mean_concave_points',
+    #     'mean_symmetry',
+    #     'mean_fractal_dimension',
+    #     'radius_error',
+    #     'texture_error',
+    #     'perimeter_error',
+    #     'area_error',
+    #     'smoothness_error',
+    #     'compactness_error',
+    #     'concavity_error',
+    #     'concave_points_error',
+    #     'symmetry_error',
+    #     'fractal_dimension_error',
+    #     'worst_radius',
+    #     'worst_texture',
+    #     'worst_perimeter',
+    #     'worst_area',
+    #     'worst_smoothness',
+    #     'worst_compactness',
+    #     'worst_concavity',
+    #     'worst_concave_points',
+    #     'worst_symmetry',
+    #     'worst_fractal_dimension',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'target',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 569, size=114, random_state=314))
 
     # # Covid data - classification 2 class
     # # Specifiy an analysis name
@@ -992,47 +989,47 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 268165, size=53633))
+    # TEST_SET_IND = list(randint.rvs(0, 268166, size=53633, random_state=314))
 
-    # # Diabetes data - regression, binary category predictor
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'diabetes'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
-    # OBJECTIVE = 'regression'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'age',
-    #     'bmi',
-    #     'bp',
-    #     's1',
-    #     's2',
-    #     's3',
-    #     's4',
-    #     's5',
-    #     's6',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = [
-    #     'sex',
-    #     ]
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = []
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'progression',
-    #     ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-    # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 441, size=88))
+    # Diabetes data - regression, binary category predictor
+    # Specifiy an analysis name
+    ANALYSIS_NAME = 'diabetes'
+    # Specify path to data. string
+    PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
+    # Specify sheet name. string
+    SHEET_NAME = 'data'
+    # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    OBJECTIVE = 'regression'
+    # Specify grouping for CV split. list of string
+    G_NAME = [
+        'sample_id',
+        ]
+    # Specify continous predictor names. list of string or []
+    X_CON_NAMES = [
+        'age',
+        'bmi',
+        'bp',
+        's1',
+        's2',
+        's3',
+        's4',
+        's5',
+        's6',
+        ]
+    # Specify binary categorical predictor names. list of string or []
+    X_CAT_BIN_NAMES = [
+        'sex',
+        ]
+    # Specify multi categorical predictor names. list of string or []
+    X_CAT_MULT_NAMES = []
+    # Specify target name(s). list of strings or []
+    Y_NAMES = [
+        'progression',
+        ]
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
+    # Specify index of rows for test set if TT. list of int or []
+    TEST_SET_IND = list(randint.rvs(0, 442, size=88, random_state=314))
 
     # # Diabetes data - regression, binary category predictor
     # # Specifiy an analysis name
@@ -1062,7 +1059,7 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 441, size=88))
+    # TEST_SET_IND = list(randint.rvs(0, 442, size=88, random_state=314))
 
     # # Digits data - classification 10 class, multicategory predictors
     # # Specifiy an analysis name
@@ -1154,7 +1151,7 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 1797, size=359))
+    # TEST_SET_IND = list(randint.rvs(0, 1797, size=359, random_state=314))
 
     # # Housing data - regression, multicategory predictor
     # # Specifiy an analysis name
@@ -1193,7 +1190,7 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 20639, size=4128))
+    # TEST_SET_IND = list(randint.rvs(0, 20640, size=4128, random_state=314))
 
     # # Iris data - classification 2 class,
     # # Specifiy an analysis name
@@ -1226,7 +1223,7 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 100, size=20))
+    # TEST_SET_IND = list(randint.rvs(0, 100, size=20, random_state=314))
 
     # # Iris data - classification 3 class,
     # # Specifiy an analysis name
@@ -1259,7 +1256,7 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 150, size=30))
+    # TEST_SET_IND = list(randint.rvs(0, 150, size=30, random_state=314))
 
     # # Radon data - regression, binary and multicategory predictors
     # # Specifiy an analysis name
@@ -1294,7 +1291,7 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
     # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 918, size=184))
+    # TEST_SET_IND = list(randint.rvs(0, 878, size=176, random_state=314))
 
     ###########################################################################
 
@@ -1313,16 +1310,20 @@ def main():
         raise ValueError('SHAP_INTERACTIONS can be True or False only.')
 
     # Create results directory path -------------------------------------------
-    path_to_results = 'res_ml_'+ANALYSIS_NAME
+    path_to_results = 'res_iml_'+ANALYSIS_NAME
+
+    # Create results directory ------------------------------------------------
+    create_dir(path_to_results)
 
     # Create task variable ----------------------------------------------------
     task = {
         'TYPE': TYPE,
         'N_JOBS': N_JOBS,
-        'N_REP_OUTER_CV': N_REP_OUTER_CV,
-        'N_SAMPLES_INNER_CV': N_SAMPLES_INNER_CV,
+        'N_CV_FOLDS': N_CV_FOLDS,
+        'N_PRED_OUTER_CV': N_PRED_OUTER_CV,
+        'N_PRED_INNER_CV': N_PRED_INNER_CV,
         'N_SAMPLES_RS': N_SAMPLES_RS,
-        'MAX_SAMPLES_SHAP': MAX_SAMPLES_SHAP,
+        'N_SAMPLES_SHAP': N_SAMPLES_SHAP,
         'SHAP_INTERACTIONS': SHAP_INTERACTIONS,
         'ANALYSIS_NAME': ANALYSIS_NAME,
         'PATH_TO_DATA': PATH_TO_DATA,
@@ -1338,9 +1339,6 @@ def main():
         'path_to_results': path_to_results,
         'x_names': X_CON_NAMES+X_CAT_BIN_NAMES+X_CAT_MULT_NAMES,
         }
-
-    # Create results directory ------------------------------------------------
-    create_dir(path_to_results)
 
     # Copy this python script to results directory ----------------------------
     shutil.copy('iml_2_mdl.py', path_to_results+'/iml_2_mdl.py')
@@ -1379,7 +1377,11 @@ def main():
         # Add prediction target index to task
         task['i_y'] = i_y
         # Add prediction target name to task
-        task['y_name'] = [y_name]
+        task['y_name'] = y_name
+        # Make save path
+        save_path = task['path_to_results']+'/'+task['y_name']
+        # Add save path to task
+        task['save_path'] = save_path
 
         # Deal with NaNs in the target ----------------------------------------
         # Get current target and remove NaNs
@@ -1398,6 +1400,15 @@ def main():
                 str(Y.shape[0]-y.shape[0]) +
                 ' samples were dropped due to NaNs in ' +
                 y_name+'.', UserWarning)
+
+        # Save fianl data set -------------------------------------------------
+        # Save group data
+        g.to_excel(task['save_path']+'_g.xlsx', index=False)
+        # Save predictor data
+        x.to_excel(task['save_path']+'_x.xlsx', index=False)
+        # Save target data
+        y.to_excel(task['save_path']+'_y.xlsx', index=False)
+
         # Get target-encoding categories but don't do encoding ----------------
         # If multi categorical predictors
         if task['X_CAT_MULT_NAMES']:
@@ -1406,7 +1417,7 @@ def main():
                 categories='auto',
                 target_type='continuous',
                 smooth='auto',
-                cv=5,
+                cv=task['N_CV_FOLDS'],
                 shuffle=True,
                 random_state=None)
             # Fit target-encoder
@@ -1422,18 +1433,18 @@ def main():
         # Cross-validation
         if TYPE == 'CV':
             # Run cross-validation
-            cross_validation(task, g, x, y)
+            results = cross_validation(task, g, x, y)
         # Switch Type of analysis
         elif TYPE == 'TT':
             # Run train-test split
-            train_test_split(task, g, x, y)
+            results = train_test_split(task, g, x, y)
         # Other
         else:
             # Raise error
             raise ValueError('Analysis type not found.')
 
     # Return None -------------------------------------------------------------
-    return
+    return results
 
 
 if __name__ == '__main__':
