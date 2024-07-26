@@ -1,5 +1,6 @@
+Interpretable Machine Learning (iml)
 iml_1_eda.py, iml_2_mdl.py, iml_3_plt.py
-(20240506)
+(20240717)
 
 Install
 (1)  Install git from: https://www.git-scm.com/downloads
@@ -18,4 +19,4 @@ Developer version of shap
 (1)  Get shap: pip install git+https://github.com/shap/shap
 
 Workaround for ExplainerError: The background dataset you provided does not cover all the leaves althought feature_perturbation="tree_path_dependent" and background dataset=None
-(1) Add 'and self.data is not None' in line 346 of _tree.py
+(1)  Add 'and self.data is not None' in line 346 of _tree.py

@@ -1,7 +1,7 @@
 # *- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Exploratory Data Analysis (EDA)
-v167
+v172
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -80,7 +80,7 @@ def prepare(objective=None):
             num_leaves=100,
             max_depth=-1,
             learning_rate=0.1,
-            n_estimators=100,
+            n_estimators=110,
             subsample_for_bin=100000,
             objective='huber',
             min_split_gain=0,
@@ -112,7 +112,7 @@ def prepare(objective=None):
             num_leaves=100,
             max_depth=-1,
             learning_rate=0.1,
-            n_estimators=100,
+            n_estimators=110,
             subsample_for_bin=100000,
             objective=objective,
             class_weight='balanced',
@@ -191,9 +191,9 @@ def split_data(df, i_trn, i_tst):
     return df_trn, df_tst
 
 
-def compute_redundancy(task=None, g=None, x=None, y=None, objective=None):
+def compute_pair_pred(task=None, g=None, x=None, y=None, objective=None):
     '''
-    Compute redundancy score (R²) of between x and y.
+    Compute pairwise prediction score (R², acc) of x and y.
 
     Parameters
     ----------
@@ -210,9 +210,9 @@ def compute_redundancy(task=None, g=None, x=None, y=None, objective=None):
 
     Returns
     -------
-    redundacy : float
-        Redundancy score (0-1). R² for regression, adjusted balanced accuracy
-        for classification.
+    pair_pred : float
+        Pairwise predictions scores (0-1). R² for regression,
+        adjusted balanced accuracy for classification.
     '''
 
     # Initialize results lists ------------------------------------------------
@@ -297,22 +297,22 @@ def compute_redundancy(task=None, g=None, x=None, y=None, objective=None):
             raise ValueError('OBJECTIVE not found.')
 
     # Process scores ----------------------------------------------------------
-    # Limit redundancy score to be bigger than or equal to 0
-    redundancy = max(0, np.mean(scores))
+    # Limit pairwise predictions scores to be bigger than or equal to 0
+    pair_pred = max(0, np.mean(scores))
 
-    # Return redundancy -------------------------------------------------------
-    return redundancy
+    # Return pairwise predictions ---------------------------------------------
+    return pair_pred
 
 
 def eda(task, g, x, y):
     '''
     Carries out exploratory data analysis, incl.:
-    1D data distribuation (violinplot),
-    2D data distribution (pairplots),
-    data correlation (heatmap),
-    data linear dimensions (via PCA),
-    redundancy of predictors (via LightGBM prediction accuracy),
-    outlier in data (via isolation Forests).
+    Data distribuations (1D, violinplot),
+    Data distributions (2D, pairplots),
+    Joint informations in data via correlations (linear, heatmap),
+    Joint informations in data via pairwise predictions (non-linear, heatmap),
+    Multidimensional pattern in data via PCA (linear, heatmap),
+    Outlier in data (non-linear, histogram).
 
     Parameters
     ----------
@@ -364,7 +364,7 @@ def eda(task, g, x, y):
     z = pre_pipe.fit_transform(z, y.squeeze())
 
     # 1D data distributions ---------------------------------------------------
-    # Do 1D data distribution plot?
+    # Do 1D data distribution violin plot?
     if task['DATA_DISTRIBUTION_1D']:
         # x names lengths
         x_names_max_len = max([len(i) for i in task['x_names']])
@@ -405,7 +405,7 @@ def eda(task, g, x, y):
             alpha=.3)
         # Make title string
         title_str = (task['ANALYSIS_NAME']+'\n' +
-                     '1D data distributions (violin plot)\n')
+                     'Data distributions (1D)\n')
         # set title
         plt.title(title_str, fontsize=10)
 
@@ -413,7 +413,7 @@ def eda(task, g, x, y):
         # Make save path
         save_path = (
             task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_1_1d_distribuation')
+            '_'+task['y_name'][0]+'_eda_1_distri_1D')
         # Save figure in .png format
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -424,7 +424,7 @@ def eda(task, g, x, y):
         plt.show()
 
     # 2D data distribution ----------------------------------------------------
-    # Do 2D data distribution plot?
+    # Do 2D data distribution pairplot?
     if task['DATA_DISTRIBUTION_2D']:
         # Make pairplot
         pair_plot = sns.pairplot(
@@ -435,7 +435,7 @@ def eda(task, g, x, y):
             diag_kws={'color': '#777777'})
         # Make title string
         title_str = (task['ANALYSIS_NAME']+'\n' +
-                     '2D data distributions (pair plot)\n')
+                     'Data distributions (2D)\n')
         # set title
         pair_plot.fig.suptitle(title_str, fontsize=10, y=1.0)
         # Add variable kde to plot
@@ -445,7 +445,7 @@ def eda(task, g, x, y):
         # Make save path
         save_path = (
             task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_2_2d_distribution')
+            '_'+task['y_name'][0]+'_eda_2_distri_2D')
         # Save figure in .png format
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -495,7 +495,8 @@ def eda(task, g, x, y):
         plt.xticks(rotation=90)
         # Make title string
         title_str = (task['ANALYSIS_NAME']+'\n' +
-                     'Linear correlation coefficients (heatmap)\n')
+                     'Unidimensional joint informations in data ' +
+                     'via correlations (linear)\n')
         # set title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -510,7 +511,8 @@ def eda(task, g, x, y):
         # Make save path
         save_path = (
             task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_3_correlations')
+            '_'+task['y_name'][0]+'_eda_3_corr'
+            )
         # Save figure in .png format
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -520,9 +522,129 @@ def eda(task, g, x, y):
         # Show plot
         plt.show()
 
-    # Linear dimensions analysis with PCA -------------------------------------
-    # Do linear dimensions analysis?
-    if task['DATA_LINEAR_DIMENSIONS']:
+    # Data pairwise predictions via LigthGBM ----------------------------------
+    # Do data pairwise prediction heatmap?
+    if task['DATA_PAIRWISE_PRED']:
+        # Check for NaN values
+        if not z.isnull().values.any():
+            # Make pairwise prediction matrix
+            pair_pred = np.ones((len(list(z.columns)), len(list(z.columns))))
+            # Make pairs
+            for (id_pred1, id_pred2) in permutations(pd.factorize(
+                    pd.Series(z.columns))[0], 2):
+                # Make a mapping list between number and name
+                mapping = list(z.columns)
+                # Select task continous prediction target
+                if mapping[id_pred2] in task['X_CON_NAMES']:
+                    # Select objective
+                    objective = 'regression'
+                    # Get predictor data
+                    xt = pd.DataFrame(z[mapping[id_pred1]])
+                    # Get target data
+                    yt = pd.DataFrame(z[mapping[id_pred2]])
+                # Select task binary prediction target
+                elif mapping[id_pred2] in task['X_CAT_BIN_NAMES']:
+                    # Select objective
+                    objective = 'binary'
+                    # Get predictor data
+                    xt = pd.DataFrame(z[mapping[id_pred1]])
+                    # Get target data
+                    yt = pd.DataFrame(pd.factorize(z[mapping[id_pred2]])[0],
+                                      columns=[mapping[id_pred2]])
+                # Select task multi class prediction target trat as regression
+                elif mapping[id_pred2] in task['X_CAT_MULT_NAMES']:
+                    # Select objective
+                    objective = 'regression'
+                    # Get predictor data
+                    xt = pd.DataFrame(z[mapping[id_pred1]])
+                    # Get target data
+                    yt = pd.DataFrame(z[mapping[id_pred2]])
+                # Select task target objective
+                elif mapping[id_pred2] in task['Y_NAMES']:
+                    # Select objective
+                    objective = task['OBJECTIVE']
+                    # Get predictor data
+                    xt = pd.DataFrame(z[mapping[id_pred1]])
+                    # Get target data select by objective regression
+                    if objective == 'regression':
+                        # Get target data
+                        yt = pd.DataFrame(z[mapping[id_pred2]])
+                    # Get target data select by objective other than regression
+                    else:
+                        # Get target data
+                        yt = pd.DataFrame(
+                            pd.factorize(z[mapping[id_pred2]])[0],
+                            columns=[mapping[id_pred2]]
+                            )
+                # Other target objective
+                else:
+                    # Raise error
+                    raise ValueError('OBJECTIVE not found.')
+                # Compute pairwise prediction of current pair
+                pair_pred[id_pred1, id_pred2] = compute_pair_pred(
+                    task=task, g=g, x=xt, y=yt, objective=objective)
+            # Names lengths
+            names_max_len = max([len(i) for i in list(z.columns)])
+            # Names count
+            names_count = len(list(z.columns))
+            # Create a figure
+            fig, ax = plt.subplots(
+                figsize=(names_count*.6+names_max_len*.1+1,
+                         names_count*.6+names_max_len*.1+1))
+            # Make colorbar string
+            clb_str = ('pairwise predictions (0 to 1)')
+            # Print pairwise predictions
+            sns.heatmap(
+                pair_pred,
+                vmin=0,
+                vmax=1,
+                cmap='Greys',
+                center=None,
+                robust=True,
+                annot=True,
+                fmt='.2f',
+                annot_kws={'size': 10},
+                linewidths=.5,
+                linecolor='#999999',
+                cbar=True,
+                cbar_kws={'label': clb_str, 'shrink': 0.6},
+                cbar_ax=None,
+                square=True,
+                xticklabels=list(z.columns),
+                yticklabels=list(z.columns),
+                mask=None,
+                ax=ax)
+            # Make title string
+            title_str = (task['ANALYSIS_NAME']+'\n' +
+                         'Unidimensional joint information in data via' +
+                         'pairwise predictions (non-linear)\n' +
+                         'y-axis: predictors, x-axis: prediction targets\n')
+            # set title
+            plt.title(title_str, fontsize=10)
+
+            # Save figure -----------------------------------------------------
+            # Make save path
+            save_path = (
+                task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
+                '_'+task['y_name'][0]+'_eda_4_pairpred')
+            # Save figure in .png format
+            plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
+            # Check if save as svg is enabled
+            if task['AS_SVG']:
+                # Save figure in .svg format
+                plt.savefig(save_path+'.svg', bbox_inches='tight')
+            # show figure
+            plt.show()
+        # If nans
+        else:
+            # Raise warning
+            warnings.warn(
+                'Pairwise predictions skipped because of NaN values.'
+                )
+
+    # Multidimensional pattern with PCA ---------------------------------------
+    # Do multidimensional pattern heatmap?
+    if task['DATA_MULTIDIM_PATTERN']:
         # Check for NaN values
         if not z.isnull().values.any():
             # Instanciate PCA
@@ -602,7 +724,7 @@ def eda(task, g, x, y):
             # Make title string
             title_str = (
                 task['ANALYSIS_NAME']+'\n' +
-                'Linear dimensions via PCA\n')
+                'Multidimensinal pattern in data via PCA (linear)\n')
             # set title
             plt.title(title_str, fontsize=10)
 
@@ -610,7 +732,7 @@ def eda(task, g, x, y):
             # Make save path
             save_path = (
                 task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                '_'+task['y_name'][0]+'_eda_4_data_linear_dim')
+                '_'+task['y_name'][0]+'_eda_5_pca')
             # Save figure in .png format
             plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
@@ -624,118 +746,8 @@ def eda(task, g, x, y):
             # Raise warning
             warnings.warn('PCA skipped because of NaN values.')
 
-    # Data redundancy via LigthGBM --------------------------------------------
-    # Do data redundancy analysis?
-    if task['DATA_REDUNDANCY']:
-        # Make redundancy matrix
-        redundancy = np.ones((len(list(z.columns)), len(list(z.columns))))
-        # Make pairs
-        for (id_pred1, id_pred2) in permutations(pd.factorize(
-                pd.Series(z.columns))[0], 2):
-            # Make a mapping list between number and name
-            mapping = list(z.columns)
-            # Select task continous prediction target
-            if mapping[id_pred2] in task['X_CON_NAMES']:
-                # Select objective
-                objective = 'regression'
-                # Get predictor data
-                xt = pd.DataFrame(z[mapping[id_pred1]])
-                # Get target data
-                yt = pd.DataFrame(z[mapping[id_pred2]])
-            # Select task binary prediction target
-            elif mapping[id_pred2] in task['X_CAT_BIN_NAMES']:
-                # Select objective
-                objective = 'binary'
-                # Get predictor data
-                xt = pd.DataFrame(z[mapping[id_pred1]])
-                # Get target data
-                yt = pd.DataFrame(pd.factorize(z[mapping[id_pred2]])[0],
-                                  columns=[mapping[id_pred2]])
-            # Select task multi class prediction target trat as regression
-            elif mapping[id_pred2] in task['X_CAT_MULT_NAMES']:
-                # Select objective
-                objective = 'regression'
-                # Get predictor data
-                xt = pd.DataFrame(z[mapping[id_pred1]])
-                # Get target data
-                yt = pd.DataFrame(z[mapping[id_pred2]])
-            # Select task target objective
-            elif mapping[id_pred2] in task['Y_NAMES']:
-                # Select objective
-                objective = task['OBJECTIVE']
-                # Get predictor data
-                xt = pd.DataFrame(z[mapping[id_pred1]])
-                # Get target data select by objective regression
-                if objective == 'regression':
-                    # Get target data
-                    yt = pd.DataFrame(z[mapping[id_pred2]])
-                # Get target data select by objective other than regression
-                else:
-                    # Get target data
-                    yt = pd.DataFrame(pd.factorize(z[mapping[id_pred2]])[0],
-                                      columns=[mapping[id_pred2]])
-            # Other target objective
-            else:
-                # Raise error
-                raise ValueError('OBJECTIVE not found.')
-            # Compute redundancy of current pair
-            redundancy[id_pred1, id_pred2] = compute_redundancy(
-                task=task, g=g, x=xt, y=yt, objective=objective)
-        # Names lengths
-        names_max_len = max([len(i) for i in list(z.columns)])
-        # Names count
-        names_count = len(list(z.columns))
-        # Create a figure
-        fig, ax = plt.subplots(
-            figsize=(names_count*.6+names_max_len*.1+1,
-                     names_count*.6+names_max_len*.1+1))
-        # Make colorbar string
-        clb_str = ('redundancy (0 to 1)')
-        # Print redundancy
-        sns.heatmap(
-            redundancy,
-            vmin=0,
-            vmax=1,
-            cmap='Greys',
-            center=None,
-            robust=True,
-            annot=True,
-            fmt='.2f',
-            annot_kws={'size': 10},
-            linewidths=.5,
-            linecolor='#999999',
-            cbar=True,
-            cbar_kws={'label': clb_str, 'shrink': 0.6},
-            cbar_ax=None,
-            square=True,
-            xticklabels=list(z.columns),
-            yticklabels=list(z.columns),
-            mask=None,
-            ax=ax)
-        # Make title string
-        title_str = (task['ANALYSIS_NAME']+'\n' +
-                     'Non-linear redundancy via ' +
-                     'pairwise predictions (heatmap)\n' +
-                     'y-axis: predictors, x-axis: prediction targets\n')
-        # set title
-        plt.title(title_str, fontsize=10)
-
-        # Save figure -----------------------------------------------------
-        # Make save path
-        save_path = (
-            task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_5_redundancy')
-        # Save figure in .png format
-        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
-        # Check if save as svg is enabled
-        if task['AS_SVG']:
-            # Save figure in .svg format
-            plt.savefig(save_path+'.svg', bbox_inches='tight')
-        # show figure
-        plt.show()
-
     # Outlier dection via Isolation Forests -----------------------------------
-    # Do outlier detection in data?
+    # Do outlier detection histogram?
     if task['DATA_OUTLIER']:
         # Check for NaN values
         if not z.isnull().values.any():
@@ -775,7 +787,7 @@ def eda(task, g, x, y):
             # Create title string
             title_str = (
                 task['ANALYSIS_NAME']+'\n' +
-                'Outlier detection via Isolation Forest: ' +
+                'Outlier in data via Isolation Forest: ' +
                 '{:.1f}% potential outliers\n')
             # Add title
             ax.set_title(
@@ -785,7 +797,7 @@ def eda(task, g, x, y):
             # Make save path
             save_path = (
                 task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                '_'+task['y_name'][0]+'_eda_6_outlier')
+                '_'+task['y_name'][0]+'_eda_6_iForest')
             # Save outlier data
             outlier_df.to_excel(save_path+'.xlsx')
             # Save figure in .png format
@@ -821,24 +833,24 @@ def main():
     # 1. Specify task ---------------------------------------------------------
     # Specify max number of samples. int (default: 10000)
     MAX_SAMPLES = 10000
-    # Do 1D data distribution violon plot in EDA? bool (default: True)
+    # Do 1D data distribution violin plot? bool (default: True)
     DATA_DISTRIBUTION_1D = True
-    # Do 2D data distribution pair plot in EDA? bool (default: True)
+    # Do 2D data distribution pair plot? bool (default: True)
     DATA_DISTRIBUTION_2D = True
-    # Do data correlation heatmap in EDA? bool (default: True)
+    # Do data correlation heatmap? bool (default: True)
     DATA_CORRELATIONS = True
-    # Do linear dimensions analysis with PCA in EDA? bool (default: True)
-    DATA_LINEAR_DIMENSIONS = True
-    # Do data redundancy analysis in EDA? (default: True)
-    DATA_REDUNDANCY = True
-    # Use Isolation Forest to detect outliers in EDA? bool (default: True)
+    # Do data pairwise prediction heatmap? (default: True)
+    DATA_PAIRWISE_PRED = True
+    # Do multidimensional pattern heatmap with PCA? bool (default: True)
+    DATA_MULTIDIM_PATTERN = True
+    # Use Isolation Forest to detect outliers? bool (default: True)
     DATA_OUTLIER = True
     # Number parallel processing jobs. int (-1=all, -2=all-1)
     N_JOBS = -2
     # Number of folds in CV. int (default: 5)
     N_CV_FOLDS = 5
-    # Number of predictions in outer CV. int (default: 10000)
-    N_PRED_OUTER_CV = 10000
+    # Number of predictions in outer CV. int (default: 1000)
+    N_PRED_OUTER_CV = 1000
     # Number of tries in random search. int (default: 100)
     N_SAMPLES_RS = 100
     # Number of predictions in inner CV. int (default: 1000)
@@ -1235,8 +1247,8 @@ def main():
         'DATA_DISTRIBUTION_1D': DATA_DISTRIBUTION_1D,
         'DATA_DISTRIBUTION_2D': DATA_DISTRIBUTION_2D,
         'DATA_CORRELATIONS': DATA_CORRELATIONS,
-        'DATA_LINEAR_DIMENSIONS': DATA_LINEAR_DIMENSIONS,
-        'DATA_REDUNDANCY': DATA_REDUNDANCY,
+        'DATA_PAIRWISE_PRED': DATA_PAIRWISE_PRED,
+        'DATA_MULTIDIM_PATTERN': DATA_MULTIDIM_PATTERN,
         'N_PRED_OUTER_CV': N_PRED_OUTER_CV,
         'N_PRED_INNER_CV': N_PRED_INNER_CV,
         'N_SAMPLES_RS': N_SAMPLES_RS,

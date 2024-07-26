@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Modelling (MDL)
-v783
+v786
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -111,7 +111,7 @@ def prepare(task):
             num_leaves=100,
             max_depth=-1,
             learning_rate=0.01,
-            n_estimators=1000,
+            n_estimators=1100,
             subsample_for_bin=100000,
             objective='huber',
             min_split_gain=0,
@@ -142,6 +142,12 @@ def prepare(task):
             func=None,
             inverse_func=None,
             check_inverse=True)
+        # Search space
+        space = {
+            'estimator__regressor__colsample_bytree': uniform(0.1, 0.9),
+            'estimator__regressor__extra_trees': [True, False],
+            'estimator__regressor__path_smooth': loguniform(1, 100),
+            }
     # Classification
     elif task['OBJECTIVE'] == 'binary' or task['OBJECTIVE'] == 'multiclass':
         # Estimator
@@ -150,7 +156,7 @@ def prepare(task):
             num_leaves=100,
             max_depth=-1,
             learning_rate=0.01,
-            n_estimators=1000,
+            n_estimators=1100,
             subsample_for_bin=100000,
             objective=task['OBJECTIVE'],
             class_weight='balanced',
@@ -175,6 +181,12 @@ def prepare(task):
                'use_quantized_grad': True,
                'verbosity': -1,
                })
+        # Search space
+        space = {
+            'estimator__colsample_bytree': uniform(0.1, 0.9),
+            'estimator__extra_trees': [True, False],
+            'estimator__path_smooth': loguniform(1, 100),
+            }
     # Other
     else:
         # Raise error
@@ -187,14 +199,6 @@ def prepare(task):
          ('estimator', estimator)],
         memory=None,
         verbose=False).set_output(transform='pandas')
-
-    # Make search space -------------------------------------------------------
-    # Search space
-    space = {
-        'estimator__regressor__colsample_bytree': uniform(0.1, 0.9),
-        'estimator__regressor__extra_trees': [True, False],
-        'estimator__regressor__path_smooth': loguniform(1, 100),
-        }
 
     # Return pipe and space ---------------------------------------------------
     return pipe, space
