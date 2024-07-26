@@ -1,8 +1,7 @@
 # IML data analysis
-Interpretable machine-learning data analysis  
-  
+Interpretable Machine Learning (iml)  
 iml_1_eda.py, iml_2_mdl.py, iml_3_plt.py  
-(20240506)  
+(20240717)  
 
 Install  
 (1)  Install git from: https://www.git-scm.com/downloads  
@@ -15,11 +14,10 @@ Install
   
 Update  
 (1)  Open anaconda prompt  
-(2)  Update packages: conda update -c conda-forge -n iml --all shap=*=cpu* blas=*=mkl 
+(2)  Update packages: conda update -c conda-forge -n iml --all shap=*=cpu* blas=*=mkl  
   
 Developer version of shap  
 (1)  Get shap: pip install git+https://github.com/shap/shap  
   
-Workaround for error in SHAP computation in case of multiclass and interactions=True  
-(1) Add 'and self.data is not None' in line 346 of _tree.py  
-  
+Workaround for ExplainerError: The background dataset you provided does not cover all the leaves althought feature_perturbation="tree_path_dependent" and background dataset=None  
+(1)  Add 'and self.data is not None' in line 346 of _tree.py  
