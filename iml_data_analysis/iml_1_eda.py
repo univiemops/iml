@@ -1,7 +1,7 @@
 # *- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Exploratory Data Analysis (EDA)
-v172
+v185
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -30,7 +30,7 @@ from sklearn.preprocessing import TargetEncoder
 from sklearn_repeated_group_k_fold import RepeatedGroupKFold
 
 
-def create_dir(path):
+def create_dir(path: str) -> None:
     '''
     Create specified directory if not existing.
 
@@ -54,7 +54,7 @@ def create_dir(path):
     return
 
 
-def prepare(objective=None):
+def prepare(objective: str, num_classes: int) -> tuple:
     '''
     Prepare estimator, prepare seach_space.
 
@@ -62,6 +62,8 @@ def prepare(objective=None):
     ----------
     objective : string
         String with objective describtion variables.
+    num_classes : int
+        Integer counting the number of classes
 
     Returns
     -------
@@ -80,11 +82,11 @@ def prepare(objective=None):
             num_leaves=100,
             max_depth=-1,
             learning_rate=0.1,
-            n_estimators=110,
+            n_estimators=100,
             subsample_for_bin=100000,
             objective='huber',
             min_split_gain=0,
-            min_child_weight=0.0001,
+            min_child_weight=0,
             min_child_samples=10,
             subsample=1,
             subsample_freq=0,
@@ -105,19 +107,19 @@ def prepare(objective=None):
                'verbosity': -1,
                })
     # Classification
-    elif objective == 'binary' or objective == 'multiclass':
+    elif objective == 'classification':
         # Estimator
         estimator = LGBMClassifier(
             boosting_type='gbdt',
             num_leaves=100,
             max_depth=-1,
             learning_rate=0.1,
-            n_estimators=110,
+            n_estimators=100,
             subsample_for_bin=100000,
-            objective=objective,
+            objective='multiclass',
             class_weight='balanced',
             min_split_gain=0,
-            min_child_weight=0.0001,
+            min_child_weight=0,
             min_child_samples=10,
             subsample=1,
             subsample_freq=0,
@@ -134,6 +136,7 @@ def prepare(objective=None):
                'feature_pre_filter': False,
                'force_col_wise': True,
                'min_data_in_bin': 1,
+               'num_class': num_classes,
                'use_quantized_grad': True,
                'verbosity': -1,
                })
@@ -147,14 +150,15 @@ def prepare(objective=None):
     space = {
         'estimator__colsample_bytree': uniform(0.1, 0.9),
         'estimator__extra_trees': [True, False],
-        'estimator__path_smooth': loguniform(1, 100),
+        'estimator__reg_lambda': loguniform(0.1, 100),
         }
 
     # Return estimator and space ----------------------------------------------
     return estimator, space
 
 
-def split_data(df, i_trn, i_tst):
+def split_data(df: pd.DataFrame, i_trn: np.ndarray,
+               i_tst: np.ndarray) -> tuple:
     '''
     Split dataframe in training and testing dataframes.
 
@@ -162,9 +166,9 @@ def split_data(df, i_trn, i_tst):
     ----------
     df : dataframe
         Dataframe holding the data to split.
-    i_trn : numpy array
+    i_trn : numpy ndarray
         Array with indices of training data.
-    i_tst : numpy array
+    i_tst : numpy ndarray
         Array with indices of testing data.
 
     Returns
@@ -191,7 +195,8 @@ def split_data(df, i_trn, i_tst):
     return df_trn, df_tst
 
 
-def compute_pair_pred(task=None, g=None, x=None, y=None, objective=None):
+def compute_pair_pred(task: dict, g: pd.Series, x: pd.Series, y: pd.Series,
+                      objective: str) -> float:
     '''
     Compute pairwise prediction score (R², acc) of x and y.
 
@@ -215,11 +220,20 @@ def compute_pair_pred(task=None, g=None, x=None, y=None, objective=None):
         adjusted balanced accuracy for classification.
     '''
 
-    # Initialize results lists ------------------------------------------------
+    # Initialize --------------------------------------------------------------
     # Initialize score list
     scores = []
+    # Get number of classes if task is classification
+    # Classification
+    if objective == 'classification':
+        # Number of unique classes in prediction target
+        task['n_classes'] = y.nunique()[task['y_name']]
+    # Regression
+    elif objective == 'regression':
+        # Set number of classes to 0 for compatibility
+        task['n_classes'] = 0
     # Get estimator and space
-    estimator, space = prepare(objective)
+    estimator, space = prepare(objective, task['n_classes'])
 
     # Main cross-validation loop ----------------------------------------------
     # Calculate number of repetition for outer CV
@@ -246,7 +260,7 @@ def compute_pair_pred(task=None, g=None, x=None, y=None, objective=None):
             # R² score
             scorer = 'r2'
         # Classification
-        elif objective == 'binary' or objective == 'multiclass':
+        elif objective == 'classification':
             # Balanced accuracy for classification
             scorer = 'balanced_accuracy'
         # Other
@@ -287,7 +301,7 @@ def compute_pair_pred(task=None, g=None, x=None, y=None, objective=None):
             # Score predictions in terms of R²
             scores.append(r2_score(y_tst, y_pred))
         # Classification
-        elif objective == 'binary' or objective == 'multiclass':
+        elif objective == 'classification':
             # Calculate model fit in terms of acc
             scores.append(balanced_accuracy_score(
                 y_tst, y_pred, adjusted=True))
@@ -304,13 +318,13 @@ def compute_pair_pred(task=None, g=None, x=None, y=None, objective=None):
     return pair_pred
 
 
-def eda(task, g, x, y):
+def eda(task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame) -> None:
     '''
     Carries out exploratory data analysis, incl.:
     Data distribuations (1D, violinplot),
     Data distributions (2D, pairplots),
-    Joint informations in data via correlations (linear, heatmap),
-    Joint informations in data via pairwise predictions (non-linear, heatmap),
+    Data joint information (linear, heatmap),
+    Data joint information (non-linear, heatmap),
     Multidimensional pattern in data via PCA (linear, heatmap),
     Outlier in data (non-linear, histogram).
 
@@ -455,9 +469,9 @@ def eda(task, g, x, y):
         # Show plot
         plt.show()
 
-    # Correlations ------------------------------------------------------------
-    # Do correlation heatmap plot?
-    if task['DATA_CORRELATIONS']:
+    # Joint information linear ------------------------------------------------
+    # Do linear joint information via correlation heatmap plot?
+    if task['DATA_JOINT_INFORMATION_LINEAR']:
         # x names lengths
         x_names_max_len = max([len(i) for i in task['x_names']])
         # x names count
@@ -495,8 +509,7 @@ def eda(task, g, x, y):
         plt.xticks(rotation=90)
         # Make title string
         title_str = (task['ANALYSIS_NAME']+'\n' +
-                     'Unidimensional joint informations in data ' +
-                     'via correlations (linear)\n')
+                     'Joint information in data (linear, correlation)\n')
         # set title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -511,7 +524,7 @@ def eda(task, g, x, y):
         # Make save path
         save_path = (
             task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_3_corr'
+            '_'+task['y_name'][0]+'_eda_3_joint_lin'
             )
         # Save figure in .png format
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
@@ -522,9 +535,9 @@ def eda(task, g, x, y):
         # Show plot
         plt.show()
 
-    # Data pairwise predictions via LigthGBM ----------------------------------
-    # Do data pairwise prediction heatmap?
-    if task['DATA_PAIRWISE_PRED']:
+    # Joint information non linear --------------------------------------------
+    # Do non-linear joint information via pairwise prediction heatmap plot?
+    if task['DATA_JOINT_INFORMATION_NON_LINEAR']:
         # Check for NaN values
         if not z.isnull().values.any():
             # Make pairwise prediction matrix
@@ -545,7 +558,7 @@ def eda(task, g, x, y):
                 # Select task binary prediction target
                 elif mapping[id_pred2] in task['X_CAT_BIN_NAMES']:
                     # Select objective
-                    objective = 'binary'
+                    objective = 'classification'
                     # Get predictor data
                     xt = pd.DataFrame(z[mapping[id_pred1]])
                     # Get target data
@@ -592,7 +605,7 @@ def eda(task, g, x, y):
                 figsize=(names_count*.6+names_max_len*.1+1,
                          names_count*.6+names_max_len*.1+1))
             # Make colorbar string
-            clb_str = ('pairwise predictions (0 to 1)')
+            clb_str = ('joint information (0 to 1)')
             # Print pairwise predictions
             sns.heatmap(
                 pair_pred,
@@ -616,8 +629,8 @@ def eda(task, g, x, y):
                 ax=ax)
             # Make title string
             title_str = (task['ANALYSIS_NAME']+'\n' +
-                         'Unidimensional joint information in data via' +
-                         'pairwise predictions (non-linear)\n' +
+                         'Joint information in data ' +
+                         '(non-linear, pairwise predictions)\n' +
                          'y-axis: predictors, x-axis: prediction targets\n')
             # set title
             plt.title(title_str, fontsize=10)
@@ -626,7 +639,7 @@ def eda(task, g, x, y):
             # Make save path
             save_path = (
                 task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                '_'+task['y_name'][0]+'_eda_4_pairpred')
+                '_'+task['y_name'][0]+'_eda_4_joint_nonlin')
             # Save figure in .png format
             plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
@@ -817,7 +830,7 @@ def eda(task, g, x, y):
     return
 
 
-def main():
+def main() -> None:
     '''
     Main function of exploratory data analysis.
 
@@ -831,16 +844,17 @@ def main():
     ###########################################################################
 
     # 1. Specify task ---------------------------------------------------------
+
     # Specify max number of samples. int (default: 10000)
     MAX_SAMPLES = 10000
     # Do 1D data distribution violin plot? bool (default: True)
     DATA_DISTRIBUTION_1D = True
     # Do 2D data distribution pair plot? bool (default: True)
     DATA_DISTRIBUTION_2D = True
-    # Do data correlation heatmap? bool (default: True)
-    DATA_CORRELATIONS = True
+    # Do pairwise correlations heatmap plot? bool (default: True)
+    DATA_JOINT_INFORMATION_LINEAR = True
     # Do data pairwise prediction heatmap? (default: True)
-    DATA_PAIRWISE_PRED = True
+    DATA_JOINT_INFORMATION_NON_LINEAR = True
     # Do multidimensional pattern heatmap with PCA? bool (default: True)
     DATA_MULTIDIM_PATTERN = True
     # Use Isolation Forest to detect outliers? bool (default: True)
@@ -860,15 +874,15 @@ def main():
 
     # 2. Specify data ---------------------------------------------------------
 
-    # # Cancer data - classification 2 class, unbalanced classes
+    # # Cancer data - classification 2 class
     # # Specifiy an analysis name
     # ANALYSIS_NAME = 'cancer'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/cancer_20230927.xlsx'
+    # PATH_TO_DATA = 'sample_data/cancer_20240806.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
-    # OBJECTIVE = 'binary'
+    # # Specify task OBJECTIVE. string (classification, regression)
+    # OBJECTIVE = 'classification'
     # # Specify grouping for CV split. list of string
     # G_NAME = [
     #     'sample_id',
@@ -912,86 +926,19 @@ def main():
     # X_CAT_MULT_NAMES = []
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'target',
+    #     'benign_tumor',
     #     ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
-    # # Covid data - classification 2 class
+    # # Diabetes data - regression
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'covid'
+    # ANALYSIS_NAME = 'diabetes'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/covid_20240221.xlsx'
+    # PATH_TO_DATA = 'sample_data/diabetes_20240806.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
-    # OBJECTIVE = 'binary'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = []
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = [
-    #     'age_over_50',
-    #     'vaccinated',
-    #     ]
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = []
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'survived',
-    #     ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-
-    # Diabetes data - regression, binary category predictor
-    # Specifiy an analysis name
-    ANALYSIS_NAME = 'diabetes'
-    # Specify path to data. string
-    PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
-    # Specify sheet name. string
-    SHEET_NAME = 'data'
-    # Specify task OBJECTIVE. string (regression, binary, multiclass)
-    OBJECTIVE = 'regression'
-    # Specify grouping for CV split. list of string
-    G_NAME = [
-        'sample_id',
-        ]
-    # Specify continous predictor names. list of string or []
-    X_CON_NAMES = [
-        'age',
-        'bmi',
-        'bp',
-        's1',
-        's2',
-        's3',
-        's4',
-        's5',
-        's6',
-        ]
-    # Specify binary categorical predictor names. list of string or []
-    X_CAT_BIN_NAMES = [
-        'sex',
-        ]
-    # Specify multi categorical predictor names. list of string or []
-    X_CAT_MULT_NAMES = []
-    # Specify target name(s). list of strings or []
-    Y_NAMES = [
-        'progression',
-        ]
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
-
-    # # Diabetes data - regression, binary category predictor
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'diabetes_singlepred'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'data/diabetes_20230809.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # # Specify task OBJECTIVE. string (classification, regression)
     # OBJECTIVE = 'regression'
     # # Specify grouping for CV split. list of string
     # G_NAME = [
@@ -999,10 +946,20 @@ def main():
     #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
+    #     'age',
     #     'bmi',
+    #     'bp',
+    #     's1_tc',
+    #     's2_ldl',
+    #     's3_hdl',
+    #     's4_tch',
+    #     's5_ltg',
+    #     's6_glu',
     #     ]
     # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = []
+    # X_CAT_BIN_NAMES = [
+    #     'gender',
+    #     ]
     # # Specify multi categorical predictor names. list of string or []
     # X_CAT_MULT_NAMES = []
     # # Specify target name(s). list of strings or []
@@ -1012,104 +969,61 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
-    # # Digits data - classification 10 class, multicategory predictors
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'digits'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'data/digit_20230809.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
-    # OBJECTIVE = 'multiclass'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = []
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = []
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = [
-    #     'pixel_0_1',
-    #     'pixel_0_2',
-    #     'pixel_0_3',
-    #     'pixel_0_4',
-    #     'pixel_0_5',
-    #     'pixel_0_6',
-    #     'pixel_0_7',
-    #     'pixel_1_0',
-    #     'pixel_1_1',
-    #     'pixel_1_2',
-    #     'pixel_1_3',
-    #     'pixel_1_4',
-    #     'pixel_1_5',
-    #     'pixel_1_6',
-    #     'pixel_1_7',
-    #     'pixel_2_0',
-    #     'pixel_2_1',
-    #     'pixel_2_2',
-    #     'pixel_2_3',
-    #     'pixel_2_4',
-    #     'pixel_2_5',
-    #     'pixel_2_6',
-    #     'pixel_2_7',
-    #     'pixel_3_0',
-    #     'pixel_3_1',
-    #     'pixel_3_2',
-    #     'pixel_3_3',
-    #     'pixel_3_4',
-    #     'pixel_3_5',
-    #     'pixel_3_6',
-    #     'pixel_3_7',
-    #     'pixel_4_0',
-    #     'pixel_4_1',
-    #     'pixel_4_2',
-    #     'pixel_4_3',
-    #     'pixel_4_4',
-    #     'pixel_4_5',
-    #     'pixel_4_6',
-    #     'pixel_4_7',
-    #     'pixel_5_0',
-    #     'pixel_5_1',
-    #     'pixel_5_2',
-    #     'pixel_5_3',
-    #     'pixel_5_4',
-    #     'pixel_5_5',
-    #     'pixel_5_6',
-    #     'pixel_5_7',
-    #     'pixel_6_0',
-    #     'pixel_6_1',
-    #     'pixel_6_2',
-    #     'pixel_6_3',
-    #     'pixel_6_4',
-    #     'pixel_6_5',
-    #     'pixel_6_6',
-    #     'pixel_6_7',
-    #     'pixel_7_0',
-    #     'pixel_7_1',
-    #     'pixel_7_2',
-    #     'pixel_7_3',
-    #     'pixel_7_4',
-    #     'pixel_7_5',
-    #     'pixel_7_6',
-    #     'pixel_7_7',
-    #     ]
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'digit',
-    #     ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
+    # Employee data - classification 2 class
+    # Specifiy an analysis name
+    ANALYSIS_NAME = 'employee'
+    # Specify path to data. string
+    PATH_TO_DATA = 'sample_data/employee_20240806.xlsx'
+    # Specify sheet name. string
+    SHEET_NAME = 'data'
+    # Specify task OBJECTIVE. string (classification, regression)
+    OBJECTIVE = 'classification'
+    # Specify grouping for CV split. list of string
+    G_NAME = [
+        'sample_id',
+        ]
+    # Specify continous predictor names. list of string or []
+    X_CON_NAMES = [
+        'age',
+        'distance_from_home',
+        'education',
+        'environment_satisfaction',
+        'job_satisfaction',
+        'monthly_income',
+        'num_companies_worked',
+        'performance_rating',
+        'stock_option_level',
+        'training_times_last_year',
+        'total_working_years',
+        'work_life_balance',
+        'years_at_company',
+        'years_since_last_promotion',
+        'years_with_curr_manager',
+        ]
+    # Specify binary categorical predictor names. list of string or []
+    X_CAT_BIN_NAMES = [
+        'gender',
+        'over_time',
+        ]
+    # Specify multi categorical predictor names. list of string or []
+    X_CAT_MULT_NAMES = [
+        'marital_status',
+        ]
+    # Specify target name(s). list of strings or []
+    Y_NAMES = [
+        'attrition',
+        ]
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
 
-    # # Housing data - regression, multicategory predictor
+    # # Housing data - regression
     # # Specifiy an analysis name
     # ANALYSIS_NAME = 'housing'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/housing_20230907.xlsx'
+    # PATH_TO_DATA = 'sample_data/housing_20240806.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # # Specify task OBJECTIVE. string (classification, regression)
     # OBJECTIVE = 'regression'
     # # Specify grouping for CV split. list of string
     # G_NAME = [
@@ -1139,76 +1053,14 @@ def main():
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
-    # # Iris data - classification 2 class,
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'iris_2'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'data/iris_20230809.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data_2class'
-    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
-    # OBJECTIVE = 'binary'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'sepal_length',
-    #     'sepal_width',
-    #     'petal_length',
-    #     'petal_width',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = []
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = []
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'type',
-    #     ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-
-    # # Iris data - classification 3 class,
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'iris_3'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'data/iris_20230809.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data_3class'
-    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
-    # OBJECTIVE = 'multiclass'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'sepal_length',
-    #     'sepal_width',
-    #     'petal_length',
-    #     'petal_width',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = []
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = []
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'type',
-    #     ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-
-    # # Radon data - regression, binary and multicategory predictors
+    # # Radon data - regression
     # # Specifiy an analysis name
     # ANALYSIS_NAME = 'radon'
     # # Specify path to data. string
-    # PATH_TO_DATA = 'data/radon_20230809.xlsx'
+    # PATH_TO_DATA = 'sample_data/radon_20240806.xlsx'
     # # Specify sheet name. string
     # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (regression, binary, multiclass)
+    # # Specify task OBJECTIVE. string (classification, regression)
     # OBJECTIVE = 'regression'
     # # Specify grouping for CV split. list of string
     # G_NAME = [
@@ -1216,7 +1068,7 @@ def main():
     #     ]
     # # Specify continous predictor names. list of string or []
     # X_CON_NAMES = [
-    #     'Uppm',
+    #     'uppm',
     #     ]
     # # Specify binary categorical predictor names. list of string or []
     # X_CAT_BIN_NAMES = [
@@ -1226,10 +1078,53 @@ def main():
     # # Specify multi categorical predictor names. list of string or []
     # X_CAT_MULT_NAMES = [
     #     'county_code',
+    #     'region',
+    #     'room',
+    #     'zip',
     #     ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
     #     'log_radon',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+
+    # # Wine data - classification 3 class
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'wine'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'sample_data/wine_20240806.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (classification, regression)
+    # OBJECTIVE = 'classification'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'alcohol',
+    #     'malic_acid',
+    #     'ash',
+    #     'alcalinity_of_ash',
+    #     'magnesium',
+    #     'total_phenols',
+    #     'flavanoids',
+    #     'nonflavanoid_phenols',
+    #     'proanthocyanins',
+    #     'color_intensity',
+    #     'hue',
+    #     'od280_od315_of_diluted_wines',
+    #     'proline'
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = []
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = []
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'maker',
     #     ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
@@ -1246,8 +1141,8 @@ def main():
         'N_CV_FOLDS': N_CV_FOLDS,
         'DATA_DISTRIBUTION_1D': DATA_DISTRIBUTION_1D,
         'DATA_DISTRIBUTION_2D': DATA_DISTRIBUTION_2D,
-        'DATA_CORRELATIONS': DATA_CORRELATIONS,
-        'DATA_PAIRWISE_PRED': DATA_PAIRWISE_PRED,
+        'DATA_JOINT_INFORMATION_LINEAR': DATA_JOINT_INFORMATION_LINEAR,
+        'DATA_JOINT_INFORMATION_NON_LINEAR': DATA_JOINT_INFORMATION_NON_LINEAR,
         'DATA_MULTIDIM_PATTERN': DATA_MULTIDIM_PATTERN,
         'N_PRED_OUTER_CV': N_PRED_OUTER_CV,
         'N_PRED_INNER_CV': N_PRED_INNER_CV,

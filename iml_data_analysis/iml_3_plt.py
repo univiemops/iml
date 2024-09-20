@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Plotting (PLT)
-v321
+v327
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -18,7 +18,7 @@ from shap.plots import scatter
 from sklearn.metrics import confusion_matrix
 
 
-def lfp(path_load):
+def lfp(path_load: str) -> pkl:
     '''
     Returns pickle file at load path.
 
@@ -43,7 +43,7 @@ def lfp(path_load):
     return data
 
 
-def create_dir(path):
+def create_dir(path: str) -> None:
     '''
     Create specified directory if not existing.
 
@@ -67,7 +67,8 @@ def create_dir(path):
     return
 
 
-def corrected_std(differences, n_tst_over_n_trn=0.25):
+def corrected_std(differences: np.ndarray,
+                  n_tst_over_n_trn: float = 0.25) -> float:
     '''
     Corrects standard deviation using Nadeau and Bengio's approach.
     Ref: Nadeau, C., Bengio, Y. Inference for the Generalization Error.
@@ -103,7 +104,8 @@ def corrected_std(differences, n_tst_over_n_trn=0.25):
     return corrected_std
 
 
-def corrected_ttest(differences, n_tst_over_n_trn=0.25):
+def corrected_ttest(differences: np.ndarray,
+                    n_tst_over_n_trn: float = 0.25) -> float:
     '''
     Computes right-tailed paired t-test with corrected variance.
     Ref: Nadeau, C., Bengio, Y. Inference for the Generalization Error.
@@ -142,7 +144,8 @@ def corrected_ttest(differences, n_tst_over_n_trn=0.25):
     return t_stat, p_val
 
 
-def print_parameter_distributions(task, results, plots_path):
+def print_parameter_distributions(task: dict, results: dict,
+                                  plots_path: str) -> None:
     '''
     Print model parameter distributions in histogram.
 
@@ -214,7 +217,8 @@ def print_parameter_distributions(task, results, plots_path):
     return
 
 
-def print_regression_scatter(task, results, plots_path):
+def print_regression_scatter(task: dict, results: dict,
+                             plots_path: str) -> None:
     '''
     Print model fit in a scatter plot (regression).
 
@@ -398,7 +402,8 @@ def print_regression_scatter(task, results, plots_path):
     return
 
 
-def print_regression_violin(task, results, plots_path):
+def print_regression_violin(task: dict, results: dict,
+                            plots_path: str) -> None:
     '''
     Print model fit in a violin plot (regression).
 
@@ -529,7 +534,8 @@ def print_regression_violin(task, results, plots_path):
     return
 
 
-def print_classification_confusion(task, results, plots_path):
+def print_classification_confusion(task: dict, results: dict,
+                                   plots_path: str) -> None:
     '''
     Print model fit as confusion matrix (classification).
 
@@ -541,8 +547,6 @@ def print_classification_confusion(task, results, plots_path):
         Dictionary holding the results of the ml analyses.
     plots_path : string
         Path to the plots.
-    class_tag : list
-        List of class_tags
 
     Returns
     -------
@@ -721,7 +725,8 @@ def print_classification_confusion(task, results, plots_path):
     return
 
 
-def print_classification_violin(task, results, plots_path):
+def print_classification_violin(task: dict, results: dict,
+                                plots_path: str) -> None:
     '''
     Print model fit in a violin plot (classification).
 
@@ -846,7 +851,8 @@ def print_classification_violin(task, results, plots_path):
     return
 
 
-def get_shap_effects(task, explainations, c_class=-1):
+def get_shap_effects(task: dict, explainations: list,
+                     c_class: int = -1) -> tuple:
     '''
     Get SHAP based global effects.
 
@@ -882,30 +888,17 @@ def get_shap_effects(task, explainations, c_class=-1):
                         for k in explainations]
         # Base value
         base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 3: no interaction and binary
-    elif not task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'binary':
-        # SHAP effects
-        shap_effects = [np.mean(np.abs(k.values), axis=0)
-                        for k in explainations]
-        # Base value
-        base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 4: interaction and binary
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'binary':
-        # Get SHAP effects
-        shap_effects = [np.mean(np.abs(np.sum(k.values, axis=2)), axis=0)
-                        for k in explainations]
-        # Base value
-        base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 5: no interaction and multiclass
-    elif not task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'multiclass':
+    # Case 3: no interaction and classification
+    elif (not task['SHAP_INTERACTIONS'] and
+          task['OBJECTIVE'] == 'classification'):
         # SHAP effects
         shap_effects = [np.mean(np.abs(k.values[:, :, c_class]), axis=0)
                         for k in explainations]
         # Base value
         base = np.mean(np.hstack([k[:, :, c_class].base_values
                                   for k in explainations]))
-    # Case 6: interaction and multiclass
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'multiclass':
+    # Case 4: interaction and classification
+    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'classification':
         # SHAP effects
         shap_effects = [np.mean(np.abs(np.sum(
             k.values[:, :, :, c_class], axis=2)), axis=0)
@@ -925,7 +918,7 @@ def get_shap_effects(task, explainations, c_class=-1):
     return shap_effects_df, base
 
 
-def print_shap_effects(task, results, plots_path):
+def print_shap_effects(task: dict, results: dict, plots_path: str) -> None:
     '''
     Print SHAP based global effects.
 
@@ -944,12 +937,12 @@ def print_shap_effects(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression or binary
-    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
+    # If regression
+    if task['OBJECTIVE'] == 'regression':
         # Set n_classes to 1
         n_classes = 1
-    # Other cases
-    else:
+    # If classification
+    elif task['OBJECTIVE'] == 'classification':
         # Set n_classes
         n_classes = results['explainations'][0].shape[-1]
 
@@ -1012,9 +1005,9 @@ def print_shap_effects(task, results, plots_path):
             ' from it\'s expected value of ' +
             str(np.round(base, decimals=2)))
         # Add class if multiclass
-        if task['OBJECTIVE'] == 'multiclass':
+        if task['OBJECTIVE'] == 'classification':
             # Make title string
-            title_str = title_str+'\n class: '+str(c_class)
+            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
         # Set title
         ax.set_title(title_str, fontsize=10)
 
@@ -1083,7 +1076,8 @@ def print_shap_effects(task, results, plots_path):
     return
 
 
-def print_shap_effects_distribution(task, results, plots_path):
+def print_shap_effects_distribution(task: dict, results: dict,
+                                    plots_path: str) -> None:
     '''
     Print SHAP values distribution.
 
@@ -1102,12 +1096,12 @@ def print_shap_effects_distribution(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression or binary
-    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
+    # If regression
+    if task['OBJECTIVE'] == 'regression':
         # Set n_classes to 1
         n_classes = 1
-    # Other cases
-    else:
+    # If classification
+    elif task['OBJECTIVE'] == 'classification':
         # Set n_classes
         n_classes = results['explainations'][0].shape[-1]
 
@@ -1213,7 +1207,7 @@ def print_shap_effects_distribution(task, results, plots_path):
             ' from it\'s expected value of ' +
             str(np.round(base, decimals=2)))
         # Add class if multiclass
-        if task['OBJECTIVE'] == 'multiclass':
+        if task['OBJECTIVE'] == 'classification':
             # Make title string
             title_str = title_str+'\n class: '+str(c_class)
         # Add title
@@ -1242,7 +1236,8 @@ def print_shap_effects_distribution(task, results, plots_path):
     return
 
 
-def get_shap_values(task, explainations, c_class=-1):
+def get_shap_values(task: dict, explainations: list,
+                    c_class: int = -1) -> tuple:
     '''
     Get SHAP values.
 
@@ -1306,50 +1301,9 @@ def get_shap_values(task, explainations, c_class=-1):
             compute_time=np.sum([k.compute_time for k in explainations]))
         # Base value
         base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 3: no interaction and binary
-    elif not task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'binary':
-        # Explainer object
-        shap_explainations = Explanation(
-            np.vstack([k.values for k in explainations]),
-            base_values=np.hstack([k.base_values for k in explainations]),
-            data=np.vstack([k.data for k in explainations]),
-            display_data=None,
-            instance_names=None,
-            feature_names=explainations[0].feature_names,
-            output_names=None,
-            output_indexes=None,
-            lower_bounds=None,
-            upper_bounds=None,
-            error_std=None,
-            main_effects=None,
-            hierarchical_values=None,
-            clustering=None,
-            compute_time=np.sum([k.compute_time for k in explainations]))
-        # Base value
-        base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 4: interaction and binary
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'binary':
-        # Explainer object
-        shap_explainations = Explanation(
-            np.vstack([k.values for k in explainations]),
-            base_values=np.hstack([k.base_values for k in explainations]),
-            data=np.vstack([k.data for k in explainations]),
-            display_data=None,
-            instance_names=None,
-            feature_names=explainations[0].feature_names,
-            output_names=None,
-            output_indexes=None,
-            lower_bounds=None,
-            upper_bounds=None,
-            error_std=None,
-            main_effects=None,
-            hierarchical_values=None,
-            clustering=None,
-            compute_time=np.sum([k.compute_time for k in explainations]))
-        # Base value
-        base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 5: no interaction and multiclass
-    elif not task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'multiclass':
+    # Case 3: no interaction and multiclass
+    elif (not task['SHAP_INTERACTIONS'] and
+          task['OBJECTIVE'] == 'classification'):
         # Explainer object
         shap_explainations = Explanation(
             np.vstack([k[:, :, c_class].values for k in explainations]),
@@ -1371,8 +1325,8 @@ def get_shap_values(task, explainations, c_class=-1):
         # Base value
         base = np.mean(np.hstack([k[:, :, c_class].base_values
                                   for k in explainations]))
-    # Case 6: interaction and multiclass
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'multiclass':
+    # Case 4: interaction and multiclass
+    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'classification':
         # Explainer object
         shap_explainations = Explanation(
             np.vstack([k[:, :, :, c_class].values for k in explainations]),
@@ -1403,7 +1357,7 @@ def get_shap_values(task, explainations, c_class=-1):
     return shap_explainations, base
 
 
-def print_shap_values(task, results, plots_path):
+def print_shap_values(task: dict, results: dict, plots_path: str) -> None:
     '''
     Plot SHAP values.
 
@@ -1422,12 +1376,12 @@ def print_shap_values(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression or binary
-    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
+    # If regression
+    if task['OBJECTIVE'] == 'regression':
         # Set n_classes to 1
         n_classes = 1
-    # Other cases
-    else:
+    # If classification
+    if task['OBJECTIVE'] == 'classification':
         # Set n_classes
         n_classes = results['explainations'][0].shape[-1]
 
@@ -1491,9 +1445,9 @@ def print_shap_values(task, results, plots_path):
             ' from it\'s expected value of ' +
             str(np.round(base, decimals=2)))
         # Add class if multiclass
-        if task['OBJECTIVE'] == 'multiclass':
+        if task['OBJECTIVE'] == 'classification':
             # Make title string
-            title_str = title_str+'\n class: '+str(c_class)
+            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
         # Add title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -1526,7 +1480,7 @@ def print_shap_values(task, results, plots_path):
     return
 
 
-def print_shap_dependences(task, results, plots_path):
+def print_shap_dependences(task: dict, results: dict, plots_path: str) -> None:
     '''
     Plot SHAP dependences.
 
@@ -1545,12 +1499,12 @@ def print_shap_dependences(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression or binary
-    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
+    # If regression
+    if task['OBJECTIVE'] == 'regression':
         # Set n_classes to 1
         n_classes = 1
-    # Other cases
-    else:
+    # If classification
+    elif task['OBJECTIVE'] == 'classification':
         # Set n_classes
         n_classes = results['explainations'][0].shape[-1]
 
@@ -1587,9 +1541,9 @@ def print_shap_dependences(task, results, plots_path):
                 ' from it\'s expected value of ' +
                 str(np.round(base, decimals=2)))
             # Add class if multiclass
-            if task['OBJECTIVE'] == 'multiclass':
+            if task['OBJECTIVE'] == 'classification':
                 # Make title string
-                title_str = title_str+'\n class: '+str(c_class)
+                title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
             # Plot SHAP Scatter plot
             scatter(
                 shap_explainations[:, idx],
@@ -1647,7 +1601,8 @@ def print_shap_dependences(task, results, plots_path):
     return
 
 
-def get_shap_effects_inter(task, explainations, c_class=-1):
+def get_shap_effects_inter(task: dict, explainations: list,
+                           c_class: int = -1) -> tuple:
     '''
     Get SHAP based global interaction effects.
 
@@ -1676,15 +1631,8 @@ def get_shap_effects_inter(task, explainations, c_class=-1):
                                        for k in explainations])
         # Base value
         base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 2: interaction and binary
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'binary':
-        # Get SHAP interaction effects
-        shap_effects_inter = np.array([np.mean(np.abs(k.values), axis=0)
-                                       for k in explainations])
-        # Base value
-        base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 3: interaction and multiclass
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'multiclass':
+    # Case 2: interaction and multiclass
+    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'classification':
         # Get SHAP interaction effects
         shap_effects_inter = np.array([np.mean(np.abs(
             k[:, :, :, c_class].values), axis=0) for k in explainations])
@@ -1700,7 +1648,8 @@ def get_shap_effects_inter(task, explainations, c_class=-1):
     return shap_effects_inter, base
 
 
-def print_shap_effects_interactions(task, results, plots_path):
+def print_shap_effects_interactions(task: dict, results: dict,
+                                    plots_path: str) -> None:
     '''
     Plot SHAP effects inclusive interactions.
 
@@ -1719,12 +1668,12 @@ def print_shap_effects_interactions(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression or binary
-    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
+    # If regression
+    if task['OBJECTIVE'] == 'regression':
         # Set n_classes to 1
         n_classes = 1
-    # Other cases
-    else:
+    # If classification
+    elif task['OBJECTIVE'] == 'classification':
         # Set n_classes
         n_classes = results['explainations'][0].shape[-1]
 
@@ -1869,9 +1818,9 @@ def print_shap_effects_interactions(task, results, plots_path):
             ' from it\'s expected value of ' +
             str(np.round(base, decimals=2)))
         # Add class if multiclass
-        if task['OBJECTIVE'] == 'multiclass':
+        if task['OBJECTIVE'] == 'classification':
             # Make title string
-            title_str = title_str+'\n class: '+str(c_class)
+            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
         # Add title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -1904,7 +1853,8 @@ def print_shap_effects_interactions(task, results, plots_path):
     return
 
 
-def print_shap_interaction_values(task, results, plots_path):
+def print_shap_interaction_values(task: dict, results: dict,
+                                  plots_path: str) -> None:
     '''
     Plot SHAP interaction values.
 
@@ -1923,12 +1873,12 @@ def print_shap_interaction_values(task, results, plots_path):
     '''
 
     # Classes -----------------------------------------------------------------
-    # If regression or binary
-    if (task['OBJECTIVE'] == 'regression' or task['OBJECTIVE'] == 'binary'):
+    # If regression
+    if task['OBJECTIVE'] == 'regression':
         # Set n_classes to 1
         n_classes = 1
-    # Other cases
-    else:
+    # If classification
+    elif task['OBJECTIVE'] == 'classification':
         # Set n_classes
         n_classes = results['explainations'][0].shape[-1]
 
@@ -1956,9 +1906,10 @@ def print_shap_interaction_values(task, results, plots_path):
                         [k.base_values for k in results['explainations']])),
                         decimals=2)))
                 # Add class if multiclass
-                if task['OBJECTIVE'] == 'multiclass':
+                if task['OBJECTIVE'] == 'classification':
                     # Make title string
-                    title_str = title_str+'\n class: '+str(c_class)
+                    title_str = (title_str+' (log odds)'+'\n class: ' +
+                                 str(c_class))
                 # Plot SHAP Scatter plot
                 scatter(
                     shap_values[:, i, k],
@@ -2026,7 +1977,7 @@ def print_shap_interaction_values(task, results, plots_path):
     return
 
 
-def main():
+def main() -> None:
     '''
     Main function of plot results of machine-learning based data analysis.
 
@@ -2092,8 +2043,7 @@ def main():
                 # Print model fit as violinplot of metrics
                 print_regression_violin(task, results, plots_path)
             # Classification
-            elif (task['OBJECTIVE'] == 'binary' or
-                  task['OBJECTIVE'] == 'multiclass'):
+            elif task['OBJECTIVE'] == 'classification':
                 # Print model fit as confusion matrix
                 print_classification_confusion(task, results, plots_path)
                 # Print model fit as violinplot of metrics

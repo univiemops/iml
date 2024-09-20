@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Fairness (FRS)
-v029
+v031
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -17,7 +17,7 @@ from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics import r2_score
 
 
-def lfp(path_load):
+def lfp(path_load: str) -> pkl:
     '''
     Returns pickle file at load path.
 
@@ -42,7 +42,7 @@ def lfp(path_load):
     return data
 
 
-def create_dir(path):
+def create_dir(path: str) -> None:
     '''
     Create specified directory if not existing.
 
@@ -66,7 +66,8 @@ def create_dir(path):
     return
 
 
-def corrected_std(differences, n_tst_over_n_trn=0.25):
+def corrected_std(differences: np.ndarray,
+                  n_tst_over_n_trn: int = 0.25) -> float:
     '''
     Corrects standard deviation using Nadeau and Bengio's approach.
     Ref: Nadeau, C., Bengio, Y. Inference for the Generalization Error.
@@ -102,7 +103,8 @@ def corrected_std(differences, n_tst_over_n_trn=0.25):
     return corrected_std
 
 
-def corrected_ttest(differences, n_tst_over_n_trn=0.25):
+def corrected_ttest(differences: np.ndarray,
+                    n_tst_over_n_trn: int = 0.25) -> tuple:
     '''
     Computes two-tailed paired t-test with corrected variance.
     Ref: Nadeau, C., Bengio, Y. Inference for the Generalization Error.
@@ -141,7 +143,7 @@ def corrected_ttest(differences, n_tst_over_n_trn=0.25):
     return t_stat, p_val
 
 
-def main():
+def main() -> None:
     '''
     Main function of plot results of machine-learning based data analysis.
 
@@ -156,15 +158,11 @@ def main():
 
     # Specify variable names to check fairness for. list of strings
     FAIR_NAMES = [
-        'age',
-        'sex',
-        'sepal_length',
+        'gender',
         ]
     # Specify thresholds to check fairness for. list of strings
     FAIR_THRESHOLDS = [
-        50,
-        1.5,
-        6,
+        0.5,
         ]
     # Save plots additionally as svg. bool (default: False)
     AS_SVG = False
