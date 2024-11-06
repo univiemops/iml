@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Plotting (PLT)
-v327
+338
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -67,8 +67,7 @@ def create_dir(path: str) -> None:
     return
 
 
-def corrected_std(differences: np.ndarray,
-                  n_tst_over_n_trn: float = 0.25) -> float:
+def corrected_std(differences: np.ndarray, n_tst_over_n_trn: float = 0.25) -> float:  # noqa: E501
     '''
     Corrects standard deviation using Nadeau and Bengio's approach.
     Ref: Nadeau, C., Bengio, Y. Inference for the Generalization Error.
@@ -96,7 +95,7 @@ def corrected_std(differences: np.ndarray,
     # kr equals the number of times the model was evaluated
     kr = len(differences)
     # Corrected variance
-    corrected_var = np.var(differences, ddof=1) * (1/kr + n_tst_over_n_trn)
+    corrected_var = np.var(differences, ddof=1)*(1/kr + n_tst_over_n_trn)
     # Corrected standard deviation
     corrected_std = np.sqrt(corrected_var)
 
@@ -104,8 +103,7 @@ def corrected_std(differences: np.ndarray,
     return corrected_std
 
 
-def corrected_ttest(differences: np.ndarray,
-                    n_tst_over_n_trn: float = 0.25) -> float:
+def corrected_ttest(differences: np.ndarray, n_tst_over_n_trn: float = 0.25) -> float:  # noqa: E501
     '''
     Computes right-tailed paired t-test with corrected variance.
     Ref: Nadeau, C., Bengio, Y. Inference for the Generalization Error.
@@ -144,8 +142,7 @@ def corrected_ttest(differences: np.ndarray,
     return t_stat, p_val
 
 
-def print_parameter_distributions(task: dict, results: dict,
-                                  plots_path: str) -> None:
+def print_parameter_distributions(task: dict, results: dict, plots_path: str) -> None:  # noqa: E501
     '''
     Print model parameter distributions in histogram.
 
@@ -179,7 +176,8 @@ def print_parameter_distributions(task: dict, results: dict,
             kde=True,
             color='#777777',
             log_scale=True if name.endswith('path_smooth') else False,
-            ax=ax)
+            ax=ax
+            )
         # Remove top, right and left frame elements
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -189,21 +187,13 @@ def print_parameter_distributions(task: dict, results: dict,
         ax.set_ylabel('Count')
         # Set title
         ax.set_title(
-            task['ANALYSIS_NAME']+'\n' +
-            'Parameter distribution of predicting'+' ' +
-            task['y_name'],
-            fontsize=10)
+            task['ANALYSIS_NAME']+'\n'+'Parameter distribution of predicting '+task['y_name'],  # noqa: E501
+            fontsize=10
+            )
 
         # Save figure ---------------------------------------------------------
         # Make save path
-        save_path = (
-            plots_path+'/' +
-            task['ANALYSIS_NAME']+'_' +
-            task['y_name']+'_' +
-            '0'+'_' +
-            str(idx)+'_' +
-            'parameter'+'_' +
-            name)[:150]
+        save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_0_' +str(idx)+'_parameter_'+name[:150]  # noqa: E501
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -217,8 +207,7 @@ def print_parameter_distributions(task: dict, results: dict,
     return
 
 
-def print_regression_scatter(task: dict, results: dict,
-                             plots_path: str) -> None:
+def print_regression_scatter(task: dict, results: dict, plots_path: str) -> None:  # noqa: E501
     '''
     Print model fit in a scatter plot (regression).
 
@@ -251,14 +240,16 @@ def print_regression_scatter(task: dict, results: dict,
         true_values,
         zorder=2,
         alpha=0.1,
-        color='#444444')
+        color='#444444',
+        )
     # Add optimal fit line
     ax.plot(
         [-10000, 10000], [-10000, 10000],
         color='#999999',
         zorder=3,
         linewidth=2,
-        alpha=0.3)
+        alpha=0.3,
+        )
     # Fix aspect
     ax.set_aspect(1)
     # Remove top, right and left frame elements
@@ -272,7 +263,8 @@ def print_regression_scatter(task: dict, results: dict,
         bottom=True,
         top=False,
         left=True,
-        right=False)
+        right=False,
+        )
     # Add grid
     ax.grid(visible=True, which='major', axis='both')
     # Modify grid
@@ -282,17 +274,18 @@ def print_regression_scatter(task: dict, results: dict,
     # Set x-axis limits
     ax.set_xlim(
         min(true_values) - true_values_range/20,
-        max(true_values) + true_values_range/20)
+        max(true_values) + true_values_range/20,
+        )
     # Set y-axis limits
     ax.set_ylim(
         min(true_values) - true_values_range/20,
-        max(true_values) + true_values_range/20)
+        max(true_values) + true_values_range/20,
+        )
     # Set title
     ax.set_title(
-        task['ANALYSIS_NAME']+'\n' +
-        'Performance of predicting'+' ' +
-        task['y_name'],
-        fontsize=10)
+        'Performance of predicting '+task['y_name'],
+        fontsize=10,
+        )
     # Set xlabel
     ax.set_xlabel('Predicted values', fontsize=10)
     # Set x ticks size
@@ -312,23 +305,17 @@ def print_regression_scatter(task: dict, results: dict,
     # Add original outcome MAE results to plot
     ax.text(
         .35, .09,
-        ('Original outcome: MAE mean'+r'$\pm$'+'std {:.2f}'+r'$\pm$' +
-         '{:.2f} | med {:.2f}').format(
-             np.mean(mae),
-             np.std(mae),
-             np.median(mae)),
+        ('Original outcome: MAE mean'+r'$\pm$'+'std {:.2f}'+r'$\pm$'+'{:.2f} | med {:.2f}').format(np.mean(mae), np.std(mae), np.median(mae)),  # noqa: E501
         transform=ax.transAxes,
-        fontsize=10)
+        fontsize=10,
+        )
     # Add shuffled outcome MAE results to plot
     ax.text(
         .35, .055,
-        ('Shuffled outcome: MAE mean'+r'$\pm$'+'std {:.2f}'+r'$\pm$' +
-         '{:.2f} | med {:.2f}').format(
-            np.mean(mae_sh),
-            np.std(mae_sh),
-            np.median(mae_sh)),
+        ('Shuffled outcome: MAE mean'+r'$\pm$'+'std {:.2f}'+r'$\pm$'+'{:.2f} | med {:.2f}').format(np.mean(mae_sh), np.std(mae_sh), np.median(mae_sh)),  # noqa: E501
         transform=ax.transAxes,
-        fontsize=10)
+        fontsize=10,
+        )
     # Make pval string
     if pval_mae <= 0.001:
         pval_string = 'p\u22640.001'
@@ -339,7 +326,8 @@ def print_regression_scatter(task: dict, results: dict,
         .35, .02,
         ('Original vs. shuffled outcome: ')+pval_string,
         transform=ax.transAxes,
-        fontsize=10)
+        fontsize=10,
+        )
 
     # Add R² ------------------------------------------------------------------
     # Extract R²
@@ -351,23 +339,17 @@ def print_regression_scatter(task: dict, results: dict,
     # Add original outcome R² results to plot
     ax.text(
         .02, .96,
-        ('Original outcome: R² mean'+r'$\pm$'+'std {:.3f}'+r'$\pm$' +
-         '{:.3f} | med {:.3f}').format(
-             np.mean(r2),
-             np.std(r2),
-             np.median(r2)),
+        ('Original outcome: R² mean'+r'$\pm$'+'std {:.3f}'+r'$\pm$'+'{:.3f} | med {:.3f}').format(np.mean(r2), np.std(r2), np.median(r2)),  # noqa: E501
         transform=ax.transAxes,
-        fontsize=10)
+        fontsize=10,
+        )
     # Add shuffled outcome R² results to plot
     ax.text(
         .02, .925,
-        ('Shuffled outcome: R² mean'+r'$\pm$'+'std {:.3f}'+r'$\pm$' +
-         '{:.3f} | med {:.3f}').format(
-             np.mean(r2_sh),
-             np.std(r2_sh),
-             np.median(r2_sh)),
+        ('Shuffled outcome: R² mean'+r'$\pm$'+'std {:.3f}'+r'$\pm$'+'{:.3f} | med {:.3f}').format( np.mean(r2_sh),  np.std(r2_sh), np.median(r2_sh)),  # noqa: E501
         transform=ax.transAxes,
-        fontsize=10)
+        fontsize=10,
+        )
     # Make pval string
     if pval_r2 <= 0.001:
         pval_string = 'p\u22640.001'
@@ -378,17 +360,12 @@ def print_regression_scatter(task: dict, results: dict,
         .02, .89,
         ('Original vs. shuffled outcome: ')+pval_string,
         transform=ax.transAxes,
-        fontsize=10)
+        fontsize=10,
+        )
 
     # Save figure -------------------------------------------------------------
     # Make save path
-    save_path = (
-        plots_path+'/' +
-        task['ANALYSIS_NAME']+'_' +
-        task['y_name']+'_' +
-        '1'+'_' +
-        '0'+'_' +
-        'performance')[:150]
+    save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_1_0_performance'[:150]  # noqa: E501
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -402,8 +379,7 @@ def print_regression_scatter(task: dict, results: dict,
     return
 
 
-def print_regression_violin(task: dict, results: dict,
-                            plots_path: str) -> None:
+def print_regression_violin(task: dict, results: dict, plots_path: str) -> None:  # noqa: E501
     '''
     Print model fit in a violin plot (regression).
 
@@ -435,13 +411,15 @@ def print_regression_violin(task: dict, results: dict,
         {'Mean Absolute Error': pd.Series(np.array(mae)),
          'R²': pd.Series(np.array(r2)),
          'Data': pd.Series(['original' for _ in mae]),
-         'Dummy': pd.Series(np.ones(np.array(mae).shape).flatten())})
+         'Dummy': pd.Series(np.ones(np.array(mae).shape).flatten()),
+         })
     # Compose scores shuffle dataframe
     scores_sh_df = pd.DataFrame(
         {'Mean Absolute Error': pd.Series(np.array(mae_sh)),
          'R²': pd.Series(np.array(r2_sh)),
          'Data': pd.Series(['shuffled' for _ in mae_sh]),
-         'Dummy': pd.Series(np.ones(np.array(mae_sh).shape).flatten())})
+         'Dummy': pd.Series(np.ones(np.array(mae_sh).shape).flatten()),
+         })
     # Concatenate scores dataframes
     all_scores_df = pd.concat([scores_df, scores_sh_df], axis=0)
     # Make list of metrics
@@ -473,7 +451,8 @@ def print_regression_violin(task: dict, results: dict,
             linewidth=1,
             saturation=1,
             ax=ax[i],
-            palette=mypal)
+            palette=mypal,
+            )
         # Remove top, right and left frame elements
         ax[i].spines['top'].set_visible(False)
         ax[i].spines['right'].set_visible(False)
@@ -487,7 +466,8 @@ def print_regression_violin(task: dict, results: dict,
             top=False,
             left=False,
             right=False,
-            labelleft=False)
+            labelleft=False,
+            )
         # Set x ticks and size
         ax[i].set_xlabel(metrics[i], fontsize=10)
         # Set y ticks and size
@@ -503,24 +483,16 @@ def print_regression_violin(task: dict, results: dict,
             axis='y',
             color='#bbbbbb',
             linestyle='dotted',
-            alpha=.3)
+            alpha=.3,
+            )
     # Make title string
-    title_str = (
-        task['ANALYSIS_NAME']+'\n' +
-        'Performance of predicting'+' ' +
-        task['y_name'])
+    title_str = task['ANALYSIS_NAME']+'\nPerformance of predicting '+task['y_name']  # noqa: E501
     # set title
     fig.axes[0].set_title(title_str, fontsize=10)
 
     # Save figure -------------------------------------------------------------
     # Make save path
-    save_path = (
-        plots_path+'/' +
-        task['ANALYSIS_NAME']+'_' +
-        task['y_name']+'_' +
-        '1'+'_' +
-        '1'+'_' +
-        'performance_distribution')[:150]
+    save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_1_1_performance_distribution'[:150]  # noqa: E501
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -534,8 +506,7 @@ def print_regression_violin(task: dict, results: dict,
     return
 
 
-def print_classification_confusion(task: dict, results: dict,
-                                   plots_path: str) -> None:
+def print_classification_confusion(task: dict, results: dict, plots_path: str) -> None:  # noqa: E501
     '''
     Print model fit as confusion matrix (classification).
 
@@ -576,7 +547,8 @@ def print_classification_confusion(task: dict, results: dict,
                 pred,
                 labels=class_labels,
                 sample_weight=None,
-                normalize=None)
+                normalize=None,
+                )
         else:
             # Add confusion matrix
             con_mat_count = np.add(
@@ -586,7 +558,8 @@ def print_classification_confusion(task: dict, results: dict,
                     pred,
                     labels=class_labels,
                     sample_weight=None,
-                    normalize=None))
+                    normalize=None,
+                    ))
     # Get normalized confusion matrix -----------------------------------------
     # Loop over single results
     # for true, pred, w in zip(true_values, pred_values, sample_weights):
@@ -598,7 +571,8 @@ def print_classification_confusion(task: dict, results: dict,
                 pred,
                 labels=class_labels,
                 sample_weight=None,
-                normalize='true')
+                normalize='true',
+                )
         else:
             # Add confusion matrix
             con_mat = np.add(
@@ -608,7 +582,8 @@ def print_classification_confusion(task: dict, results: dict,
                     pred,
                     labels=class_labels,
                     sample_weight=None,
-                    normalize='true'))
+                    normalize='true',
+                    ))
     # Normalize confusion matrix
     con_mat_norm = con_mat / len(true_values)
 
@@ -617,8 +592,8 @@ def print_classification_confusion(task: dict, results: dict,
     fig, ax = plt.subplots(
         nrows=1,
         ncols=2,
-        figsize=(con_mat.shape[0]*.5+4,
-                 con_mat.shape[0]*.5+3.5))
+        figsize=(con_mat.shape[0]*.5+4, con_mat.shape[0]*.5+3.5),
+        )
     # Use tight layout
     plt.tight_layout()
     # Plot count confusion matrix
@@ -640,7 +615,8 @@ def print_classification_confusion(task: dict, results: dict,
         xticklabels=[int(idx) for idx in class_labels],
         yticklabels=[int(idx) for idx in class_labels],
         mask=None,
-        ax=ax[0])
+        ax=ax[0],
+        )
     # Add title to plot
     ax[0].set_title('# predictions', fontsize=10)
     # Add x label to plot
@@ -668,7 +644,8 @@ def print_classification_confusion(task: dict, results: dict,
         xticklabels=[int(idx) for idx in class_labels],
         yticklabels=[int(idx) for idx in class_labels],
         mask=None,
-        ax=ax[1])
+        ax=ax[1],
+        )
     # Add title to plot
     ax[1].set_title('norm. to True class', fontsize=10)
     # Add x label to plot
@@ -685,33 +662,20 @@ def print_classification_confusion(task: dict, results: dict,
     else:
         pval_string = 'p={:.3f}'.format(pval_acc)
     # Make title string
-    title_str = (
-        task['ANALYSIS_NAME']+'\n' +
-        'Performance of predicting'+' ' +
-        task['y_name']+'\n' +
-        'Original outcome balanced acc: mean'+r'$\pm$'+'std {:.2f}' +
-        r'$\pm$'+'{:.2f} | med {:.2f}'+'\n' +
-        'Shuffled outcome balanced acc: mean'+r'$\pm$'+'std {:.2f}' +
-        r'$\pm$'+'{:.2f} | med {:.2f}'+'\n' +
-        'Original vs. shuffled outcome: ').format(
+    title_str = (task['ANALYSIS_NAME']+'\nPerformance of predicting '+task['y_name']+'\nOriginal outcome balanced acc: mean'+r'$\pm$'+'std {:.2f}'+r'$\pm$'+'{:.2f} | med {:.2f}\nShuffled outcome balanced acc: mean'+r'$\pm$'+'std {:.2f}'+r'$\pm$'+'{:.2f} | med {:.2f}'+'\nOriginal vs. shuffled outcome: ').format(  # noqa: E501
         np.mean(acc)*100,
         np.std(acc)*100,
         np.median(acc)*100,
         np.mean(acc_sh)*100,
         np.std(acc_sh)*100,
-        np.median(acc_sh)*100)+pval_string+'\n'
+        np.median(acc_sh)*100,
+        )+pval_string+'\n'
     # Set title
     plt.suptitle(title_str, fontsize=10)
 
     # Save figure -------------------------------------------------------------
     # Make save path
-    save_path = (
-        plots_path+'/' +
-        task['ANALYSIS_NAME']+'_' +
-        task['y_name']+'_' +
-        '1'+'_' +
-        '0'+'_' +
-        'performance')[:150]
+    save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_1_0_performance'[:150]  # noqa: E501
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -725,8 +689,7 @@ def print_classification_confusion(task: dict, results: dict,
     return
 
 
-def print_classification_violin(task: dict, results: dict,
-                                plots_path: str) -> None:
+def print_classification_violin(task: dict, results: dict, plots_path: str) -> None:  # noqa: E501
     '''
     Print model fit in a violin plot (classification).
 
@@ -753,12 +716,14 @@ def print_classification_violin(task: dict, results: dict,
     scores_df = pd.DataFrame(
         {'Accuracy': pd.Series(np.array(acc)),
          'Data': pd.Series(['original' for _ in acc]),
-         'Dummy': pd.Series(np.ones(np.array(acc).shape).flatten())})
+         'Dummy': pd.Series(np.ones(np.array(acc).shape).flatten()),
+         })
     # Compose scores shuffle dataframe
     scores_sh_df = pd.DataFrame(
         {'Accuracy': pd.Series(np.array(acc_sh)),
          'Data': pd.Series(['shuffled' for _ in acc_sh]),
-         'Dummy': pd.Series(np.ones(np.array(acc_sh).shape).flatten())})
+         'Dummy': pd.Series(np.ones(np.array(acc_sh).shape).flatten()),
+         })
     # Concatenate scores dataframes
     all_scores_df = pd.concat([scores_df, scores_sh_df], axis=0)
     # Make list of metrics
@@ -790,7 +755,8 @@ def print_classification_violin(task: dict, results: dict,
             linewidth=1,
             saturation=1,
             ax=ax[i],
-            palette=mypal)
+            palette=mypal,
+            )
         # Remove top, right and left frame elements
         ax[i].spines['top'].set_visible(False)
         ax[i].spines['right'].set_visible(False)
@@ -804,7 +770,8 @@ def print_classification_violin(task: dict, results: dict,
             top=False,
             left=False,
             right=False,
-            labelleft=False)
+            labelleft=False,
+            )
         # Set x ticks and size
         ax[i].set_xlabel(metrics[i], fontsize=10)
         # Set y ticks and size
@@ -816,28 +783,15 @@ def print_classification_violin(task: dict, results: dict,
         # Add horizontal grid
         fig.axes[i].set_axisbelow(True)
         # Set grid style
-        fig.axes[i].grid(
-            axis='y',
-            color='#bbbbbb',
-            linestyle='dotted',
-            alpha=.3)
+        fig.axes[i].grid(axis='y', color='#bbbbbb', linestyle='dotted', alpha=.3)  # noqa: E501
     # Make title string
-    title_str = (
-        task['ANALYSIS_NAME']+'\n' +
-        'Performance of predicting'+' ' +
-        task['y_name'])
+    title_str = task['ANALYSIS_NAME']+'\nPerformance of predicting ' +task['y_name']  # noqa: E501
     # set title
     plt.title(title_str, fontsize=10)
 
     # Save figure -------------------------------------------------------------
     # Make save path
-    save_path = (
-        plots_path+'/' +
-        task['ANALYSIS_NAME']+'_' +
-        task['y_name']+'_' +
-        '1'+'_' +
-        '1'+'_' +
-        'performance_distribution')[:150]
+    save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_1_1_performance_distribution'[:150]  # noqa: E501
     # Save figure
     plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
     # Check if save as svg is enabled
@@ -851,8 +805,7 @@ def print_classification_violin(task: dict, results: dict,
     return
 
 
-def get_shap_effects(task: dict, explainations: list,
-                     c_class: int = -1) -> tuple:
+def get_shap_effects(task: dict, explainations: list, c_class: int = -1) -> tuple:   # noqa: E501
     '''
     Get SHAP based global effects.
 
@@ -875,37 +828,29 @@ def get_shap_effects(task: dict, explainations: list,
 
     # Get shap effects --------------------------------------------------------
     # Case 1: no interaction and regression
-    if not task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'regression':
+    if (not task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'regression'):  # noqa: E501
         # SHAP effects
-        shap_effects = [np.mean(np.abs(k.values), axis=0)
-                        for k in explainations]
+        shap_effects = [np.mean(np.abs(k.values), axis=0) for k in explainations]  # noqa: E501
         # Base value
         base = np.mean(np.hstack([k.base_values for k in explainations]))
     # Case 2: interaction and regression
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'regression':
+    elif task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'regression':
         # Get SHAP effects
-        shap_effects = [np.mean(np.abs(np.sum(k.values, axis=2)), axis=0)
-                        for k in explainations]
+        shap_effects = [np.mean(np.abs(np.sum(k.values, axis=2)), axis=0) for k in explainations]  # noqa: E501
         # Base value
         base = np.mean(np.hstack([k.base_values for k in explainations]))
     # Case 3: no interaction and classification
-    elif (not task['SHAP_INTERACTIONS'] and
-          task['OBJECTIVE'] == 'classification'):
+    elif (not task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'classification'):  # noqa: E501
         # SHAP effects
-        shap_effects = [np.mean(np.abs(k.values[:, :, c_class]), axis=0)
-                        for k in explainations]
+        shap_effects = [np.mean(np.abs(k.values[:, :, c_class]), axis=0) for k in explainations]  # noqa: E501
         # Base value
-        base = np.mean(np.hstack([k[:, :, c_class].base_values
-                                  for k in explainations]))
+        base = np.mean(np.hstack([k[:, :, c_class].base_values for k in explainations]))  # noqa: E501
     # Case 4: interaction and classification
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'classification':
+    elif (task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'classification'):  # noqa: E501
         # SHAP effects
-        shap_effects = [np.mean(np.abs(np.sum(
-            k.values[:, :, :, c_class], axis=2)), axis=0)
-            for k in explainations]
+        shap_effects = [np.mean(np.abs(np.sum(k.values[:, :, :, c_class], axis=2)), axis=0) for k in explainations]  # noqa: E501
         # Base value
-        base = np.mean(np.hstack([k[:, :, :, c_class].base_values
-                                  for k in explainations]))
+        base = np.mean(np.hstack([k[:, :, :, c_class].base_values for k in explainations]))  # noqa: E501
     # Case else
     else:
         # Raise error
@@ -953,33 +898,48 @@ def print_shap_effects(task: dict, results: dict, plots_path: str) -> None:
         shap_effects_df, base = get_shap_effects(
             task,
             results['explainations'],
-            c_class)
+            c_class,
+            )
         # Get current shuffle shap effects
         shap_effects_sh_df, _ = get_shap_effects(
             task,
             results['explainations_sh'],
-            c_class)
+            c_class,
+            )
 
         # Process SHAP effects-------------------------------------------------
         # Mean shap values
         shap_effects_se_mean = shap_effects_df.mean(axis=0)
         # Sort from highto low
-        shap_effects_se_mean_sort = shap_effects_se_mean.sort_values(
-            ascending=True)
+        shap_effects_se_mean_sort = shap_effects_se_mean.sort_values(ascending=True)  # noqa: E501
 
         # Additional info -----------------------------------------------------
         # x names lengths
         x_names_max_len = max([len(i) for i in task['x_names']])
         # x names count
         x_names_count = len(task['x_names'])
+        # Make title string
+        title_str = task['ANALYSIS_NAME']+'\nmean(|SHAP values|): mean absolute marginal change in '+task['y_name']+'\nfrom it\'s expected value of '+str(np.round(base, decimals=2))  # noqa: E501
+        # Add class if classification
+        if task['OBJECTIVE'] == 'classification':
+            # Make title string
+            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
+        # Add notice that target encoded values are depicted
+        if task['SHAP_USE_TARGET_ENC_VALUES'] and task['X_CAT_MULT_NAMES']:
+            # Add encoding notice
+            title_str = (title_str+'\n Mind target encoding of '+str(task['X_CAT_MULT_NAMES'])[1:-1])  # noqa: E501
+        # Get number of lines of title string
+        title_lines_count = title_str.count('\n')+1
 
         # Plot ----------------------------------------------------------------
         # Make horizontal bar plot
         shap_effects_se_mean_sort.plot(
             kind='barh',
-            figsize=(x_names_max_len*.1+8, x_names_count*.4+1),
+            figsize=(x_names_max_len*.1+8,
+                     x_names_count*.4+title_lines_count*.4+0.5),
             color='#777777',
-            fontsize=10)
+            fontsize=10,
+            )
         # Get the current figure and axes objects.
         _, ax = plt.gcf(), plt.gca()
         # Set x label size
@@ -997,17 +957,6 @@ def print_shap_effects(task: dict, results: dict, plots_path: str) -> None:
         ax.set_axisbelow(True)
         # Set grid style
         ax.grid(axis='y', color='#bbbbbb', linestyle='dotted', alpha=.3)
-        # Make title string
-        title_str = (
-            task['ANALYSIS_NAME']+'\n' +
-            'mean(|SHAP values|): mean absolute marginal change in ' +
-            task['y_name']+'\n' +
-            ' from it\'s expected value of ' +
-            str(np.round(base, decimals=2)))
-        # Add class if multiclass
-        if task['OBJECTIVE'] == 'classification':
-            # Make title string
-            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
         # Set title
         ax.set_title(title_str, fontsize=10)
 
@@ -1017,8 +966,7 @@ def print_shap_effects(task: dict, results: dict, plots_path: str) -> None:
         # Iterate over predictors
         for pred_name, pred_data in shap_effects_df.items():
             # Get current p value
-            _, c_pval = corrected_ttest(
-                pred_data.to_numpy()-shap_effects_sh_df[pred_name].to_numpy())
+            _, c_pval = corrected_ttest(pred_data.to_numpy()-shap_effects_sh_df[pred_name].to_numpy())  # noqa: E501
             # Add to pval list
             pval.append(np.around(c_pval, decimals=3))
         # Make pval series
@@ -1047,7 +995,8 @@ def print_shap_effects(task: dict, results: dict, plots_path: str) -> None:
                 txt_str,
                 color='k',
                 va='center',
-                fontsize=10)
+                fontsize=10,
+                )
         # Get x limits
         x_left, x_right = plt.xlim()
         # Set x limits
@@ -1055,14 +1004,7 @@ def print_shap_effects(task: dict, results: dict, plots_path: str) -> None:
 
         # Save plot -----------------------------------------------------------
         # Make save path
-        save_path = (
-            plots_path+'/' +
-            task['ANALYSIS_NAME']+'_' +
-            task['y_name']+'_' +
-            '2'+'_' +
-            '0'+'_' +
-            str(c_class)+'_' +
-            'shap_effect')[:150]
+        save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_2_0_'+str(c_class)+'_shap_effect'[:150]  # noqa: E501
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -1076,8 +1018,7 @@ def print_shap_effects(task: dict, results: dict, plots_path: str) -> None:
     return
 
 
-def print_shap_effects_distribution(task: dict, results: dict,
-                                    plots_path: str) -> None:
+def print_shap_effects_distribution(task: dict, results: dict, plots_path: str) -> None:  # noqa: E501
     '''
     Print SHAP values distribution.
 
@@ -1112,12 +1053,14 @@ def print_shap_effects_distribution(task: dict, results: dict,
         shap_effects_df, base = get_shap_effects(
             task,
             results['explainations'],
-            c_class)
+            c_class,
+            )
         # Get current shuffle shap effects
         shap_effects_sh_df, _ = get_shap_effects(
             task,
             results['explainations_sh'],
-            c_class)
+            c_class,
+            )
 
         # Process SHAP effects-------------------------------------------------
         # Sorting index by mean value of columns
@@ -1129,37 +1072,58 @@ def print_shap_effects_distribution(task: dict, results: dict,
         # Add data origin to SHAP effects dataframe
         shap_effects_df_sort['Data'] = pd.DataFrame(
             ['original' for _ in range(shap_effects_df_sort.shape[0])],
-            columns=['Data'])
+            columns=['Data'],
+            )
         # Add data origin to shuffle SHAP effects dataframe
         shap_effects_sh_df_sort['Data'] = pd.DataFrame(
             ['shuffled' for _ in range(shap_effects_sh_df_sort.shape[0])],
-            columns=['Data'])
+            columns=['Data'],
+            )
         # Get value name
         value_name = 'mean(|SHAP value|)'
         # Melt SHAP effects dataframe
         shap_effects_df_sort_melt = shap_effects_df_sort.melt(
-            id_vars=['Data'], var_name='predictors',
-            value_name=value_name)
+            id_vars=['Data'],
+            var_name='predictors',
+            value_name=value_name,
+            )
         # Melt shuffle SHAP effects dataframe
         shap_effects_sh_df_sort_melt = shap_effects_sh_df_sort.melt(
-            id_vars=['Data'], var_name='predictors',
-            value_name=value_name)
+            id_vars=['Data'],
+            var_name='predictors',
+            value_name=value_name,
+            )
         # Concatenate importances dataframes
         shap_effects_df_sort_melt_all = pd.concat([
             shap_effects_df_sort_melt,
-            shap_effects_sh_df_sort_melt], axis=0)
+            shap_effects_sh_df_sort_melt],
+            axis=0,
+            )
 
         # Additional info -----------------------------------------------------
         # x names lengths
         x_names_max_len = max([len(i) for i in task['x_names']])
         # x names count
         x_names_count = len(task['x_names'])
+        # Make title string
+        title_str = task['ANALYSIS_NAME']+'\nmean(|SHAP values|): mean absolute marginal change in '+task['y_name']+'\nfrom it\'s expected value of '+str(np.round(base, decimals=2))  # noqa: E501
+        # Add class if multiclass
+        if task['OBJECTIVE'] == 'classification':
+            # Make title string
+            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
+        # Add notice that target encoded values are depicted
+        if task['SHAP_USE_TARGET_ENC_VALUES'] and task['X_CAT_MULT_NAMES']:
+            # Add encoding notice
+            title_str = title_str+'\n Mind target encoding of '+str(task['X_CAT_MULT_NAMES'])[1:-1]  # noqa: E501
+        # Get number of lines of title string
+        title_lines_count = title_str.count('\n')+1
 
         # Plot ----------------------------------------------------------------
         # Make figure
         fig, ax = plt.subplots(
             figsize=(x_names_max_len*.1+8,
-                     x_names_count*.4+1))
+                     x_names_count*.4+title_lines_count*.4+0.5,
+                     ),)
         # Make color palette
         mypal = {'original': '#777777', 'shuffled': '#eeeeee'}
         # Plot data
@@ -1179,7 +1143,8 @@ def print_shap_effects_distribution(task: dict, results: dict,
             linewidth=.5,
             saturation=1,
             ax=ax,
-            palette=mypal)
+            palette=mypal,
+            )
         # Get the current figure and axes objects.
         _, ax = plt.gcf(), plt.gca()
         # Set x label size
@@ -1199,30 +1164,12 @@ def print_shap_effects_distribution(task: dict, results: dict,
         ax.grid(axis='y', color='#bbbbbb', linestyle='dotted', alpha=.3)
         # Set legend position
         plt.legend(loc='lower right')
-        # Make title string
-        title_str = (
-            task['ANALYSIS_NAME']+'\n' +
-            'mean(|SHAP values|): mean absolute marginal change in ' +
-            task['y_name']+'\n' +
-            ' from it\'s expected value of ' +
-            str(np.round(base, decimals=2)))
-        # Add class if multiclass
-        if task['OBJECTIVE'] == 'classification':
-            # Make title string
-            title_str = title_str+'\n class: '+str(c_class)
         # Add title
         ax.set_title(title_str, fontsize=10)
 
         # Save plots and results ----------------------------------------------
         # Make save path
-        save_path = (
-            plots_path+'/' +
-            task['ANALYSIS_NAME']+'_' +
-            task['y_name']+'_' +
-            '2'+'_' +
-            '1'+'_' +
-            str(c_class)+'_' +
-            'shap_effect_distribution')[:150]
+        save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_2_1_'+str(c_class)+'_shap_effect_distribution'[:150]  # noqa: E501
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -1236,8 +1183,7 @@ def print_shap_effects_distribution(task: dict, results: dict,
     return
 
 
-def get_shap_values(task: dict, explainations: list,
-                    c_class: int = -1) -> tuple:
+def get_shap_values(task: dict, explainations: list, c_class: int = -1) -> tuple:  # noqa: E501
     '''
     Get SHAP values.
 
@@ -1260,7 +1206,7 @@ def get_shap_values(task: dict, explainations: list,
 
     # Get shap effects --------------------------------------------------------
     # Case 1: no interaction and regression
-    if not task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'regression':
+    if not task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'regression':  # noqa: E501
         # Explainer object
         shap_explainations = Explanation(
             np.vstack([k.values for k in explainations]),
@@ -1277,11 +1223,12 @@ def get_shap_values(task: dict, explainations: list,
             main_effects=None,
             hierarchical_values=None,
             clustering=None,
-            compute_time=np.sum([k.compute_time for k in explainations]))
+            compute_time=np.sum([k.compute_time for k in explainations]),
+            )
         # Base value
         base = np.mean(np.hstack([k.base_values for k in explainations]))
     # Case 2: interaction and regression
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'regression':
+    elif task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'regression':
         # Explainer object
         shap_explainations = Explanation(
             np.vstack([k.values for k in explainations]),
@@ -1298,17 +1245,16 @@ def get_shap_values(task: dict, explainations: list,
             main_effects=None,
             hierarchical_values=None,
             clustering=None,
-            compute_time=np.sum([k.compute_time for k in explainations]))
+            compute_time=np.sum([k.compute_time for k in explainations]),
+            )
         # Base value
         base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 3: no interaction and multiclass
-    elif (not task['SHAP_INTERACTIONS'] and
-          task['OBJECTIVE'] == 'classification'):
+    # Case 3: no interaction and classification
+    elif not task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'classification':  # noqa: E501
         # Explainer object
         shap_explainations = Explanation(
             np.vstack([k[:, :, c_class].values for k in explainations]),
-            base_values=np.hstack([k[:, :, c_class].base_values
-                                   for k in explainations]),
+            base_values=np.hstack([k[:, :, c_class].base_values for k in explainations]),  # noqa: E501
             data=np.vstack([k[:, :, c_class].data for k in explainations]),
             display_data=None,
             instance_names=None,
@@ -1321,17 +1267,16 @@ def get_shap_values(task: dict, explainations: list,
             main_effects=None,
             hierarchical_values=None,
             clustering=None,
-            compute_time=np.sum([k.compute_time for k in explainations]))
+            compute_time=np.sum([k.compute_time for k in explainations]),
+            )
         # Base value
-        base = np.mean(np.hstack([k[:, :, c_class].base_values
-                                  for k in explainations]))
-    # Case 4: interaction and multiclass
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'classification':
+        base = np.mean(np.hstack([k[:, :, c_class].base_values for k in explainations]))  # noqa: E501
+    # Case 4: interaction and classification
+    elif task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'classification':  # noqa: E501
         # Explainer object
         shap_explainations = Explanation(
             np.vstack([k[:, :, :, c_class].values for k in explainations]),
-            base_values=np.hstack([k[:, :, :, c_class].base_values
-                                   for k in explainations]),
+            base_values=np.hstack([k[:, :, :, c_class].base_values for k in explainations]),  # noqa: E501
             data=np.vstack([k[:, :, :, c_class].data for k in explainations]),
             display_data=None,
             instance_names=None,
@@ -1344,10 +1289,10 @@ def get_shap_values(task: dict, explainations: list,
             main_effects=None,
             hierarchical_values=None,
             clustering=None,
-            compute_time=np.sum([k.compute_time for k in explainations]))
+            compute_time=np.sum([k.compute_time for k in explainations]),
+            )
         # Base value
-        base = np.mean(np.hstack([k[:, :, :, c_class].base_values
-                                  for k in explainations]))
+        base = np.mean(np.hstack([k[:, :, :, c_class].base_values for k in explainations]))  # noqa: E501
     # Case else
     else:
         # Raise error
@@ -1392,10 +1337,10 @@ def print_shap_values(task: dict, results: dict, plots_path: str) -> None:
         shap_values, base = get_shap_values(
             task,
             results['explainations'],
-            c_class)
-
+            c_class,
+            )
         # If interactions
-        if task['SHAP_INTERACTIONS']:
+        if task['SHAP_WITH_INTERACTIONS']:
             # Sum over interaction to get full effects
             shap_explainations = shap_values.sum(axis=2)
             # Add base values
@@ -1411,6 +1356,18 @@ def print_shap_values(task: dict, results: dict, plots_path: str) -> None:
         x_names_max_len = max([len(i) for i in task['x_names']])
         # x names count
         x_names_count = len(task['x_names'])
+        # Make title string
+        title_str = task['ANALYSIS_NAME']+'\nSHAP values: marginal change in '+task['y_name']+'\nfrom it\'s expected value of '+str(np.round(base, decimals=2))  # noqa: E501
+        # Add class if multiclass
+        if task['OBJECTIVE'] == 'classification':
+            # Make title string
+            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
+        # Add notice that target encoded values are depicted
+        if task['SHAP_USE_TARGET_ENC_VALUES'] and task['X_CAT_MULT_NAMES']:
+            # Add encoding notice
+            title_str = title_str+'\n Mind target encoding of '+str(task['X_CAT_MULT_NAMES'])[1:-1]  # noqa: E501
+        # Get number of lines of title string
+        title_lines_count = title_str.count('\n')+1
 
         # Plot SHAP values beeswarm -------------------------------------------
         beeswarm(
@@ -1425,8 +1382,10 @@ def print_shap_values(task: dict, results: dict, plots_path: str) -> None:
             show=False,
             log_scale=False,
             color_bar=True,
-            plot_size=(x_names_max_len*.1+8, x_names_count*.4+1),
-            color_bar_label='Predictor value')
+            plot_size=(x_names_max_len*.1+8,
+                       x_names_count*.4+title_lines_count*0.4+0.5,),
+            color_bar_label='Predictor value',
+            )
         # Get the current figure and axes objects.
         fig, ax = plt.gcf(), plt.gca()
         # Set x label size
@@ -1437,17 +1396,6 @@ def print_shap_values(task: dict, results: dict, plots_path: str) -> None:
         plt.ylabel(ax.get_ylabel(), fontsize=10)
         # Set y ticks size
         plt.yticks(fontsize=10)
-        # Make title string
-        title_str = (
-            task['ANALYSIS_NAME']+'\n' +
-            'SHAP values: marginal change in ' +
-            task['y_name']+'\n' +
-            ' from it\'s expected value of ' +
-            str(np.round(base, decimals=2)))
-        # Add class if multiclass
-        if task['OBJECTIVE'] == 'classification':
-            # Make title string
-            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
         # Add title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -1459,14 +1407,7 @@ def print_shap_values(task: dict, results: dict, plots_path: str) -> None:
 
         # Save plot -----------------------------------------------------------
         # Make save path
-        save_path = (
-            plots_path+'/' +
-            task['ANALYSIS_NAME']+'_' +
-            task['y_name']+'_' +
-            '2'+'_' +
-            '2'+'_' +
-            str(c_class)+'_' +
-            'shap_values')[:150]
+        save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_2_2_'+str(c_class)+'_shap_values'[:150]  # noqa: E501
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -1515,9 +1456,10 @@ def print_shap_dependences(task: dict, results: dict, plots_path: str) -> None:
         shap_values, base = get_shap_values(
             task,
             results['explainations'],
-            c_class)
+            c_class,
+            )
         # If interactions
-        if task['SHAP_INTERACTIONS']:
+        if task['SHAP_WITH_INTERACTIONS']:
             # Sum over interaction to get full effects
             shap_explainations = shap_values.sum(axis=2)
             # Add base values
@@ -1534,16 +1476,15 @@ def print_shap_dependences(task: dict, results: dict, plots_path: str) -> None:
             # Make figure
             fig, ax = plt.subplots(figsize=(8, 5))
             # Make title string
-            title_str = (
-                task['ANALYSIS_NAME']+'\n' +
-                'SHAP values: marginal change in ' +
-                task['y_name']+'\n' +
-                ' from it\'s expected value of ' +
-                str(np.round(base, decimals=2)))
+            title_str = task['ANALYSIS_NAME']+'\nSHAP values: marginal change in '+task['y_name']+'\nfrom it\'s expected value of '+str(np.round(base, decimals=2))  # noqa: E501
             # Add class if multiclass
             if task['OBJECTIVE'] == 'classification':
                 # Make title string
                 title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
+            # Add notice that target encoded values are depicted
+            if (shap_explainations[:, idx].feature_names in task['X_CAT_MULT_NAMES']):  # noqa: E501
+                # Add encoding notice
+                title_str = title_str+'\n Mind target encoding of '+str(task['X_CAT_MULT_NAMES'])[1:-1]  # noqa: E501
             # Plot SHAP Scatter plot
             scatter(
                 shap_explainations[:, idx],
@@ -1560,7 +1501,8 @@ def print_shap_dependences(task: dict, results: dict, plots_path: str) -> None:
                 ymax=None,
                 overlay=None,
                 ax=ax,
-                show=False)
+                show=False,
+                )
             # Get the current figure and axes objects.
             _, ax = plt.gcf(), plt.gca()
             # Set title size
@@ -1578,16 +1520,7 @@ def print_shap_dependences(task: dict, results: dict, plots_path: str) -> None:
 
             # Save plot -------------------------------------------------------
             # Make save path
-            save_path = (
-                plots_path+'/' +
-                task['ANALYSIS_NAME']+'_' +
-                task['y_name']+'_' +
-                '3'+'_' +
-                str(c_class)+'_' +
-                str(idx)+'_' +
-                'dependency'+'_' +
-                c_pred)[:150]
-
+            save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_3_'+str(c_class)+'_'+str(idx)+'_dependency'+'_' +c_pred[:150]  # noqa: E501
             # Save figure
             plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
             # Check if save as svg is enabled
@@ -1601,8 +1534,7 @@ def print_shap_dependences(task: dict, results: dict, plots_path: str) -> None:
     return
 
 
-def get_shap_effects_inter(task: dict, explainations: list,
-                           c_class: int = -1) -> tuple:
+def get_shap_effects_inter(task: dict, explainations: list, c_class: int = -1) -> tuple:  # noqa: E501
     '''
     Get SHAP based global interaction effects.
 
@@ -1625,20 +1557,17 @@ def get_shap_effects_inter(task: dict, explainations: list,
 
     # Get shap interaction effects --------------------------------------------
     # Case 1: interaction and regression
-    if task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'regression':
+    if task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'regression':
         # Get SHAP interaction effects
-        shap_effects_inter = np.array([np.mean(np.abs(k.values), axis=0)
-                                       for k in explainations])
+        shap_effects_inter = np.array([np.mean(np.abs(k.values), axis=0) for k in explainations])  # noqa: E501
         # Base value
         base = np.mean(np.hstack([k.base_values for k in explainations]))
-    # Case 2: interaction and multiclass
-    elif task['SHAP_INTERACTIONS'] and task['OBJECTIVE'] == 'classification':
+    # Case 2: interaction and classification
+    elif task['SHAP_WITH_INTERACTIONS'] and task['OBJECTIVE'] == 'classification':  # noqa: E501
         # Get SHAP interaction effects
-        shap_effects_inter = np.array([np.mean(np.abs(
-            k[:, :, :, c_class].values), axis=0) for k in explainations])
+        shap_effects_inter = np.array([np.mean(np.abs(k[:, :, :, c_class].values), axis=0) for k in explainations])  # noqa: E501
         # Base value
-        base = np.mean(np.hstack([k[:, :, :, c_class].base_values
-                                  for k in explainations]))
+        base = np.mean(np.hstack([k[:, :, :, c_class].base_values for k in explainations]))  # noqa: E501
     # Case else
     else:
         # Raise error
@@ -1648,8 +1577,7 @@ def get_shap_effects_inter(task: dict, explainations: list,
     return shap_effects_inter, base
 
 
-def print_shap_effects_interactions(task: dict, results: dict,
-                                    plots_path: str) -> None:
+def print_shap_effects_interactions(task: dict, results: dict, plots_path: str) -> None:  # noqa: E501
     '''
     Plot SHAP effects inclusive interactions.
 
@@ -1684,53 +1612,66 @@ def print_shap_effects_interactions(task: dict, results: dict,
         shap_effects_df, base = get_shap_effects(
             task,
             results['explainations'],
-            c_class)
+            c_class,
+            )
 
         # Process SHAP effects-------------------------------------------------
         # Mean shap values
         shap_effects_se_mean = shap_effects_df.mean(axis=0)
-        # Sort from highto low
-        shap_effects_se_mean_sort = shap_effects_se_mean.sort_values(
-            ascending=False)
+        # Sort from high to low
+        shap_effects_se_mean_sort = shap_effects_se_mean.sort_values(ascending=False)  # noqa: E501
 
         # Get SHAP effects interactions ---------------------------------------
         # SHAP effects
         shap_effects_inter, base_inter = get_shap_effects_inter(
             task,
             results['explainations'],
-            c_class)
+            c_class,
+            )
         # Make dataframe
         shap_effects_inter_df = pd.DataFrame(
             np.mean(shap_effects_inter, axis=0),
             index=task['x_names'],
-            columns=task['x_names'])
+            columns=task['x_names'],
+            )
         # Reindex to sorted index
-        shap_effects_inter_sort_df = \
-            shap_effects_inter_df.reindex(shap_effects_se_mean_sort.index)
+        shap_effects_inter_sort_df = shap_effects_inter_df.reindex(shap_effects_se_mean_sort.index)  # noqa: E501
         # Reorder columns to sorted index
-        shap_effects_inter_sort_df = \
-            shap_effects_inter_sort_df.loc[:, shap_effects_se_mean_sort.index]
+        shap_effects_inter_sort_df = shap_effects_inter_sort_df.loc[:, shap_effects_se_mean_sort.index]  # noqa: E501
         # SHAP effects shuffle
         shap_effects_inter_sh, base_inter_sh = get_shap_effects_inter(
             task,
             results['explainations_sh'],
-            c_class)
+            c_class,
+            )
 
         # Additional info -----------------------------------------------------
         # x names lengths
         x_names_max_len = max([len(i) for i in task['x_names']])
         # x names count
         x_names_count = len(task['x_names'])
+        # Make title string
+        title_str = task['ANALYSIS_NAME']+'\nmean(|SHAP values|): mean absolute partial change in '+task['y_name']+'\nfrom it\'s expected value of '+str(np.round(base, decimals=2))  # noqa: E501
+        # Add class if multiclass
+        if task['OBJECTIVE'] == 'classification':
+            # Make title string
+            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
+        # Add notice that target encoded values are depicted
+        if task['SHAP_USE_TARGET_ENC_VALUES']:
+            # Add encoding notice
+            title_str = title_str+'\n Mind target encoding of '+str(task['X_CAT_MULT_NAMES'])[1:-1]  # noqa: E501
+        # Get number of lines of title string
+        title_lines_count = title_str.count('\n')+1
 
         # Make labels with pvales ---------------------------------------------
         # Init p values
         pval = np.zeros(
             (shap_effects_inter.shape[1],
-             shap_effects_inter.shape[2]))
+             shap_effects_inter.shape[2],
+             ),
+            )
         # Iterate over shap_effects
-        for x, y in np.ndindex(
-                (shap_effects_inter.shape[1],
-                 shap_effects_inter.shape[2])):
+        for x, y in np.ndindex((shap_effects_inter.shape[1], shap_effects_inter.shape[2])):  # noqa: E501
             # Get current SHAP effect
             c_effect = shap_effects_inter[:, x, y]
             # Get current SHAP effect shuffle
@@ -1746,38 +1687,33 @@ def print_shap_effects_interactions(task: dict, results: dict,
         # Initialize labels dataframe
         interaction_labels_df = pd.DataFrame(np.zeros([
             shap_effects_inter.shape[1],
-            shap_effects_inter.shape[2]]),
+            shap_effects_inter.shape[2]],
+            ),
             dtype='string')
         # Iterate labels
-        for x, y in np.ndindex(
-                (shap_effects_inter.shape[1],
-                 shap_effects_inter.shape[2])):
+        for x, y in np.ndindex((shap_effects_inter.shape[1], shap_effects_inter.shape[2])):  # noqa: E501
             # Make pval string
             if pval[x, y] <= 0.001:
                 pval_string = 'p\u22640.001'
             else:
                 pval_string = 'p={:.3f}'.format(pval[x, y])
             # Make label
-            interaction_labels_df.iloc[x, y] = (
-                '{:.2f}' +
-                '\n' +
-                pval_string).format(shap_effects_inter_df.iloc[x, y])
+            interaction_labels_df.iloc[x, y] = ('{:.2f}' +'\n'+pval_string).format(shap_effects_inter_df.iloc[x, y])  # noqa: E501
         # Index labels dataframe
         interaction_labels_df.index = shap_effects_inter_df.index
         # Column labels
         interaction_labels_df.columns = shap_effects_inter_df.columns
         # Reindex to sorted index
-        interaction_labels_sort_df = \
-            interaction_labels_df.reindex(shap_effects_se_mean_sort.index)
+        interaction_labels_sort_df = interaction_labels_df.reindex(shap_effects_se_mean_sort.index)  # noqa: E501
         # Reorder columns to sorted index
-        interaction_labels_sort_df = \
-            interaction_labels_sort_df.loc[:, shap_effects_se_mean_sort.index]
+        interaction_labels_sort_df = interaction_labels_sort_df.loc[:, shap_effects_se_mean_sort.index]  # noqa: E501
 
         # Plot interaction effects --------------------------------------------
         # Create figure
         fig, ax = plt.subplots(
             figsize=(x_names_max_len*.15+x_names_count*1.5+1.5,
-                     x_names_max_len*.15+x_names_count*1.5+1.5))
+                     x_names_max_len*.15+x_names_count*1.5+title_lines_count*0.4+0.5,  # noqa: E501
+                     ))
         # Make colorbar string
         clb_str = ('mean(|SHAP value|)')
         # Plot confusion matrix
@@ -1799,7 +1735,8 @@ def print_shap_effects_interactions(task: dict, results: dict,
             xticklabels=True,
             yticklabels=True,
             mask=None,
-            ax=ax)
+            ax=ax,
+            )
         # Get the current figure and axes objects.
         fig, ax = plt.gcf(), plt.gca()
         # Set x label size
@@ -1810,17 +1747,6 @@ def print_shap_effects_interactions(task: dict, results: dict,
         plt.ylabel(ax.get_ylabel(), fontsize=10)
         # Set y ticks size
         plt.yticks(rotation=0, fontsize=10)
-        # Make title string
-        title_str = (
-            task['ANALYSIS_NAME']+'\n' +
-            'mean(|SHAP values|): mean absolute partial change in ' +
-            task['y_name']+'\n' +
-            ' from it\'s expected value of ' +
-            str(np.round(base, decimals=2)))
-        # Add class if multiclass
-        if task['OBJECTIVE'] == 'classification':
-            # Make title string
-            title_str = title_str+' (log odds)'+'\n class: '+str(c_class)
         # Add title
         plt.title(title_str, fontsize=10)
         # Get colorbar
@@ -1833,13 +1759,7 @@ def print_shap_effects_interactions(task: dict, results: dict,
 
         # Save plot -----------------------------------------------------------
         # Make save path
-        save_path = (
-            plots_path+'/' +
-            task['ANALYSIS_NAME']+'_' +
-            task['y_name']+'_' +
-            '4'+'_' +
-            str(c_class)+'_' +
-            'interaction_effect')[:150]
+        save_path = plots_path+'/' +task['ANALYSIS_NAME']+'_' +task['y_name']+'_4_'+str(c_class)+'_interaction_effect'[:150]  # noqa: E501
         # Save figure
         plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
         # Check if save as svg is enabled
@@ -1853,8 +1773,7 @@ def print_shap_effects_interactions(task: dict, results: dict,
     return
 
 
-def print_shap_interaction_values(task: dict, results: dict,
-                                  plots_path: str) -> None:
+def print_shap_interaction_values(task: dict, results: dict, plots_path: str) -> None:  # noqa: E501
     '''
     Plot SHAP interaction values.
 
@@ -1886,9 +1805,11 @@ def print_shap_interaction_values(task: dict, results: dict,
     # Loop over classes
     for c_class in range(n_classes):
         # Get current shap values
-        shap_values, base = get_shap_values(task,
-                                            results['explainations'],
-                                            c_class)
+        shap_values, base = get_shap_values(
+            task,
+            results['explainations'],
+            c_class,
+            )
 
         # Print shap value interaction dependencies ---------------------------
         count = 0
@@ -1897,19 +1818,15 @@ def print_shap_interaction_values(task: dict, results: dict,
                 # Make figure
                 fig, ax = plt.subplots(figsize=(8, 5))
                 # Make title string
-                title_str = (
-                    task['ANALYSIS_NAME']+'\n' +
-                    'SHAP values: partial change in ' +
-                    task['y_name']+'\n' +
-                    ' from it\'s expected value of ' +
-                    str(np.round(np.mean(np.hstack(
-                        [k.base_values for k in results['explainations']])),
-                        decimals=2)))
+                title_str = task['ANALYSIS_NAME']+'\nSHAP values: partial change in '+task['y_name']+'\nfrom it\'s expected value of '+str(np.round(base, decimals=2))  # noqa: E501
                 # Add class if multiclass
                 if task['OBJECTIVE'] == 'classification':
                     # Make title string
-                    title_str = (title_str+' (log odds)'+'\n class: ' +
-                                 str(c_class))
+                    title_str = title_str+' (log odds)\nclass: '+str(c_class)
+                # Add notice that target encoded values are depicted
+                if shap_values[:, i, k].feature_names in task['X_CAT_MULT_NAMES'] or shap_values[:, k, k].feature_names in task['X_CAT_MULT_NAMES']:  # noqa: E501
+                    # Add encoding notice
+                    title_str = title_str+'\n Mind target encoding of '+str(task['X_CAT_MULT_NAMES'])[1:-1]  # noqa: E501
                 # Plot SHAP Scatter plot
                 scatter(
                     shap_values[:, i, k],
@@ -1926,7 +1843,8 @@ def print_shap_interaction_values(task: dict, results: dict,
                     ymax=None,
                     overlay=None,
                     ax=ax,
-                    show=False)
+                    show=False,
+                    )
                 # Get the current figure and axes objects.
                 _, ax = plt.gcf(), plt.gca()
                 # Set title size
@@ -1952,16 +1870,7 @@ def print_shap_interaction_values(task: dict, results: dict,
 
                 # Save plot ---------------------------------------------------
                 # Make save path
-                save_path = (
-                    plots_path+'/' +
-                    task['ANALYSIS_NAME']+'_' +
-                    task['y_name']+'_' +
-                    '5'+'_' +
-                    str(c_class)+'_' +
-                    str(count)+'_' +
-                    'dependeny_interaction'+'_' +
-                    shap_values.feature_names[i]+'_' +
-                    shap_values.feature_names[k])[:150]
+                save_path = plots_path+'/'+task['ANALYSIS_NAME']+'_'+task['y_name']+'_5_'+str(c_class)+'_'+str(count)+'_dependeny_interaction_'+shap_values.feature_names[i]+'_'+shap_values.feature_names[k][:150]  # noqa: E501
                 # Save figure
                 plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
                 # Check if save as svg is enabled
@@ -2002,17 +1911,14 @@ def main() -> None:
     ###########################################################################
 
     # Load result paths -------------------------------------------------------
-    res_paths = [f.name for f in os.scandir('.')
-                 if f.is_dir() and f.name.startswith('res_iml_')]
+    res_paths = [f.name for f in os.scandir('.')if f.is_dir() and f.name.startswith('res_iml_')]  # noqa: E501
 
     # Loop over result paths --------------------------------------------------
     for res_path in res_paths:
         # Get task paths
-        task_paths = [f.name for f in os.scandir('./'+str(res_path)+'/')
-                      if f.name.endswith('_task.pickle')]
+        task_paths = [f.name for f in os.scandir('./'+str(res_path)+'/') if f.name.endswith('_task.pickle')]  # noqa: E501
         # Get result paths
-        results_paths = [f.name for f in os.scandir('./'+str(res_path)+'/')
-                         if f.name.endswith('_results.pickle')]
+        results_paths = [f.name for f in os.scandir('./'+str(res_path)+'/') if f.name.endswith('_results.pickle')]  # noqa: E501
 
         # Loop over tasks -----------------------------------------------------
         for i_task, task_path in enumerate(task_paths):
@@ -2066,11 +1972,11 @@ def main() -> None:
             print_shap_dependences(task, results, plots_path)
 
             # Plot SHAP effects interactions ----------------------------------
-            if task['SHAP_INTERACTIONS'] and PSI:
+            if task['SHAP_WITH_INTERACTIONS'] and PSI:
                 print_shap_effects_interactions(task, results, plots_path)
 
             # Plot SHAP interaction values ------------------------------------
-            if task['SHAP_INTERACTIONS'] and PSI:
+            if task['SHAP_WITH_INTERACTIONS'] and PSI:
                 print_shap_interaction_values(task, results, plots_path)
 
     # Return None -------------------------------------------------------------

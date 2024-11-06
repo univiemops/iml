@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Modelling (MDL)
-v810
+v817
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -111,18 +111,18 @@ def prepare(task: dict) -> tuple:
             boosting_type='gbdt',
             num_leaves=100,
             max_depth=-1,
-            learning_rate=0.01,
-            n_estimators=1000,
+            learning_rate=0.1,
+            n_estimators=100,
             subsample_for_bin=100000,
             objective='huber',
-            min_split_gain=0,
-            min_child_weight=0,
+            min_split_gain=0.0,
+            min_child_weight=0.0,
             min_child_samples=10,
-            subsample=1,
+            subsample=1.0,
             subsample_freq=0,
-            colsample_bytree=1,
-            reg_alpha=0,
-            reg_lambda=0,
+            colsample_bytree=1.0,
+            reg_alpha=0.0,
+            reg_lambda=0.0,
             random_state=None,
             n_jobs=1,
             importance_type='gain',
@@ -156,19 +156,19 @@ def prepare(task: dict) -> tuple:
             boosting_type='gbdt',
             num_leaves=100,
             max_depth=-1,
-            learning_rate=0.01,
-            n_estimators=1000,
+            learning_rate=0.1,
+            n_estimators=100,
             subsample_for_bin=100000,
             objective='multiclass',
             class_weight='balanced',
-            min_split_gain=0,
-            min_child_weight=0,
+            min_split_gain=0.0,
+            min_child_weight=0.0,
             min_child_samples=10,
-            subsample=1,
+            subsample=1.0,
             subsample_freq=0,
-            colsample_bytree=1,
-            reg_alpha=0,
-            reg_lambda=0,
+            colsample_bytree=1.0,
+            reg_alpha=0.0,
+            reg_lambda=0.0,
             random_state=None,
             n_jobs=1,
             importance_type='gain',
@@ -515,12 +515,18 @@ def get_explainations(task: dict, pipe: Pipeline, x_trn: np.ndarray,
     '''
 
     # Get SHAP test data ------------------------------------------------------
-    # Get max samples shap
-    task['max_samples_shap'] = min(
-        x_tst.shape[0],
-        mth.ceil(
-            task['N_SAMPLES_SHAP']/(task['n_rep_outer_cv']*task['N_CV_FOLDS']))
-        )
+    # If task is CV
+    if task['TYPE'] == 'CV':
+        # Get max samples shap
+        task['max_samples_shap'] = min(
+            x_tst.shape[0],
+            mth.ceil(task['N_SAMPLES_SHAP']/(task['n_rep_outer_cv'] *
+                                             task['N_CV_FOLDS']))
+            )
+    # If task is TT
+    if task['TYPE'] == 'TT':
+        # Get max samples shap
+        task['max_samples_shap'] = min(x_tst.shape[0], task['N_SAMPLES_SHAP'])
     # Subsample test data
     x_tst_shap_orig = x_tst.sample(
         n=task['max_samples_shap'],
@@ -551,14 +557,14 @@ def get_explainations(task: dict, pipe: Pipeline, x_trn: np.ndarray,
         feature_names=None,
         approximate=False)
     # Get explainations with interactions
-    if task['SHAP_INTERACTIONS']:
+    if task['SHAP_WITH_INTERACTIONS']:
         # Get shap values
         shap_explainations = explainer(
             x_tst_shap,
             interactions=True,
             check_additivity=False)
     # Get explainations without interactions
-    elif not task['SHAP_INTERACTIONS']:
+    elif not task['SHAP_WITH_INTERACTIONS']:
         # Get shap values
         shap_explainations = explainer(
             x_tst_shap,
@@ -567,11 +573,23 @@ def get_explainations(task: dict, pipe: Pipeline, x_trn: np.ndarray,
     # Other
     else:
         # Raise error
-        raise ValueError('Invalid value for SHAP_INTERACTIONS.')
+        raise ValueError('Invalid value for SHAP_WITH_INTERACTIONS.')
 
-    # Prepare shap_explainations ----------------------------------------------
-    # Replace scaled data in shap explainations with unscaled
-    shap_explainations.data = x_tst_shap_orig
+    # Post process shap_explainations -----------------------------------------
+    if task['SHAP_USE_TARGET_ENC_VALUES']:
+        # Initialize x_test for shap with target encoding
+        x_tst_shap_enc = x_tst_shap_orig
+        # Transform the original x_tst for shap with the target encoder
+        x_tst_shap_mult = pipe[0][0].transform(x_tst_shap_orig)
+        # Loop over the cat mult predictors
+        for x_cat_mult_name in task['X_CAT_MULT_NAMES']:
+            # Set in the encoded values in the x_tst for shap with target enc
+            x_tst_shap_enc[x_cat_mult_name] = x_tst_shap_mult[x_cat_mult_name]
+        # Replace scaled data in shap explainations with target enc
+        shap_explainations.data = x_tst_shap_enc
+    else:
+        # Replace scaled data in shap explainations with original
+        shap_explainations.data = x_tst_shap_orig
     # If regression
     if task['OBJECTIVE'] == 'regression':
         # Rescale shap values from scaled data to original space
@@ -709,6 +727,8 @@ def cross_validation(task: dict, g: pd.DataFrame, x: pd.DataFrame,
     # Initialize results lists ------------------------------------------------
     # Initialize best params list
     best_params = []
+    # Initialize best pipes list
+    best_pipes = []
     # Initialize score list
     scores = []
     # Initialize SHAP based explainations list
@@ -746,6 +766,8 @@ def cross_validation(task: dict, g: pd.DataFrame, x: pd.DataFrame,
         pipe, params = tune_pipe(task, i_cv, pipe, space, g_trn, x_trn, y_trn)
         # Store best params
         best_params.append(params)
+        # Store best pipe
+        best_pipes.append(pipe)
 
         # Analyze -------------------------------------------------------------
         # Score predictions
@@ -768,6 +790,7 @@ def cross_validation(task: dict, g: pd.DataFrame, x: pd.DataFrame,
         # Create results
         results = {
             'best_params': best_params,
+            'best_pipes': best_pipes,
             'scores': scores,
             'explainations': explainations,
             'scores_sh': scores_sh,
@@ -815,6 +838,8 @@ def train_test_split(task: dict, g: pd.DataFrame, x: pd.DataFrame,
     # Initialize results lists ------------------------------------------------
     # Initialize best params list
     best_params = []
+    # Initialize best pipes list
+    best_pipes = []
     # Initialize score list
     scores = []
     # Initialize SHAP based explainations list
@@ -845,6 +870,8 @@ def train_test_split(task: dict, g: pd.DataFrame, x: pd.DataFrame,
     pipe, params = tune_pipe(task, 0, pipe, space, g_trn, x_trn, y_trn)
     # Store best params
     best_params.append(params)
+    # Store best pipe
+    best_pipes.append(pipe)
 
     # Analyze -----------------------------------------------------------------
     # Score predictions
@@ -866,6 +893,7 @@ def train_test_split(task: dict, g: pd.DataFrame, x: pd.DataFrame,
     # Create results
     results = {
         'best_params': best_params,
+        'best_pipes': best_pipes,
         'scores': scores,
         'explainations': explainations,
         'scores_sh': scores_sh,
@@ -907,7 +935,7 @@ def main() -> None:
     # Number of folds in CV. int (default: 5)
     N_CV_FOLDS = 5
     # Number of predictions in outer CV (if TYPE='CV'). int (default: 10000)
-    N_PRED_OUTER_CV = 10000
+    N_PRED_OUTER_CV = 1000
     # Number of tries in random search. int (default: 100)
     N_SAMPLES_RS = 100
     # Number of predictions in inner CV. int (default: 1000)
@@ -915,7 +943,9 @@ def main() -> None:
     # Number of samples SHAP. int (default: 10000).
     N_SAMPLES_SHAP = 10000
     # Get SHAP interactions. bool (default: True)
-    SHAP_INTERACTIONS = True
+    SHAP_WITH_INTERACTIONS = True
+    # Use target encoded or original values in SHAP. bool (default: True)
+    SHAP_USE_TARGET_ENC_VALUES = True
 
     # 2. Specify data ---------------------------------------------------------
 
@@ -1018,52 +1048,52 @@ def main() -> None:
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 442, size=88, random_state=314))
 
-    # Employee data - classification 2 class
-    # Specifiy an analysis name
-    ANALYSIS_NAME = 'employee'
-    # Specify path to data. string
-    PATH_TO_DATA = 'sample_data/employee_20240806.xlsx'
-    # Specify sheet name. string
-    SHEET_NAME = 'data'
-    # Specify task OBJECTIVE. string (classification, regression)
-    OBJECTIVE = 'classification'
-    # Specify grouping for CV split. list of string
-    G_NAME = [
-        'sample_id',
-        ]
-    # Specify continous predictor names. list of string or []
-    X_CON_NAMES = [
-        'age',
-        'distance_from_home',
-        'environment_satisfaction',
-        'job_satisfaction',
-        'monthly_income',
-        'num_companies_worked',
-        'stock_option_level',
-        'training_times_last_year',
-        'total_working_years',
-        'work_life_balance',
-        'years_at_company',
-        'years_since_last_promotion',
-        'years_with_curr_manager',
-        ]
-    # Specify binary categorical predictor names. list of string or []
-    X_CAT_BIN_NAMES = [
-        'gender',
-        'over_time',
-        ]
-    # Specify multi categorical predictor names. list of string or []
-    X_CAT_MULT_NAMES = [
-        'marital_status',
-        ]
-    # Specify target name(s). list of strings or []
-    Y_NAMES = [
-        'attrition',
-        ]
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
-    # Specify index of rows for test set if TT. list of int or []
-    TEST_SET_IND = list(randint.rvs(0, 1470, size=294, random_state=314))
+    # # Employee data - classification 2 class
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'employee'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'sample_data/employee_20240806.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (classification, regression)
+    # OBJECTIVE = 'classification'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'age',
+    #     'distance_from_home',
+    #     'environment_satisfaction',
+    #     'job_satisfaction',
+    #     'monthly_income',
+    #     'num_companies_worked',
+    #     'stock_option_level',
+    #     'training_times_last_year',
+    #     'total_working_years',
+    #     'work_life_balance',
+    #     'years_at_company',
+    #     'years_since_last_promotion',
+    #     'years_with_curr_manager',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = [
+    #     'gender',
+    #     'over_time',
+    #     ]
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = [
+    #     'marital_status',
+    #     ]
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'attrition',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 1470, size=294, random_state=314))
 
     # # Housing data - regression
     # # Specifiy an analysis name
@@ -1104,43 +1134,43 @@ def main() -> None:
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 20640, size=4128, random_state=314))
 
-    # # Radon data - regression
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'radon'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'sample_data/radon_20240806.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (classification, regression)
-    # OBJECTIVE = 'regression'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'uppm',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = [
-    #     'basement',
-    #     'floor',
-    #     ]
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = [
-    #     'county_code',
-    #     'region',
-    #     'room',
-    #     'zip',
-    #     ]
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'log_radon',
-    #     ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-    # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 878, size=176, random_state=314))
+    # Radon data - regression
+    # Specifiy an analysis name
+    ANALYSIS_NAME = 'radon'
+    # Specify path to data. string
+    PATH_TO_DATA = 'sample_data/radon_20240806.xlsx'
+    # Specify sheet name. string
+    SHEET_NAME = 'data'
+    # Specify task OBJECTIVE. string (classification, regression)
+    OBJECTIVE = 'regression'
+    # Specify grouping for CV split. list of string
+    G_NAME = [
+        'sample_id',
+        ]
+    # Specify continous predictor names. list of string or []
+    X_CON_NAMES = [
+        'uppm',
+        ]
+    # Specify binary categorical predictor names. list of string or []
+    X_CAT_BIN_NAMES = [
+        'basement',
+        'floor',
+        ]
+    # Specify multi categorical predictor names. list of string or []
+    X_CAT_MULT_NAMES = [
+        'county_code',
+        'region',
+        'room',
+        'zip',
+        ]
+    # Specify target name(s). list of strings or []
+    Y_NAMES = [
+        'log_radon',
+        ]
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
+    # Specify index of rows for test set if TT. list of int or []
+    TEST_SET_IND = list(randint.rvs(0, 878, size=176, random_state=314))
 
     # # Wine data - classification 3 class
     # # Specifiy an analysis name
@@ -1188,17 +1218,17 @@ def main() -> None:
 
     # Add to analysis name ----------------------------------------------------
     # If shap with interactions
-    if SHAP_INTERACTIONS:
+    if SHAP_WITH_INTERACTIONS:
         # Update string
         ANALYSIS_NAME = ANALYSIS_NAME+'_'+TYPE+'_'+'inter'
     # If shap without interactions
-    elif not SHAP_INTERACTIONS:
+    elif not SHAP_WITH_INTERACTIONS:
         # Update string
         ANALYSIS_NAME = ANALYSIS_NAME+'_'+TYPE
     # Other
     else:
         # Raise error
-        raise ValueError('SHAP_INTERACTIONS can be True or False only.')
+        raise ValueError('SHAP_WITH_INTERACTIONS can be True or False only.')
 
     # Create results directory path -------------------------------------------
     path_to_results = 'res_iml_'+ANALYSIS_NAME
@@ -1215,7 +1245,8 @@ def main() -> None:
         'N_PRED_INNER_CV': N_PRED_INNER_CV,
         'N_SAMPLES_RS': N_SAMPLES_RS,
         'N_SAMPLES_SHAP': N_SAMPLES_SHAP,
-        'SHAP_INTERACTIONS': SHAP_INTERACTIONS,
+        'SHAP_WITH_INTERACTIONS': SHAP_WITH_INTERACTIONS,
+        'SHAP_USE_TARGET_ENC_VALUES': SHAP_USE_TARGET_ENC_VALUES,
         'ANALYSIS_NAME': ANALYSIS_NAME,
         'PATH_TO_DATA': PATH_TO_DATA,
         'SHEET_NAME': SHEET_NAME,
