@@ -111,8 +111,8 @@ def prepare(task: dict) -> tuple:
             boosting_type='gbdt',
             num_leaves=100,
             max_depth=-1,
-            learning_rate=0.1,
-            n_estimators=100,
+            learning_rate=0.01,
+            n_estimators=1000,
             subsample_for_bin=100000,
             objective='huber',
             min_split_gain=0.0,
@@ -156,8 +156,8 @@ def prepare(task: dict) -> tuple:
             boosting_type='gbdt',
             num_leaves=100,
             max_depth=-1,
-            learning_rate=0.1,
-            n_estimators=100,
+            learning_rate=0.01,
+            n_estimators=1000,
             subsample_for_bin=100000,
             objective='multiclass',
             class_weight='balanced',
@@ -1048,52 +1048,52 @@ def main() -> None:
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 442, size=88, random_state=314))
 
-    # # Employee data - classification 2 class
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'employee'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'sample_data/employee_20240806.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (classification, regression)
-    # OBJECTIVE = 'classification'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'age',
-    #     'distance_from_home',
-    #     'environment_satisfaction',
-    #     'job_satisfaction',
-    #     'monthly_income',
-    #     'num_companies_worked',
-    #     'stock_option_level',
-    #     'training_times_last_year',
-    #     'total_working_years',
-    #     'work_life_balance',
-    #     'years_at_company',
-    #     'years_since_last_promotion',
-    #     'years_with_curr_manager',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = [
-    #     'gender',
-    #     'over_time',
-    #     ]
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = [
-    #     'marital_status',
-    #     ]
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'attrition',
-    #     ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-    # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 1470, size=294, random_state=314))
+    # Employee data - classification 2 class
+    # Specifiy an analysis name
+    ANALYSIS_NAME = 'employee'
+    # Specify path to data. string
+    PATH_TO_DATA = 'sample_data/employee_20240806.xlsx'
+    # Specify sheet name. string
+    SHEET_NAME = 'data'
+    # Specify task OBJECTIVE. string (classification, regression)
+    OBJECTIVE = 'classification'
+    # Specify grouping for CV split. list of string
+    G_NAME = [
+        'sample_id',
+        ]
+    # Specify continous predictor names. list of string or []
+    X_CON_NAMES = [
+        'age',
+        'distance_from_home',
+        'environment_satisfaction',
+        'job_satisfaction',
+        'monthly_income',
+        'num_companies_worked',
+        'stock_option_level',
+        'training_times_last_year',
+        'total_working_years',
+        'work_life_balance',
+        'years_at_company',
+        'years_since_last_promotion',
+        'years_with_curr_manager',
+        ]
+    # Specify binary categorical predictor names. list of string or []
+    X_CAT_BIN_NAMES = [
+        'gender',
+        'over_time',
+        ]
+    # Specify multi categorical predictor names. list of string or []
+    X_CAT_MULT_NAMES = [
+        'marital_status',
+        ]
+    # Specify target name(s). list of strings or []
+    Y_NAMES = [
+        'attrition',
+        ]
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
+    # Specify index of rows for test set if TT. list of int or []
+    TEST_SET_IND = list(randint.rvs(0, 1470, size=294, random_state=314))
 
     # # Housing data - regression
     # # Specifiy an analysis name
@@ -1134,43 +1134,43 @@ def main() -> None:
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 20640, size=4128, random_state=314))
 
-    # Radon data - regression
-    # Specifiy an analysis name
-    ANALYSIS_NAME = 'radon'
-    # Specify path to data. string
-    PATH_TO_DATA = 'sample_data/radon_20240806.xlsx'
-    # Specify sheet name. string
-    SHEET_NAME = 'data'
-    # Specify task OBJECTIVE. string (classification, regression)
-    OBJECTIVE = 'regression'
-    # Specify grouping for CV split. list of string
-    G_NAME = [
-        'sample_id',
-        ]
-    # Specify continous predictor names. list of string or []
-    X_CON_NAMES = [
-        'uppm',
-        ]
-    # Specify binary categorical predictor names. list of string or []
-    X_CAT_BIN_NAMES = [
-        'basement',
-        'floor',
-        ]
-    # Specify multi categorical predictor names. list of string or []
-    X_CAT_MULT_NAMES = [
-        'county_code',
-        'region',
-        'room',
-        'zip',
-        ]
-    # Specify target name(s). list of strings or []
-    Y_NAMES = [
-        'log_radon',
-        ]
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
-    # Specify index of rows for test set if TT. list of int or []
-    TEST_SET_IND = list(randint.rvs(0, 878, size=176, random_state=314))
+    # # Radon data - regression
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'radon'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'sample_data/radon_20240806.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (classification, regression)
+    # OBJECTIVE = 'regression'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'uppm',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = [
+    #     'basement',
+    #     'floor',
+    #     ]
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = [
+    #     'county_code',
+    #     'region',
+    #     'room',
+    #     'zip',
+    #     ]
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'log_radon',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 878, size=176, random_state=314))
 
     # # Wine data - classification 3 class
     # # Specifiy an analysis name
