@@ -1,6 +1,6 @@
 # Interpretable Machine Learning (iml)  
 iml_1_eda.py, iml_2_mdl.py, iml_3_plt.py, iml_4_frs.py  
-(20240930)  
+(20241129)  
   
 Install  
 (1)  Install git from: https://www.git-scm.com/downloads  
@@ -23,3 +23,4 @@ Workaround: ExplainerError: The background dataset you provided does not cover a
   
 Workaround: case n_classes and interactions: Only one set of interaction is provided, but not a seperate per class  
 (1) Change 'if model.n_classes_ > 2:' to 'if model.n_classes_ >= 2:' in line 1127 of _tree.py  
+  
