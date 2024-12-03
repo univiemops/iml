@@ -1,7 +1,7 @@
 # *- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Exploratory Data Analysis (EDA)
-v185
+v186
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -227,11 +227,11 @@ def compute_pair_pred(task: dict, g: pd.Series, x: pd.Series, y: pd.Series,
     # Classification
     if objective == 'classification':
         # Number of unique classes in prediction target
-        task['n_classes'] = y.nunique()[task['y_name']]
+        task['n_classes'] = y.nunique().iloc[0]
     # Regression
     elif objective == 'regression':
-        # Set number of classes to 0 for compatibility
-        task['n_classes'] = 0
+        # Set number of classes to -1 for compatibility
+        task['n_classes'] = -1
     # Get estimator and space
     estimator, space = prepare(objective, task['n_classes'])
 
@@ -969,52 +969,50 @@ def main() -> None:
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
-    # Employee data - classification 2 class
-    # Specifiy an analysis name
-    ANALYSIS_NAME = 'employee'
-    # Specify path to data. string
-    PATH_TO_DATA = 'sample_data/employee_20240806.xlsx'
-    # Specify sheet name. string
-    SHEET_NAME = 'data'
-    # Specify task OBJECTIVE. string (classification, regression)
-    OBJECTIVE = 'classification'
-    # Specify grouping for CV split. list of string
-    G_NAME = [
-        'sample_id',
-        ]
-    # Specify continous predictor names. list of string or []
-    X_CON_NAMES = [
-        'age',
-        'distance_from_home',
-        'education',
-        'environment_satisfaction',
-        'job_satisfaction',
-        'monthly_income',
-        'num_companies_worked',
-        'performance_rating',
-        'stock_option_level',
-        'training_times_last_year',
-        'total_working_years',
-        'work_life_balance',
-        'years_at_company',
-        'years_since_last_promotion',
-        'years_with_curr_manager',
-        ]
-    # Specify binary categorical predictor names. list of string or []
-    X_CAT_BIN_NAMES = [
-        'gender',
-        'over_time',
-        ]
-    # Specify multi categorical predictor names. list of string or []
-    X_CAT_MULT_NAMES = [
-        'marital_status',
-        ]
-    # Specify target name(s). list of strings or []
-    Y_NAMES = [
-        'attrition',
-        ]
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
+    # # Employee data - classification 2 class
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = 'employee'
+    # # Specify path to data. string
+    # PATH_TO_DATA = 'sample_data/employee_20240806.xlsx'
+    # # Specify sheet name. string
+    # SHEET_NAME = 'data'
+    # # Specify task OBJECTIVE. string (classification, regression)
+    # OBJECTIVE = 'classification'
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     'sample_id',
+    #     ]
+    # # Specify continous predictor names. list of string or []
+    # X_CON_NAMES = [
+    #     'age',
+    #     'distance_from_home',
+    #     'environment_satisfaction',
+    #     'job_satisfaction',
+    #     'monthly_income',
+    #     'num_companies_worked',
+    #     'stock_option_level',
+    #     'training_times_last_year',
+    #     'total_working_years',
+    #     'work_life_balance',
+    #     'years_at_company',
+    #     'years_since_last_promotion',
+    #     'years_with_curr_manager',
+    #     ]
+    # # Specify binary categorical predictor names. list of string or []
+    # X_CAT_BIN_NAMES = [
+    #     'gender',
+    #     'over_time',
+    #     ]
+    # # Specify multi categorical predictor names. list of string or []
+    # X_CAT_MULT_NAMES = [
+    #     'marital_status',
+    #     ]
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     'attrition',
+    #     ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
 
     # # Housing data - regression
     # # Specifiy an analysis name
@@ -1089,45 +1087,45 @@ def main() -> None:
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
-    # # Wine data - classification 3 class
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'wine'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'sample_data/wine_20240806.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (classification, regression)
-    # OBJECTIVE = 'classification'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'alcohol',
-    #     'malic_acid',
-    #     'ash',
-    #     'alcalinity_of_ash',
-    #     'magnesium',
-    #     'total_phenols',
-    #     'flavanoids',
-    #     'nonflavanoid_phenols',
-    #     'proanthocyanins',
-    #     'color_intensity',
-    #     'hue',
-    #     'od280_od315_of_diluted_wines',
-    #     'proline'
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = []
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = []
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'maker',
-    #     ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
+    # Wine data - classification 3 class
+    # Specifiy an analysis name
+    ANALYSIS_NAME = 'wine'
+    # Specify path to data. string
+    PATH_TO_DATA = 'sample_data/wine_20240806.xlsx'
+    # Specify sheet name. string
+    SHEET_NAME = 'data'
+    # Specify task OBJECTIVE. string (classification, regression)
+    OBJECTIVE = 'classification'
+    # Specify grouping for CV split. list of string
+    G_NAME = [
+        'sample_id',
+        ]
+    # Specify continous predictor names. list of string or []
+    X_CON_NAMES = [
+        'alcohol',
+        'malic_acid',
+        'ash',
+        'alcalinity_of_ash',
+        'magnesium',
+        'total_phenols',
+        'flavanoids',
+        'nonflavanoid_phenols',
+        'proanthocyanins',
+        'color_intensity',
+        'hue',
+        'od280_od315_of_diluted_wines',
+        'proline'
+        ]
+    # Specify binary categorical predictor names. list of string or []
+    X_CAT_BIN_NAMES = []
+    # Specify multi categorical predictor names. list of string or []
+    X_CAT_MULT_NAMES = []
+    # Specify target name(s). list of strings or []
+    Y_NAMES = [
+        'maker',
+        ]
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
 
     ###########################################################################
 
