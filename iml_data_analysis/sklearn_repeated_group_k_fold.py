@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 '''
-Sklearn compatible Repeated Group KFold Cross-Validation
-v1 Source: https://github.com/BbChip0103/sklearn_repeated_group_k_fold/blob/
+Scikit-learn compatible Repeated Group KFold Cross-Validation
+v2
+Source: https://github.com/BbChip0103/sklearn_repeated_group_k_fold/blob/
 main/sklearn_repeated_group_k_fold.py
 @author: Dr. David Steyrl david.steyrl@gmail.com
 '''
@@ -88,7 +89,7 @@ class GroupKFold(_BaseKFold):
                              % (self.n_splits, n_groups))
 
         # Weight groups by their number of occurrences
-        n_samples_per_group = np.bincount(groups)
+        n_samples_per_group = np.bincount(groups.squeeze())
 
         # Distribute the most frequent groups first
         indices = np.argsort(n_samples_per_group)[::-1]

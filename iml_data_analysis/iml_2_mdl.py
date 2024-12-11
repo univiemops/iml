@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
 Interpretable Machine-Learning - Modelling (MDL)
-v818
+v819
 @author: Dr. David Steyrl david.steyrl@univie.ac.at
 '''
 
@@ -33,6 +33,8 @@ from sklearn.preprocessing import TargetEncoder
 from sklearn.utils import shuffle
 from sklearn_repeated_group_k_fold import RepeatedGroupKFold
 from time import time
+
+os.environ['PYTHONWARNINGS'] = 'ignore::FutureWarning'
 
 
 def create_dir(path: str) -> None:
