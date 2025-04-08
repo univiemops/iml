@@ -1,10 +1,11 @@
-# *- coding: utf-8 -*-
-'''
+# -*- coding: utf-8 -*-
+"""
 Interpretable Machine-Learning - Exploratory Data Analysis (EDA)
-v186
-@author: Dr. David Steyrl david.steyrl@univie.ac.at
-'''
+v249
+@author: david.steyrl@univie.ac.at
+"""
 
+import logging
 import math as mth
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,241 +13,201 @@ import os
 import pandas as pd
 import seaborn as sns
 import shutil
+import subprocess
 import warnings
 from itertools import permutations
-from lightgbm import LGBMClassifier
-from lightgbm import LGBMRegressor
-from scipy.stats import loguniform
-from scipy.stats import uniform
-from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics import r2_score
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import TargetEncoder
 from sklearn_repeated_group_k_fold import RepeatedGroupKFold
+from tabpfn import TabPFNClassifier
+from tabpfn import TabPFNRegressor
+from typing import Union
+
+# Supress warnings about classes not in y_true
+os.environ["PYTHONWARNINGS"] = "ignore:y_pred contains classes not in y_true:::"
+warnings.filterwarnings("ignore", message="y_pred contains classes not in y_true")
 
 
-def create_dir(path: str) -> None:
-    '''
-    Create specified directory if not existing.
-
-    Parameters
-    ----------
-    path : string
-        Path to to check to be created.
-
-    Returns
-    -------
-    None.
-    '''
-
-    # Create dir of not existing ----------------------------------------------
-    # Check if dir exists
-    if not os.path.isdir(path):
-        # Create dir
-        os.mkdir(path)
-
-    # Return None -------------------------------------------------------------
-    return
-
-
-def prepare(objective: str, num_classes: int) -> tuple:
-    '''
-    Prepare estimator, prepare seach_space.
+def get_pip_requirements() -> str:
+    """
+    Retrieve the current pip requirements as a string.
 
     Parameters
     ----------
-    objective : string
-        String with objective describtion variables.
-    num_classes : int
-        Integer counting the number of classes
+    None
 
     Returns
     -------
-    estimator : scikit-learn compatible estimator
-        Prepared estimator object.
-    space : dict
-        Space that should be searched for optimale parameters.
-    '''
+    str: The YAML-formatted configuration of the current pip requirements.
 
-    # Make estimator ----------------------------------------------------------
-    # Regression
-    if objective == 'regression':
-        # Estimator
-        estimator = LGBMRegressor(
-            boosting_type='gbdt',
-            num_leaves=100,
-            max_depth=-1,
-            learning_rate=0.1,
-            n_estimators=100,
-            subsample_for_bin=100000,
-            objective='huber',
-            min_split_gain=0,
-            min_child_weight=0,
-            min_child_samples=10,
-            subsample=1,
-            subsample_freq=0,
-            colsample_bytree=1,
-            reg_alpha=0,
-            reg_lambda=0,
-            random_state=None,
-            n_jobs=1,
-            importance_type='gain',
-            **{'data_random_seed': None,
-               'data_sample_strategy': 'bagging',
-               'extra_seed': None,
-               'feature_fraction_seed': None,
-               'feature_pre_filter': False,
-               'force_col_wise': True,
-               'min_data_in_bin': 1,
-               'use_quantized_grad': True,
-               'verbosity': -1,
-               })
-    # Classification
-    elif objective == 'classification':
-        # Estimator
-        estimator = LGBMClassifier(
-            boosting_type='gbdt',
-            num_leaves=100,
-            max_depth=-1,
-            learning_rate=0.1,
-            n_estimators=100,
-            subsample_for_bin=100000,
-            objective='multiclass',
-            class_weight='balanced',
-            min_split_gain=0,
-            min_child_weight=0,
-            min_child_samples=10,
-            subsample=1,
-            subsample_freq=0,
-            colsample_bytree=1,
-            reg_alpha=0,
-            reg_lambda=0,
-            random_state=None,
-            n_jobs=1,
-            importance_type='gain',
-            **{'data_random_seed': None,
-               'data_sample_strategy': 'bagging',
-               'extra_seed': None,
-               'feature_fraction_seed': None,
-               'feature_pre_filter': False,
-               'force_col_wise': True,
-               'min_data_in_bin': 1,
-               'num_class': num_classes,
-               'use_quantized_grad': True,
-               'verbosity': -1,
-               })
-    # Other
+    Raises
+    ------
+    RuntimeError: If the subprocess fails to run the `pip freeze` command.
+    Exception: If unexpected error occurred.
+    """
+    try:
+        # Run the 'pip freeze' command
+        pip_requirements = subprocess.run(
+            ["pip", "freeze"],
+            capture_output=True,  # Capture stdout and stderr
+            text=True,  # Decode output as a string
+            shell=True,
+        )
+        # If command was successful
+        if pip_requirements.returncode == 0:
+            # Return the pip requirements string
+            return pip_requirements.stdout
+        # If command was not successful
+        else:
+            # Raise error
+            raise RuntimeError(f"Failed to run 'pip freeze': {pip_requirements.stderr}")
+    except Exception as e:
+        # Raise exception
+        raise e
+
+
+def get_estimator(
+    task: dict, objective: str
+) -> Union[TabPFNRegressor, TabPFNClassifier]:
+    """
+    Prepare analysis pipeline and search space.
+
+    Parameters
+    ----------
+    task: dict
+        Dictionary containing task details.
+    objective: str
+        Current objective (classification or regression).
+
+    Returns
+    -------
+    Union[TabPFNRegressor, TabPFNClassifier]: A tuple containing the prepared pipeline
+        and search space.
+
+    Raises
+    ------
+    ValueError: If OBJECTIVE is not regression and classification.
+    """
+    # If regression
+    if objective == "regression":
+        # Get estimator
+        estimator = TabPFNRegressor(
+            n_estimators=1,
+            categorical_features_indices=None,
+            softmax_temperature=0.9,
+            average_before_softmax=False,
+            device=task["DEVICE"],
+            n_jobs=-2,
+        )
+    # If classification
+    elif objective == "classification":
+        # Get estimator
+        estimator = TabPFNClassifier(
+            n_estimators=1,
+            categorical_features_indices=None,
+            softmax_temperature=0.9,
+            balance_probabilities=True,
+            average_before_softmax=False,
+            device=task["DEVICE"],
+            n_jobs=-2,
+        )
     else:
         # Raise error
-        raise ValueError('OBJECTIVE not found.')
-
-    # Make search space -------------------------------------------------------
-    # Search space
-    space = {
-        'estimator__colsample_bytree': uniform(0.1, 0.9),
-        'estimator__extra_trees': [True, False],
-        'estimator__reg_lambda': loguniform(0.1, 100),
-        }
-
-    # Return estimator and space ----------------------------------------------
-    return estimator, space
+        raise ValueError(f"OBJECTIVE is {task['OBJECTIVE']}.")
+    # Return estimator
+    return estimator
 
 
-def split_data(df: pd.DataFrame, i_trn: np.ndarray,
-               i_tst: np.ndarray) -> tuple:
-    '''
-    Split dataframe in training and testing dataframes.
+def split_data(df: pd.DataFrame, i_trn: np.ndarray, i_tst: np.ndarray) -> tuple:
+    """
+    Split a DataFrame into training and testing datasets.
 
     Parameters
     ----------
-    df : dataframe
-        Dataframe holding the data to split.
-    i_trn : numpy ndarray
-        Array with indices of training data.
-    i_tst : numpy ndarray
-        Array with indices of testing data.
+    df: pd.DataFrame
+        DataFrame containing the data to split.
+    i_trn: np.ndarray
+        Array of indices for the training set.
+    i_tst: np.ndarray
+        Array of indices for the testing set.
 
     Returns
     -------
-    df_trn : dataframe
-        Dataframe holding the training data.
-    df_tst : dataframe
-         Dataframe holding the testing data.
-    '''
+    tuple: Tuple containing the training DataFrame (df_trn) and testing DataFrame
+        (df_tst).
 
-    # Split dataframe via index -----------------------------------------------
-    # Dataframe is not empty
-    if not df.empty:
-        # Make split
-        df_trn = df.iloc[i_trn].reset_index(drop=True)
-        # Make split
-        df_tst = df.iloc[i_tst].reset_index(drop=True)
-    # Dataframe is empty
-    else:
-        # Make empty dataframes
-        df_trn, df_tst = pd.DataFrame(), pd.DataFrame()
-
-    # Return train test dataframes --------------------------------------------
+    Raises
+    ------
+    None
+    """
+    # If empty input
+    if df.empty:
+        # Return empty training and testing DataFrames
+        return pd.DataFrame(), pd.DataFrame()
+    # Perform the split for training
+    df_trn = df.iloc[i_trn].reset_index(drop=True)
+    # Perform the split for testing
+    df_tst = df.iloc[i_tst].reset_index(drop=True)
+    # Return train test dataframes
     return df_trn, df_tst
 
 
-def compute_pair_pred(task: dict, g: pd.Series, x: pd.Series, y: pd.Series,
-                      objective: str) -> float:
-    '''
-    Compute pairwise prediction score (R², acc) of x and y.
+def compute_pair_predictions(
+    task: dict, g: pd.Series, x: pd.Series, y: pd.Series, objective: str
+) -> float:
+    """
+    Compute pairwise prediction score
+    (R² for regression, adjusted balanced accuracy for classification).
 
     Parameters
     ----------
-    task : dictionary
-        Dictionary holding the task describtion variables.
-    g : series
-        Series holding the group data.
-    x : series
+    task: dict
+        Dictionary holding task configuration parameters.
+    g: pd.Series
+        Series holding group data for cross-validation.
+    x: pd.Series
         Series holding the predictor data.
-    y : series
+    y: pd.Series
         Series holding the target data.
-    objective : string
-        String with objective describtion variables.
+    objective: str
+        Objective type, either "regression" or "classification".
 
     Returns
     -------
-    pair_pred : float
-        Pairwise predictions scores (0-1). R² for regression,
-        adjusted balanced accuracy for classification.
-    '''
+    float: Pairwise prediction score (≥0). R² for regression or adjusted balanced
+        accuracy for classification.
 
-    # Initialize --------------------------------------------------------------
-    # Initialize score list
-    scores = []
-    # Get number of classes if task is classification
-    # Classification
-    if objective == 'classification':
-        # Number of unique classes in prediction target
-        task['n_classes'] = y.nunique().iloc[0]
-    # Regression
-    elif objective == 'regression':
-        # Set number of classes to -1 for compatibility
-        task['n_classes'] = -1
-    # Get estimator and space
-    estimator, space = prepare(objective, task['n_classes'])
+    Raises
+    ------
+    ValueError: If OBJECTIVE is not regression and classification.
+    """
 
-    # Main cross-validation loop ----------------------------------------------
-    # Calculate number of repetition for outer CV
-    task['n_rep_outer_cv'] = mth.ceil(task['N_PRED_OUTER_CV']/g.shape[0])
-    # Instatiate main cv splitter with fixed random state for comparison
+    # --- Setup ---
+    # Identify rows with NaN in either DataFrame
+    nan_mask = x.isna().any(axis=1) | y.isna().any(axis=1)
+    # Drop rows with NaN
+    g = g[~nan_mask]
+    x = x[~nan_mask]
+    y = y[~nan_mask]
+    # Choose n_rep_cv to approx N_PRED_CV (min 2, max 5 reps).
+    task["n_rep_cv"] = max(2, min(5, mth.ceil(task["N_PRED_CV"] / g.shape[0])))
+    # Instatiate cv splitter
     cv = RepeatedGroupKFold(
-        n_splits=task['N_CV_FOLDS'],
-        n_repeats=task['n_rep_outer_cv'],
-        random_state=None)
-    # Loop over main (outer) cross validation splits
+        n_splits=task["N_CV_FOLDS"],
+        n_repeats=task["n_rep_cv"],
+        random_state=None,
+    )
+    # Initialize scores
+    scores = []
+    # Get estimator
+    estimator = get_estimator(task, objective)
+
+    # --- Main CV loop ---
     for i_cv, (i_trn, i_tst) in enumerate(cv.split(g, groups=g)):
 
-        # Split data ----------------------------------------------------------
+        # --- Split data ---
         # Split groups
         g_trn, g_tst = split_data(g, i_trn, i_tst)
         # Split targets
@@ -254,72 +215,32 @@ def compute_pair_pred(task: dict, g: pd.Series, x: pd.Series, y: pd.Series,
         # Split predictors
         x_trn, x_tst = split_data(x, i_trn, i_tst)
 
-        # Get scorer ----------------------------------------------------------
-        # Regression
-        if objective == 'regression':
-            # R² score
-            scorer = 'r2'
-        # Classification
-        elif objective == 'classification':
-            # Balanced accuracy for classification
-            scorer = 'balanced_accuracy'
-        # Other
-        else:
-            # Raise error
-            raise ValueError('OBJECTIVE not found.')
-
-        # Tune analysis pipeline ----------------------------------------------
-        # Choose n_repeats to approx N_SAMPLES_INNER_CV predictions
-        task['n_rep_inner_cv'] = mth.ceil(
-            task['N_PRED_INNER_CV'] / g_trn.shape[0])
-        # Instatiate random parameter search
-        search = RandomizedSearchCV(
-            estimator,
-            space,
-            n_iter=task['N_SAMPLES_RS'],
-            scoring=scorer,
-            n_jobs=task['N_JOBS'],
-            refit=True,
-            cv=RepeatedGroupKFold(n_splits=task['N_CV_FOLDS'],
-                                  n_repeats=task['n_rep_inner_cv'],
-                                  random_state=None),
-            verbose=0,
-            pre_dispatch='2*n_jobs',
-            random_state=None,
-            error_score=0,
-            return_train_score=False)
-        # Random search for best parameter
-        search.fit(x_trn, y_trn.squeeze(), groups=g_trn)
-
-        # Predict -------------------------------------------------------------
+        # --- Fit, predict, and score ---
+        # Fit model
+        estimator.fit(x_trn, y_trn.squeeze())
         # Predict test samples
-        y_pred = search.best_estimator_.predict(x_tst)
-
-        # Score results -------------------------------------------------------
-        # Regression
-        if objective == 'regression':
+        y_pred = estimator.predict(x_tst)
+        # Compute prediction score
+        if objective == "classification":
+            # Calculate model fit in terms of balanced acc
+            scores.append(balanced_accuracy_score(y_tst, y_pred, adjusted=True))
+        elif objective == "regression":
             # Score predictions in terms of R²
             scores.append(r2_score(y_tst, y_pred))
-        # Classification
-        elif objective == 'classification':
-            # Calculate model fit in terms of acc
-            scores.append(balanced_accuracy_score(
-                y_tst, y_pred, adjusted=True))
-        # Other
         else:
             # Raise error
-            raise ValueError('OBJECTIVE not found.')
+            raise ValueError(f"Objective is {objective}.")
 
-    # Process scores ----------------------------------------------------------
+    # --- Final score processing ---
     # Limit pairwise predictions scores to be bigger than or equal to 0
     pair_pred = max(0, np.mean(scores))
 
-    # Return pairwise predictions ---------------------------------------------
+    # --- Return pairwise predictions ---
     return pair_pred
 
 
 def eda(task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame) -> None:
-    '''
+    """
     Carries out exploratory data analysis, incl.:
     Data distribuations (1D, violinplot),
     Data distributions (2D, pairplots),
@@ -330,520 +251,466 @@ def eda(task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame) -> None:
 
     Parameters
     ----------
-    task : dictionary
+    task: dictionary
         Dictionary holding the task describtion variables.
-    g : dataframe
+    g: dataframe
         Dataframe holding the group data.
-    x : dataframe
+    x: dataframe
         Dataframe holding the predictor data.
-    y : dataframe
+    y: dataframe
         Dataframe holding the target data.
 
     Returns
     -------
-    None.
-    '''
+    None
 
-    # Preprocessing -----------------------------------------------------------
-    # Instatiate target encoder
-    te = TargetEncoder(
-        categories='auto',
-        target_type='continuous',
-        smooth='auto',
-        cv=task['N_CV_FOLDS'],
-        shuffle=True,
-        random_state=None)
-    # Get categorical predictors for target-encoder
-    coltrans = ColumnTransformer(
-        [('con_pred', 'passthrough', task['X_CON_NAMES']),
-         ('bin_pred', 'passthrough', task['X_CAT_BIN_NAMES']),
-         ('mult_pred', te, task['X_CAT_MULT_NAMES']),
-         ('target', 'passthrough', task['y_name']),
-         ],
-        remainder='drop',
-        sparse_threshold=0,
-        n_jobs=1,
-        transformer_weights=None,
-        verbose=False,
-        verbose_feature_names_out=False)
-    # Pipeline
-    pre_pipe = Pipeline(
-        [('coltrans', coltrans),
-         ('std_scaler', StandardScaler())],
-        memory=None,
-        verbose=False).set_output(transform='pandas')
-    # Concatinate predictors and targets
-    z = pd.concat([x, y], axis=1)
-    # Do preprocessing
-    z = pre_pipe.fit_transform(z, y.squeeze())
+    Raises
+    ------
+    ValueError: If OBJECTIVE is not regression and classification.
+    """
 
-    # 1D data distributions ---------------------------------------------------
-    # Do 1D data distribution violin plot?
-    if task['DATA_DISTRIBUTION_1D']:
-        # x names lengths
-        x_names_max_len = max([len(i) for i in task['x_names']])
-        # x names count
-        x_names_count = len(task['x_names'])
-        # Create a figure
-        fig, ax = plt.subplots(
-            figsize=(x_names_max_len*.1+4, x_names_count*.7+1))
-        # Violinplot all data
-        sns.violinplot(
-            data=z,
-            bw_method='scott',
-            bw_adjust=0.5,
-            cut=2,
-            density_norm='width',
-            gridsize=100,
-            width=0.8,
-            inner='box',
-            orient='h',
-            linewidth=1,
-            color='#777777',
-            saturation=1.0,
-            ax=ax)
-        # Remove top, right and left frame elements
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        # Set x ticks and size
-        ax.set_xlabel('standardized range', fontsize=10)
-        # Set y ticks and size
-        ax.set_ylabel(ax.get_ylabel(), fontsize=10)
-        # Add horizontal grid
-        fig.axes[0].set_axisbelow(True)
-        # Set grid style
-        fig.axes[0].grid(
-            axis='y',
-            color='#bbbbbb',
-            linestyle='dotted',
-            alpha=.3)
-        # Make title string
-        title_str = (task['ANALYSIS_NAME']+'\n' +
-                     'Data distributions (1D)\n')
-        # set title
-        plt.title(title_str, fontsize=10)
+    # --- 1D Data Distributions ---
+    logging.info("1D Data Distributions.")
+    # If DATA_DISTRIBUTION_1D
+    if task["DATA_DISTRIBUTION_1D"]:
+        # Step 1: Compute dimensions for the figure
+        # Max length of feature names
+        x_names_max_len = max(len(name) for name in task["X_NAMES"])
+        # Total number of features
+        x_names_count = len(task["X_NAMES"])
+        # Compute fig width
+        fig_size = (
+            x_names_max_len * 0.1 + 5,
+            (x_names_count + 1) * 1.1 + 1,
+        )
+        # Step 2: Create the figure and axes
+        fig, axes = plt.subplots(
+            nrows=x_names_count + 1, ncols=1, figsize=fig_size, sharex=False
+        )
+        # Step 3: Generate the violin plot
+        for ax, column in zip(axes, pd.concat([x, y], axis=1).columns):
+            sns.violinplot(
+                data=pd.concat([x, y], axis=1)[column],
+                bw_method="scott",  # Bandwidth estimation method
+                bw_adjust=0.33,  # Adjust bandwidth
+                cut=2,  # Extend density beyond data
+                density_norm="width",  # Normalize density by width
+                gridsize=100,  # Number of points in density estimation
+                width=0.8,  # Width of violin plot
+                inner="box",  # Show box plot inside violins
+                orient="h",  # Horizontal orientation
+                linewidth=1,  # Line width of violin edges
+                color="#777777",  # Violin color
+                saturation=1.0,  # Saturation level
+                ax=ax,  # Axes to plot on
+            )
+            # Remove frame elements
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            # ax.set_ylabel(ax.get_ylabel(), fontsize=10)
+            ax.set_ylabel(
+                column, rotation="horizontal", horizontalalignment="right", fontsize=10
+            )
+            # Set axis label
+            ax.set_xlabel("", fontsize=10)
+            # Add gridlines for better readability
+            ax.set_axisbelow(True)
+            ax.grid(axis="y", color="#bbbbbb", linestyle="dotted", alpha=0.3)
+        # Set axis label
+        ax.set_xlabel("Range", fontsize=10)
+        # Step 4: Set the plot title
+        title_str = f"{task['ANALYSIS_NAME']}\nData Distributions (1D)"
+        plt.suptitle(title_str, fontsize=10, y=0.94)
+        # Call tight layout
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+        # Step 5: Save the figure
+        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_1_distri_1D"  # noqa
+        # Make PNG save path
+        png_save_path = f"{save_base_path}.png"
+        # Save as PNG
+        plt.savefig(png_save_path, dpi=300, bbox_inches="tight")
+        # If as SVG
+        if task["AS_SVG"]:
+            # Make SVG save path
+            svg_save_path = f"{save_base_path}.svg"
+            # Save as SVG
+            plt.savefig(svg_save_path, bbox_inches="tight")
 
-        # Save figure ---------------------------------------------------------
-        # Make save path
-        save_path = (
-            task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_1_distri_1D')
-        # Save figure in .png format
-        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
-        # Check if save as svg is enabled
-        if task['AS_SVG']:
-            # Save figure in .svg format
-            plt.savefig(save_path+'.svg', bbox_inches='tight')
-        # Show plot
+        # Step 6: Display the plot
         plt.show()
 
-    # 2D data distribution ----------------------------------------------------
-    # Do 2D data distribution pairplot?
-    if task['DATA_DISTRIBUTION_2D']:
-        # Make pairplot
+    # --- 2D Data Distributions ---
+    logging.info("2D Data Distributions.")
+    # If DATA_DISTRIBUTION_2D
+    if task["DATA_DISTRIBUTION_2D"]:
+        # Step 1: Create pairplot
         pair_plot = sns.pairplot(
-            z,
-            corner=False,
-            diag_kind='kde',
-            plot_kws={'color': '#777777'},
-            diag_kws={'color': '#777777'})
+            pd.concat([x, y], axis=1),
+            corner=False,  # Include all pairwise plots
+            diag_kind="kde",  # Use Kernel Density Estimate (KDE) for diagonal
+            plot_kws={"color": "#777777"},  # Set color for pairwise plots
+            diag_kws={"color": "#777777"},  # Set color for diagonal plots
+        )
+        # Step 2: Set plot title
         # Make title string
-        title_str = (task['ANALYSIS_NAME']+'\n' +
-                     'Data distributions (2D)\n')
-        # set title
+        title_str = f"{task['ANALYSIS_NAME']}\nData Distributions (2D)\n"
+        # Set plot title
         pair_plot.fig.suptitle(title_str, fontsize=10, y=1.0)
-        # Add variable kde to plot
-        pair_plot.map_lower(sns.kdeplot, levels=3, color='.2')
-
-        # Save figure ---------------------------------------------------------
-        # Make save path
-        save_path = (
-            task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_2_distri_2D')
-        # Save figure in .png format
-        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
-        # Check if save as svg is enabled
-        if task['AS_SVG']:
-            # Save figure in .svg format
-            plt.savefig(save_path+'.svg', bbox_inches='tight')
-        # Show plot
+        # Step 3: Add KDE plots for lower triangle
+        pair_plot.map_lower(sns.kdeplot, levels=3, color=".2")
+        # Step 4: Save the figure
+        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_2_distri_2D"  # noqa
+        # Make PNG save path
+        png_save_path = f"{save_base_path}.png"
+        # Save as PNG
+        pair_plot.savefig(png_save_path, dpi=300, bbox_inches="tight")
+        # If as SVG
+        if task["AS_SVG"]:
+            # Make SVG save path
+            svg_save_path = f"{save_base_path}.svg"
+            # Save as SVG
+            pair_plot.savefig(svg_save_path, bbox_inches="tight")
+        # Step 5: Display the pairplot
         plt.show()
 
-    # Joint information linear ------------------------------------------------
-    # Do linear joint information via correlation heatmap plot?
-    if task['DATA_JOINT_INFORMATION_LINEAR']:
-        # x names lengths
-        x_names_max_len = max([len(i) for i in task['x_names']])
-        # x names count
-        x_names_count = len(task['x_names'])
-        # Create a figure
-        fig, ax = plt.subplots(
-            figsize=(x_names_count*.6+x_names_max_len*.1+1,
-                     x_names_count*.6+x_names_max_len*.1+1))
-        # Make colorbar string
-        clb_str = ('correlation (-1 to 1)')
-        # Print correlations
+    # --- Linear Joint Information (Correlation Heatmap) ---
+    logging.info("Linear Joint Information (Correlation Heatmap).")
+    # If DATA_JOINT_INFORMATION_LINEAR
+    if task["DATA_JOINT_INFORMATION_LINEAR"]:
+        # Step 1: Compute figure size based on feature count and name lengths
+        # Max length of feature names
+        x_names_max_len = max(len(name) for name in task["X_NAMES"])
+        # Total number of features
+        x_names_count = len(task["X_NAMES"])
+        # Compute fig size
+        fig_size = (
+            x_names_count * 0.6 + x_names_max_len * 0.1 + 1,
+            x_names_count * 0.6 + x_names_max_len * 0.1 + 1,
+        )
+        # Step 2: Create heatmap figure and axes
+        fig, ax = plt.subplots(figsize=fig_size)
+        colorbar_label = "Correlation (0 to 1)"
+        # Step 3: Generate correlation heatmap
         sns.heatmap(
-            z.corr(),
-            vmin=-1,
-            vmax=1,
-            cmap='Greys',
+            pd.concat([x, y], axis=1).corr().abs(),  # Compute correlations
+            vmin=0,
+            vmax=1,  # Value range
+            cmap="Greys",  # Color map
             center=None,
             robust=True,
-            annot=True,
-            fmt='.2f',
-            annot_kws={'size': 10},
-            linewidths=.5,
-            linecolor='#999999',
-            cbar=True,
-            cbar_kws={'label': clb_str, 'shrink': 0.6},
-            cbar_ax=None,
-            square=True,
-            xticklabels=1,
-            yticklabels=1,
-            mask=None,
-            ax=ax)
-        # This sets the yticks 'upright' with 0, as opposed to sideways with 90
-        plt.yticks(rotation=0)
-        # This sets the xticks 'sideways' with 90
+            annot=True,  # Show correlation values
+            fmt=".2f",  # Format for annotations
+            annot_kws={"size": 10},  # Annotation font size
+            linewidths=1,  # Grid line width
+            linecolor="#999999",  # Grid line color
+            cbar=True,  # Show color bar
+            cbar_kws={"label": colorbar_label, "shrink": 0.6},  # Color bar settings
+            square=True,  # Square cells
+            xticklabels=pd.concat([x, y], axis=1).columns,
+            yticklabels=pd.concat([x, y], axis=1).columns,
+            ax=ax,
+        )
+        # Step 4: Customize plot
+        # Rotate axis labels
         plt.xticks(rotation=90)
-        # Make title string
-        title_str = (task['ANALYSIS_NAME']+'\n' +
-                     'Joint information in data (linear, correlation)\n')
-        # set title
+        plt.yticks(rotation=0)
+        # Set title
+        title_str = f"{task['ANALYSIS_NAME']}\nJoint Information in Data (Linear, Correlation)\n"  # noqa
         plt.title(title_str, fontsize=10)
-        # Get colorbar
+        # Modify colorbar appearance
         cb_ax = fig.axes[1]
-        # Modifying color bar tick size
         cb_ax.tick_params(labelsize=10)
-        # Modifying color bar fontsize
-        cb_ax.set_ylabel(clb_str, fontsize=10)
+        cb_ax.set_ylabel(colorbar_label, fontsize=10)
         cb_ax.set_box_aspect(50)
-
-        # Save figure ---------------------------------------------------------
-        # Make save path
-        save_path = (
-            task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-            '_'+task['y_name'][0]+'_eda_3_joint_lin'
-            )
-        # Save figure in .png format
-        plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
-        # Check if save as svg is enabled
-        if task['AS_SVG']:
-            # Save figure in .svg format
-            plt.savefig(save_path+'.svg', bbox_inches='tight')
-        # Show plot
+        # Step 5: Save the figure
+        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_3_joint_lin"  # noqa
+        # Make PNG save path
+        png_save_path = f"{save_base_path}.png"
+        # Save as PNG
+        plt.savefig(png_save_path, dpi=300, bbox_inches="tight")
+        # If as SVG
+        if task["AS_SVG"]:
+            # Make SVG save path
+            svg_save_path = f"{save_base_path}.svg"
+            # Save as SVG
+            plt.savefig(svg_save_path, bbox_inches="tight")
+        # Step 6: Display the heatmap
         plt.show()
 
-    # Joint information non linear --------------------------------------------
-    # Do non-linear joint information via pairwise prediction heatmap plot?
-    if task['DATA_JOINT_INFORMATION_NON_LINEAR']:
-        # Check for NaN values
-        if not z.isnull().values.any():
-            # Make pairwise prediction matrix
-            pair_pred = np.ones((len(list(z.columns)), len(list(z.columns))))
-            # Make pairs
-            for (id_pred1, id_pred2) in permutations(pd.factorize(
-                    pd.Series(z.columns))[0], 2):
-                # Make a mapping list between number and name
-                mapping = list(z.columns)
-                # Select task continous prediction target
-                if mapping[id_pred2] in task['X_CON_NAMES']:
-                    # Select objective
-                    objective = 'regression'
-                    # Get predictor data
-                    xt = pd.DataFrame(z[mapping[id_pred1]])
-                    # Get target data
-                    yt = pd.DataFrame(z[mapping[id_pred2]])
-                # Select task binary prediction target
-                elif mapping[id_pred2] in task['X_CAT_BIN_NAMES']:
-                    # Select objective
-                    objective = 'classification'
-                    # Get predictor data
-                    xt = pd.DataFrame(z[mapping[id_pred1]])
-                    # Get target data
-                    yt = pd.DataFrame(pd.factorize(z[mapping[id_pred2]])[0],
-                                      columns=[mapping[id_pred2]])
-                # Select task multi class prediction target trat as regression
-                elif mapping[id_pred2] in task['X_CAT_MULT_NAMES']:
-                    # Select objective
-                    objective = 'regression'
-                    # Get predictor data
-                    xt = pd.DataFrame(z[mapping[id_pred1]])
-                    # Get target data
-                    yt = pd.DataFrame(z[mapping[id_pred2]])
-                # Select task target objective
-                elif mapping[id_pred2] in task['Y_NAMES']:
-                    # Select objective
-                    objective = task['OBJECTIVE']
-                    # Get predictor data
-                    xt = pd.DataFrame(z[mapping[id_pred1]])
-                    # Get target data select by objective regression
-                    if objective == 'regression':
-                        # Get target data
-                        yt = pd.DataFrame(z[mapping[id_pred2]])
-                    # Get target data select by objective other than regression
-                    else:
-                        # Get target data
-                        yt = pd.DataFrame(
-                            pd.factorize(z[mapping[id_pred2]])[0],
-                            columns=[mapping[id_pred2]]
-                            )
-                # Other target objective
+    # --- Non-linear Joint Information (Pairwise Prediction Heatmap) ---
+    logging.info("Non-linear Joint Information (Pairwise Prediction Heatmap).")
+    # If DATA_JOINT_INFORMATION_NON_LINEAR
+    if task["DATA_JOINT_INFORMATION_NON_LINEAR"]:
+        # Step1: Initialize pairwise prediction matrix
+        # Get feature count
+        feature_count = len(pd.concat([x, y], axis=1).columns)
+        # Get pair predition matrix initialized by ones
+        pair_predictions = np.ones((feature_count, feature_count))
+        # Step2: Create pairwise combinations of features
+        feature_indices = pd.factorize(pd.Series(pd.concat([x, y], axis=1).columns))[0]
+        # Map indices to feature names
+        mapping = list(pd.concat([x, y], axis=1).columns)
+        # Step3: Iterate over pairwise combinations of features
+        for id_pred1, id_pred2 in permutations(feature_indices, 2):
+            # Get current predictor name
+            predictor_name = mapping[id_pred1]
+            # Get current target name
+            target_name = mapping[id_pred2]
+            # Step4: Prepare predictor (xt) and target (yt)
+            # Get current predictor data
+            xt = pd.DataFrame(pd.concat([x, y], axis=1)[predictor_name])
+            # Get current target data
+            yt = pd.DataFrame(pd.concat([x, y], axis=1)[target_name])
+            # Step5: Determine the objective
+            # If target_name in task["Y_NAMES"]
+            if target_name in task["Y_NAMES"]:
+                # Set current objective
+                objective = task["OBJECTIVE"]
+            # If target_name in task["X_CON_NAMES"]
+            elif target_name in task["X_NAMES"]:
+                # If 10 or less unique instances, treat as classification
+                if (
+                    pd.DataFrame(pd.concat([x, y], axis=1)[target_name])
+                    .nunique()
+                    .iloc[0]
+                    .item()
+                    <= 10
+                ):
+                    # Set current objective
+                    objective = "classification"
                 else:
-                    # Raise error
-                    raise ValueError('OBJECTIVE not found.')
-                # Compute pairwise prediction of current pair
-                pair_pred[id_pred1, id_pred2] = compute_pair_pred(
-                    task=task, g=g, x=xt, y=yt, objective=objective)
-            # Names lengths
-            names_max_len = max([len(i) for i in list(z.columns)])
-            # Names count
-            names_count = len(list(z.columns))
-            # Create a figure
-            fig, ax = plt.subplots(
-                figsize=(names_count*.6+names_max_len*.1+1,
-                         names_count*.6+names_max_len*.1+1))
-            # Make colorbar string
-            clb_str = ('joint information (0 to 1)')
-            # Print pairwise predictions
-            sns.heatmap(
-                pair_pred,
-                vmin=0,
-                vmax=1,
-                cmap='Greys',
-                center=None,
-                robust=True,
-                annot=True,
-                fmt='.2f',
-                annot_kws={'size': 10},
-                linewidths=.5,
-                linecolor='#999999',
-                cbar=True,
-                cbar_kws={'label': clb_str, 'shrink': 0.6},
-                cbar_ax=None,
-                square=True,
-                xticklabels=list(z.columns),
-                yticklabels=list(z.columns),
-                mask=None,
-                ax=ax)
-            # Make title string
-            title_str = (task['ANALYSIS_NAME']+'\n' +
-                         'Joint information in data ' +
-                         '(non-linear, pairwise predictions)\n' +
-                         'y-axis: predictors, x-axis: prediction targets\n')
-            # set title
-            plt.title(title_str, fontsize=10)
+                    # Set current objective
+                    objective = "regression"
+            else:
+                raise ValueError("OBJECTIVE not found.")
+            # Step6: Compute pairwise prediction for the current pair
+            pair_predictions[id_pred1, id_pred2] = compute_pair_predictions(
+                task=task, g=g, x=xt, y=yt, objective=objective
+            )
+        # Step7: Compute figure dimensions based on feature names
+        max_name_length = max(len(name) for name in pd.concat([x, y], axis=1).columns)
+        fig_size = (
+            feature_count * 0.6 + max_name_length * 0.1 + 1,
+            feature_count * 0.6 + max_name_length * 0.1 + 1,
+        )
+        # Step8: Create heatmap figure and axes
+        fig, ax = plt.subplots(figsize=fig_size)
+        colorbar_label = "Joint Information (0 to 1)"
+        # Step9: Make heatmap
+        sns.heatmap(
+            pair_predictions,
+            vmin=0,
+            vmax=1,  # Value range
+            cmap="Greys",  # Color map
+            center=None,
+            robust=True,
+            annot=True,  # Show correlation values
+            fmt=".2f",  # Format for annotations
+            annot_kws={"size": 10},  # Annotation font size
+            linewidths=1,  # Grid line width
+            linecolor="#999999",  # Grid line color
+            cbar=True,  # Show color bar
+            cbar_kws={"label": colorbar_label, "shrink": 0.6},  # Color bar settings
+            square=True,  # Square cells
+            xticklabels=pd.concat([x, y], axis=1).columns,
+            yticklabels=pd.concat([x, y], axis=1).columns,
+            ax=ax,
+        )
+        # Step10: Set heatmap title
+        title_str = (
+            f"{task['ANALYSIS_NAME']}\n"
+            "Joint Information in Data (Non-Linear, Pairwise Predictions)\n"
+            "Y-axis: Predictors, X-axis: Prediction Targets"
+        )
+        plt.title(title_str, fontsize=10)
+        # Step11: Save heatmap figure
+        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_4_joint_nonlin"  # noqa
+        # Make PNG save path
+        png_save_path = f"{save_base_path}.png"
+        # Save as PNG
+        plt.savefig(png_save_path, dpi=300, bbox_inches="tight")
+        # Optionally save as SVG
+        if task["AS_SVG"]:
+            # Make SVG save path
+            svg_save_path = f"{save_base_path}.svg"
+            # Save as SVG
+            plt.savefig(svg_save_path, bbox_inches="tight")
+        # Step12: Display the heatmap
+        plt.show()
 
-            # Save figure -----------------------------------------------------
-            # Make save path
-            save_path = (
-                task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                '_'+task['y_name'][0]+'_eda_4_joint_nonlin')
-            # Save figure in .png format
-            plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
-            # Check if save as svg is enabled
-            if task['AS_SVG']:
-                # Save figure in .svg format
-                plt.savefig(save_path+'.svg', bbox_inches='tight')
-            # show figure
-            plt.show()
-        # If nans
-        else:
-            # Raise warning
-            warnings.warn(
-                'Pairwise predictions skipped because of NaN values.'
-                )
+    # --- Multidimensional Pattern Visualization with PCA ---
+    logging.info("Multidimensional Pattern Visualization with PCA.")
+    # If DATA_MULTIDIM_PATTERN
+    if task["DATA_MULTIDIM_PATTERN"]:
+        # Step1: Instantiate PCA
+        pca = PCA(
+            n_components=x.shape[1],
+            copy=True,
+            whiten=False,
+            svd_solver="auto",
+            tol=0.0001,
+            iterated_power="auto",
+            random_state=None,
+        )
+        # Step2: Fit PCA to the data
+        pca.fit(x.dropna())
+        # Step3: Extract number of features
+        x_names_count = len(task["X_NAMES"])
+        # Step4: Calculate figure size
+        fig_width = min((1 + x_names_count * 0.6), 16)
+        fig_size = (fig_width, 4)
+        # Step5: Create the figure and axes
+        fig, ax = plt.subplots(figsize=fig_size)
+        # Step6: Plot explained variance ratio
+        ax.plot(
+            pca.explained_variance_ratio_,
+            color="cornflowerblue",
+            label="Explained variance per component",
+        )
+        ax.plot(
+            pca.explained_variance_ratio_,
+            color="black",
+            marker=".",
+            linestyle="None",
+        )
+        # Step7: Set limits for better visualization
+        ax.set_xlim((-0.01, ax.get_xlim()[1]))
+        ax.set_ylim((-0.01, 1.01))
+        # Step8: Format the main axis
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.set_xlabel("PCA-component")
+        ax.set_ylabel("Explained Variance", color="cornflowerblue")
+        # Step9: Create a twin y-axis for cumulative variance
+        ax2 = ax.twinx()
+        ax2.plot(
+            np.cumsum(pca.explained_variance_ratio_),
+            color="orange",
+            label="Cumulative explained variance",
+        )
+        ax2.plot(
+            np.cumsum(pca.explained_variance_ratio_),
+            color="black",
+            marker=".",
+            linestyle="None",
+        )
+        # Step10: Set limits for the twin axis
+        ax2.set_xlim((-0.01, ax2.get_xlim()[1]))
+        ax2.set_ylim((-0.01, 1.01))
+        ax2.spines["top"].set_visible(False)
+        ax2.spines["left"].set_visible(False)
+        ax2.set_ylabel("Cumulative Variance", color="orange")
+        # Step11: Add labels for explained variance and cumulative variance
+        for comp, t in enumerate(pca.explained_variance_ratio_.round(2)):
+            ax.text(comp, t, t, fontsize=10)
+        for comp, t in enumerate(np.cumsum(pca.explained_variance_ratio_).round(2)):
+            ax2.text(comp, t, t, fontsize=10)
+        # Step12: Set the title
+        title_str = (
+            f"{task['ANALYSIS_NAME']}\n"
+            "Multidimensional pattern in data via PCA (linear)\n"
+        )
+        plt.title(title_str, fontsize=10)
+        # Step13: Save the figure
+        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_5_pca"  # noqa
+        # Step14: Save as PNG
+        # Make PNG save path
+        png_save_path = f"{save_base_path}.png"
+        # Save as PNG
+        plt.savefig(png_save_path, dpi=300, bbox_inches="tight")
+        # Step15: Optionally save as SVG
+        if task["AS_SVG"]:
+            # Make SCG save path
+            svg_save_path = f"{save_base_path}.svg"
+            # Save as SVG
+            plt.savefig(svg_save_path, bbox_inches="tight")
+        # Step16: Display the figure
+        plt.show()
 
-    # Multidimensional pattern with PCA ---------------------------------------
-    # Do multidimensional pattern heatmap?
-    if task['DATA_MULTIDIM_PATTERN']:
-        # Check for NaN values
-        if not z.isnull().values.any():
-            # Instanciate PCA
-            pca = PCA(
-                n_components=x.shape[1],
-                copy=True,
-                whiten=False,
-                svd_solver='auto',
-                tol=0.0001,
-                iterated_power='auto',
-                random_state=None)
-            # Fit PCA
-            pca.fit(x)
-            # x names count
-            x_names_count = len(task['x_names'])
-            # Make figure
-            fig, ax = plt.subplots(figsize=(min((1+x_names_count*.6), 16), 4))
-            # Plot data
-            ax.plot(
-                pca.explained_variance_ratio_,
-                label='Explained variance per component')
-            # Add dots
-            ax.plot(
-                pca.explained_variance_ratio_,
-                color='black',
-                marker='.',
-                linestyle='None')
-            # Set x limit
-            ax.set_xlim((-0.01, ax.get_xlim()[1]))
-            # Set y limit
-            ax.set_ylim((-0.01, 1.01))
-            # Remove top, right and left frame elements
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            # Add x label
-            ax.set_xlabel('PCA-component')
-            # Add y label
-            ax.set_ylabel('Explained Variance')
-            # Create twin x axis
-            ax2 = ax.twinx()
-            # Plot cum sum of explained variance
-            ax2.plot(
-                np.cumsum(pca.explained_variance_ratio_),
-                color='orange',
-                label='Cumulative explained variance')
-            # Add dots
-            ax2.plot(
-                np.cumsum(pca.explained_variance_ratio_),
-                color='black',
-                marker='.',
-                linestyle='None')
-            # Set x limit
-            ax2.set_xlim((-0.01, ax2.get_xlim()[1]))
-            # Set y limit
-            ax2.set_ylim((-0.01, 1.01))
-            # Remove top, right and left frame elements
-            ax2.spines['top'].set_visible(False)
-            ax2.spines['left'].set_visible(False)
-            # Add y label
-            ax2.set_ylabel('Cumulative Variance')
-            # Add labels to ax
-            for comp, t in enumerate(
-                    pca.explained_variance_ratio_.round(decimals=2)):
-                # Add current label
-                ax.text(comp, t, t, fontsize=10)
-            # Add cum sum labels
-            for comp, t in enumerate(
-                    np.cumsum(
-                        pca.explained_variance_ratio_).round(decimals=2)):
-                # Add current cumsum label
-                ax2.text(comp, t, t, fontsize=10)
-            # Add legend
-            fig.legend(
-                loc='center right',
-                bbox_to_anchor=(1, 0.5),
-                bbox_transform=ax.transAxes)
-            # Make title string
-            title_str = (
-                task['ANALYSIS_NAME']+'\n' +
-                'Multidimensinal pattern in data via PCA (linear)\n')
-            # set title
-            plt.title(title_str, fontsize=10)
-
-            # Save figure -----------------------------------------------------
-            # Make save path
-            save_path = (
-                task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                '_'+task['y_name'][0]+'_eda_5_pca')
-            # Save figure in .png format
-            plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
-            # Check if save as svg is enabled
-            if task['AS_SVG']:
-                # Save figure in .svg format
-                plt.savefig(save_path+'.svg', bbox_inches='tight')
-            # show figure
-            plt.show()
-        # If nans
-        else:
-            # Raise warning
-            warnings.warn('PCA skipped because of NaN values.')
-
-    # Outlier dection via Isolation Forests -----------------------------------
-    # Do outlier detection histogram?
-    if task['DATA_OUTLIER']:
-        # Check for NaN values
-        if not z.isnull().values.any():
-            # Instanciate isolation forest
-            iForest = IsolationForest(
-                n_estimators=10000,
-                max_samples='auto',
-                contamination='auto',
-                max_features=1.0,
-                bootstrap=False,
-                n_jobs=-2,
-                random_state=None,
-                verbose=0,
-                warm_start=False)
-            # Fit data and predict outlier
-            outlier = iForest.fit_predict(x)
-            # Make outlier dataframe
-            outlier_df = pd.DataFrame(data=outlier, columns=['is_outlier'])
-            # Outlier score
-            outlier_score = iForest.decision_function(x)
-            # Make figure
-            fig, ax = plt.subplots(figsize=(8, 5))
-            # Plot hist of inlier score
-            sns.histplot(
-                data=outlier_score,
-                bins=30,
-                kde=True,
-                color='#777777',
-                ax=ax)
-            # Remove top, right and left frame elements
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            # Add x label
-            ax.set_xlabel('Isolation Forest outlier score')
-            # Add y label
-            ax.set_ylabel('Count')
-            # Create title string
-            title_str = (
-                task['ANALYSIS_NAME']+'\n' +
-                'Outlier in data via Isolation Forest: ' +
-                '{:.1f}% potential outliers\n')
-            # Add title
-            ax.set_title(
-                title_str.format(np.sum(outlier == -1)/len(outlier)*100))
-
-            # Save figure -----------------------------------------------------
-            # Make save path
-            save_path = (
-                task['path_to_results']+'/'+task['ANALYSIS_NAME'] +
-                '_'+task['y_name'][0]+'_eda_6_iForest')
-            # Save outlier data
-            outlier_df.to_excel(save_path+'.xlsx')
-            # Save figure in .png format
-            plt.savefig(save_path+'.png', dpi=300, bbox_inches='tight')
-            # Check if save as svg is enabled
-            if task['AS_SVG']:
-                # Save figure in .svg format
-                plt.savefig(save_path+'.svg', bbox_inches='tight')
-            # show figure
-            plt.show()
-        # If nans
-        else:
-            # Raise warning
-            warnings.warn('Warning: Outlier skipped because of NaN values.')
-
-    # Return ------------------------------------------------------------------
-    return
+    # --- Outlier Detection using Isolation Forest ---
+    logging.info("Outlier Detection using Isolation Forest.")
+    # If DATA_OUTLIER
+    if task["DATA_OUTLIER"]:
+        # Step1: Instantiate Isolation Forest
+        iForest = IsolationForest(
+            n_estimators=10000,
+            max_samples="auto",
+            contamination="auto",
+            max_features=1.0,
+            bootstrap=False,
+            n_jobs=-2,  # Use all available processors
+            random_state=None,
+            verbose=0,
+            warm_start=False,
+        )
+        # Step2: Fit data and predict outliers
+        outlier = iForest.fit_predict(x)
+        # Step3: Create a DataFrame to store outlier labels
+        outlier_df = pd.DataFrame(data=outlier, columns=["is_outlier"])
+        # Step4: Compute outlier scores
+        outlier_score = iForest.decision_function(x)
+        # Step5: Plot outlier scores
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.histplot(data=outlier_score, bins=30, kde=True, color="#777777", ax=ax)
+        # Step6: Format plot appearance
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.set_xlabel("Isolation Forest outlier score")
+        ax.set_ylabel("Count")
+        # Step7: Calculate the percentage of potential outliers
+        outlier_percentage = np.sum(outlier == -1) / len(outlier) * 100
+        title_str = (
+            f"{task['ANALYSIS_NAME']}\n"
+            f"Outlier in data via Isolation Forest: {outlier_percentage:.1f}% potential outliers"  # noqa
+        )
+        plt.title(title_str, fontsize=10)
+        # Step8: Save outputs
+        # Create save path
+        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_6_iForest"  # noqa
+        # Step9: Save outlier data to an Excel file
+        # Make excel save path
+        excel_save_path = f"{save_base_path}.xlsx"
+        # Save excel
+        outlier_df.to_excel(excel_save_path, index=False)
+        # Step10: Save the histogram plot as PNG
+        # Make PNG save path
+        png_save_path = f"{save_base_path}.png"
+        # Save as PNG
+        plt.savefig(png_save_path, dpi=300, bbox_inches="tight")
+        # Step11: Optionally save as SVG
+        if task["AS_SVG"]:
+            # Make SVG save path
+            svg_save_path = f"{save_base_path}.svg"
+            # Save as SVG
+            plt.savefig(svg_save_path, bbox_inches="tight")
+        # Step12: Display the plot
+        plt.show()
 
 
 def main() -> None:
-    '''
+    """
     Main function of exploratory data analysis.
+
+    Parameters
+    ----------
+    None
 
     Returns
     -------
-    None.
-    '''
+    None
 
-    ###########################################################################
-    # Specify analysis task
-    ###########################################################################
+    Raises
+    ------
+    OSError: If create results directory failed.
+    OSError: If copy iml_2_mdl script to results path failed.
+    FileNotFoundError: If load G, X, or Y failed.
+    """
 
-    # 1. Specify task ---------------------------------------------------------
+    ####################################################################################
+    # Script Configuration
+    ####################################################################################
+
+    # --- Specify task ---
 
     # Specify max number of samples. int (default: 10000)
     MAX_SAMPLES = 10000
@@ -863,347 +730,379 @@ def main() -> None:
     N_JOBS = -2
     # Number of folds in CV. int (default: 5)
     N_CV_FOLDS = 5
-    # Number of predictions in outer CV. int (default: 1000)
-    N_PRED_OUTER_CV = 1000
-    # Number of tries in random search. int (default: 100)
-    N_SAMPLES_RS = 100
-    # Number of predictions in inner CV. int (default: 1000)
-    N_PRED_INNER_CV = 1000
+    # Number of predictions in 5 fold CV. int (default: 1000)
+    # Be aware of hardcoded min. 2 and max. 5 repetitions.
+    N_PRED_CV = 1000
+    # Device to run computations. str (default: "cuda", "cpu")
+    DEVICE = "cuda"
     # Save plots additionally AS_SVG? bool (default: False)
     AS_SVG = False
 
-    # 2. Specify data ---------------------------------------------------------
+    # --- Specify data ---
 
-    # # Cancer data - classification 2 class
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'cancer'
-    # # Specify path to data. string
-    # PATH_TO_DATA = 'sample_data/cancer_20240806.xlsx'
-    # # Specify sheet name. string
-    # SHEET_NAME = 'data'
-    # # Specify task OBJECTIVE. string (classification, regression)
-    # OBJECTIVE = 'classification'
-    # # Specify grouping for CV split. list of string
-    # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'mean_radius',
-    #     'mean_texture',
-    #     'mean_perimeter',
-    #     'mean_area',
-    #     'mean_smoothness',
-    #     'mean_compactness',
-    #     'mean_concavity',
-    #     'mean_concave_points',
-    #     'mean_symmetry',
-    #     'mean_fractal_dimension',
-    #     'radius_error',
-    #     'texture_error',
-    #     'perimeter_error',
-    #     'area_error',
-    #     'smoothness_error',
-    #     'compactness_error',
-    #     'concavity_error',
-    #     'concave_points_error',
-    #     'symmetry_error',
-    #     'fractal_dimension_error',
-    #     'worst_radius',
-    #     'worst_texture',
-    #     'worst_perimeter',
-    #     'worst_area',
-    #     'worst_smoothness',
-    #     'worst_compactness',
-    #     'worst_concavity',
-    #     'worst_concave_points',
-    #     'worst_symmetry',
-    #     'worst_fractal_dimension',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = []
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = []
-    # # Specify target name(s). list of strings or []
-    # Y_NAMES = [
-    #     'benign_tumor',
-    #     ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
+    # Concentration data - regression
+    # Specifiy an analysis name
+    ANALYSIS_NAME = "concentration"
+    # Specify path to data. string
+    PATH_TO_DATA = "sample_data/concentration_20250122.xlsx"
+    # Specify sheet name. string
+    SHEET_NAME = "data_nan"
+    # Specify task OBJECTIVE. string (classification, regression)
+    OBJECTIVE = "regression"
+    # Specify grouping for CV split. list of string
+    G_NAME = [
+        "sample_id",
+    ]
+    # Specify predictor names. list of strings
+    X_NAMES = [
+        "nitrogen_nitrates",
+        "nitrites_ammonia",
+        "phosphate",
+        "pH",
+        "oxygen",
+        "chloride",
+        "compound_8",
+        "season",
+        "river_size",
+        "fluid_velocity",
+    ]
+    # Specify target name(s). list of strings or []
+    Y_NAMES = [
+        "concentration_a1",
+        "concentration_a2",
+    ]
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
 
     # # Diabetes data - regression
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'diabetes'
+    # ANALYSIS_NAME = "diabetes"
     # # Specify path to data. string
-    # PATH_TO_DATA = 'sample_data/diabetes_20240806.xlsx'
+    # PATH_TO_DATA = "sample_data/diabetes_20240806.xlsx"
     # # Specify sheet name. string
-    # SHEET_NAME = 'data'
+    # SHEET_NAME = "data"
     # # Specify task OBJECTIVE. string (classification, regression)
-    # OBJECTIVE = 'regression'
+    # OBJECTIVE = "regression"
     # # Specify grouping for CV split. list of string
     # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'age',
-    #     'bmi',
-    #     'bp',
-    #     's1_tc',
-    #     's2_ldl',
-    #     's3_hdl',
-    #     's4_tch',
-    #     's5_ltg',
-    #     's6_glu',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = [
-    #     'gender',
-    #     ]
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = []
+    #     "sample_id",
+    # ]
+    # # Specify predictor names. list of strings
+    # X_NAMES = [
+    #     "age",
+    #     "bmi",
+    #     "bp",
+    #     "s1_tc",
+    #     "s2_ldl",
+    #     "s3_hdl",
+    #     "s4_tch",
+    #     "s5_ltg",
+    #     "s6_glu",
+    #     "gender",
+    # ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'progression',
-    #     ]
+    #     "progression",
+    # ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+
+    # # Drug data - classification 5 class
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = "drug"
+    # # Specify path to data. string
+    # PATH_TO_DATA = "sample_data/drug_20250116.xlsx"
+    # # Specify sheet name. string
+    # SHEET_NAME = "data_nan"
+    # # Specify task OBJECTIVE. string (classification, regression)
+    # OBJECTIVE = "classification"
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     "sample_id",
+    # ]
+    # # Specify predictor names. list of strings
+    # X_NAMES = [
+    #     "age",
+    #     "na_to_k",
+    #     "gender_fm",
+    #     "cholesterol_nh",
+    #     "bp_lnh",
+    # ]
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     "drug",
+    # ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
     # # Employee data - classification 2 class
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'employee'
+    # ANALYSIS_NAME = "employee"
     # # Specify path to data. string
-    # PATH_TO_DATA = 'sample_data/employee_20240806.xlsx'
+    # PATH_TO_DATA = "sample_data/employee_20240806.xlsx"
     # # Specify sheet name. string
-    # SHEET_NAME = 'data'
+    # SHEET_NAME = "data"
     # # Specify task OBJECTIVE. string (classification, regression)
-    # OBJECTIVE = 'classification'
+    # OBJECTIVE = "classification"
     # # Specify grouping for CV split. list of string
     # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'age',
-    #     'distance_from_home',
-    #     'environment_satisfaction',
-    #     'job_satisfaction',
-    #     'monthly_income',
-    #     'num_companies_worked',
-    #     'stock_option_level',
-    #     'training_times_last_year',
-    #     'total_working_years',
-    #     'work_life_balance',
-    #     'years_at_company',
-    #     'years_since_last_promotion',
-    #     'years_with_curr_manager',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = [
-    #     'gender',
-    #     'over_time',
-    #     ]
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = [
-    #     'marital_status',
-    #     ]
+    #     "sample_id",
+    # ]
+    # # Specify predictor names. list of strings
+    # X_NAMES = [
+    #     "age",
+    #     "distance_from_home",
+    #     "environment_satisfaction",
+    #     "job_satisfaction",
+    #     "monthly_income",
+    #     "num_companies_worked",
+    #     "stock_option_level",
+    #     "training_times_last_year",
+    #     "total_working_years",
+    #     "work_life_balance",
+    #     "years_at_company",
+    #     "years_since_last_promotion",
+    #     "years_with_curr_manager",
+    #     "gender",
+    #     "over_time",
+    #     "marital_status",
+    # ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'attrition',
-    #     ]
+    #     "attrition",
+    # ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
     # # Housing data - regression
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'housing'
+    # ANALYSIS_NAME = "housing"
     # # Specify path to data. string
-    # PATH_TO_DATA = 'sample_data/housing_20240806.xlsx'
+    # PATH_TO_DATA = "sample_data/housing_20240806.xlsx"
     # # Specify sheet name. string
-    # SHEET_NAME = 'data'
+    # SHEET_NAME = "data"
     # # Specify task OBJECTIVE. string (classification, regression)
-    # OBJECTIVE = 'regression'
+    # OBJECTIVE = "regression"
     # # Specify grouping for CV split. list of string
     # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'median_income',
-    #     'house_age',
-    #     'average_rooms',
-    #     'average_bedrooms',
-    #     'population',
-    #     'average_occupation',
-    #     'latitude',
-    #     'longitude',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = []
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = [
-    #     'ocean_proximity',
-    #     ]
+    #     "sample_id",
+    # ]
+    # # Specify predictor names. list of strings
+    # X_NAMES = [
+    #     "median_income",
+    #     "house_age",
+    #     "average_rooms",
+    #     "average_bedrooms",
+    #     "population",
+    #     "average_occupation",
+    #     "latitude",
+    #     "longitude",
+    #     "ocean_proximity",
+    # ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'median_house_value',
-    #     ]
+    #     "median_house_value",
+    # ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
     # # Radon data - regression
     # # Specifiy an analysis name
-    # ANALYSIS_NAME = 'radon'
+    # ANALYSIS_NAME = "radon"
     # # Specify path to data. string
-    # PATH_TO_DATA = 'sample_data/radon_20240806.xlsx'
+    # PATH_TO_DATA = "sample_data/radon_20250116.xlsx"
     # # Specify sheet name. string
-    # SHEET_NAME = 'data'
+    # SHEET_NAME = "data_nan"
     # # Specify task OBJECTIVE. string (classification, regression)
-    # OBJECTIVE = 'regression'
+    # OBJECTIVE = "regression"
     # # Specify grouping for CV split. list of string
     # G_NAME = [
-    #     'sample_id',
-    #     ]
-    # # Specify continous predictor names. list of string or []
-    # X_CON_NAMES = [
-    #     'uppm',
-    #     ]
-    # # Specify binary categorical predictor names. list of string or []
-    # X_CAT_BIN_NAMES = [
-    #     'basement',
-    #     'floor',
-    #     ]
-    # # Specify multi categorical predictor names. list of string or []
-    # X_CAT_MULT_NAMES = [
-    #     'county_code',
-    #     'region',
-    #     'room',
-    #     'zip',
-    #     ]
+    #     "sample_id",
+    # ]
+    # # Specify predictor names. list of strings
+    # X_NAMES = [
+    #     "uppm",
+    #     "basement",
+    #     "floor",
+    #     "region",
+    #     "room",
+    #     "zip",
+    # ]
     # # Specify target name(s). list of strings or []
     # Y_NAMES = [
-    #     'log_radon',
-    #     ]
+    #     "log_radon",
+    # ]
     # # Rows to skip. list of int or []
     # SKIP_ROWS = []
 
-    # Wine data - classification 3 class
-    # Specifiy an analysis name
-    ANALYSIS_NAME = 'wine'
-    # Specify path to data. string
-    PATH_TO_DATA = 'sample_data/wine_20240806.xlsx'
-    # Specify sheet name. string
-    SHEET_NAME = 'data'
-    # Specify task OBJECTIVE. string (classification, regression)
-    OBJECTIVE = 'classification'
-    # Specify grouping for CV split. list of string
-    G_NAME = [
-        'sample_id',
-        ]
-    # Specify continous predictor names. list of string or []
-    X_CON_NAMES = [
-        'alcohol',
-        'malic_acid',
-        'ash',
-        'alcalinity_of_ash',
-        'magnesium',
-        'total_phenols',
-        'flavanoids',
-        'nonflavanoid_phenols',
-        'proanthocyanins',
-        'color_intensity',
-        'hue',
-        'od280_od315_of_diluted_wines',
-        'proline'
-        ]
-    # Specify binary categorical predictor names. list of string or []
-    X_CAT_BIN_NAMES = []
-    # Specify multi categorical predictor names. list of string or []
-    X_CAT_MULT_NAMES = []
-    # Specify target name(s). list of strings or []
-    Y_NAMES = [
-        'maker',
-        ]
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
+    # # Wine data - classification 3 class
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = "wine"
+    # # Specify path to data. string
+    # PATH_TO_DATA = "sample_data/wine_20240806.xlsx"
+    # # Specify sheet name. string
+    # SHEET_NAME = "data"
+    # # Specify task OBJECTIVE. string (classification, regression)
+    # OBJECTIVE = "classification"
+    # # Specify grouping for CV split. list of string
+    # G_NAME = [
+    #     "sample_id",
+    # ]
+    # # Specify predictor names. list of strings
+    # X_NAMES = [
+    #     "alcohol",
+    #     "malic_acid",
+    #     "ash",
+    #     "alcalinity_of_ash",
+    #     "magnesium",
+    #     "total_phenols",
+    #     "flavanoids",
+    #     "nonflavanoid_phenols",
+    #     "proanthocyanins",
+    #     "color_intensity",
+    #     "hue",
+    #     "od280_od315_of_diluted_wines",
+    #     "proline",
+    # ]
+    # # Specify target name(s). list of strings or []
+    # Y_NAMES = [
+    #     "maker",
+    # ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
 
-    ###########################################################################
+    ####################################################################################
 
-    # Create results directory path -------------------------------------------
-    path_to_results = 'res_eda_'+ANALYSIS_NAME
+    # --- Configure logging ---
+    # Basic configuration
+    logging.basicConfig(
+        filename=f"iml_1_eda_{ANALYSIS_NAME}.log",  # Log file path
+        filemode="w",  # Open the file in write mode to overwrite its content
+        level=logging.DEBUG,  # Set the minimum log level
+        format="%(asctime)s - %(levelname)s - %(message)s",  # Log message format
+        force=True,
+    )
+    # Create a console handler for output to the terminal
+    console_handler = logging.StreamHandler()
+    # Set the console log level
+    console_handler.setLevel(logging.INFO)
+    # Define the console log format
+    console_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    # Set the console log format
+    console_handler.setFormatter(console_formatter)
+    # Add the console handler to the root logger
+    logging.getLogger().addHandler(console_handler)
+    logging.info(
+        f"Interpretable Machine Learning - Exploratory Data Analysis (EDA) of {ANALYSIS_NAME} started."  # noqa
+    )
 
-    # Create task variable ----------------------------------------------------
+    # --- Savely create results directory ---
+    # Create results path
+    results_path = f"iml_1_eda_{ANALYSIS_NAME}"
+    try:
+        # Create results directory
+        os.makedirs(results_path, exist_ok=True)  # Supress FileExistsError
+    except OSError as e:
+        # Raise error
+        raise e
+
+    # --- Save pip requirements ---
+    # Get pip requirements
+    pip_requirements = get_pip_requirements()
+    # Open file in write mode
+    with open(f"{results_path}/iml_1_eda_pip_requirements.txt", "w") as file:
+        # Write pip requirements
+        file.write(pip_requirements)
+
+    # --- Save this python script ---
+    try:
+        # Copy iml_2_eda script to results path
+        shutil.copy("iml_1_eda.py", f"{results_path}/iml_1_eda.py")
+    except OSError as e:
+        # Raise error
+        raise e
+
+    # --- Create task dictionary ---
     task = {
-        'MAX_SAMPLES': MAX_SAMPLES,
-        'N_JOBS': N_JOBS,
-        'N_CV_FOLDS': N_CV_FOLDS,
-        'DATA_DISTRIBUTION_1D': DATA_DISTRIBUTION_1D,
-        'DATA_DISTRIBUTION_2D': DATA_DISTRIBUTION_2D,
-        'DATA_JOINT_INFORMATION_LINEAR': DATA_JOINT_INFORMATION_LINEAR,
-        'DATA_JOINT_INFORMATION_NON_LINEAR': DATA_JOINT_INFORMATION_NON_LINEAR,
-        'DATA_MULTIDIM_PATTERN': DATA_MULTIDIM_PATTERN,
-        'N_PRED_OUTER_CV': N_PRED_OUTER_CV,
-        'N_PRED_INNER_CV': N_PRED_INNER_CV,
-        'N_SAMPLES_RS': N_SAMPLES_RS,
-        'DATA_OUTLIER': DATA_OUTLIER,
-        'AS_SVG': AS_SVG,
-        'ANALYSIS_NAME': ANALYSIS_NAME,
-        'PATH_TO_DATA': PATH_TO_DATA,
-        'SHEET_NAME': SHEET_NAME,
-        'OBJECTIVE': OBJECTIVE,
-        'G_NAME': G_NAME,
-        'X_CON_NAMES': X_CON_NAMES,
-        'X_CAT_BIN_NAMES': X_CAT_BIN_NAMES,
-        'X_CAT_MULT_NAMES': X_CAT_MULT_NAMES,
-        'Y_NAMES': Y_NAMES,
-        'SKIP_ROWS': SKIP_ROWS,
-        'path_to_results': path_to_results,
-        'x_names': X_CON_NAMES+X_CAT_BIN_NAMES+X_CAT_MULT_NAMES,
-        }
+        "MAX_SAMPLES": MAX_SAMPLES,
+        "N_JOBS": N_JOBS,
+        "N_CV_FOLDS": N_CV_FOLDS,
+        "DATA_DISTRIBUTION_1D": DATA_DISTRIBUTION_1D,
+        "DATA_DISTRIBUTION_2D": DATA_DISTRIBUTION_2D,
+        "DATA_JOINT_INFORMATION_LINEAR": DATA_JOINT_INFORMATION_LINEAR,
+        "DATA_JOINT_INFORMATION_NON_LINEAR": DATA_JOINT_INFORMATION_NON_LINEAR,
+        "DATA_MULTIDIM_PATTERN": DATA_MULTIDIM_PATTERN,
+        "N_PRED_CV": N_PRED_CV,
+        "DATA_OUTLIER": DATA_OUTLIER,
+        "DEVICE": DEVICE,
+        "AS_SVG": AS_SVG,
+        "ANALYSIS_NAME": ANALYSIS_NAME,
+        "PATH_TO_DATA": PATH_TO_DATA,
+        "SHEET_NAME": SHEET_NAME,
+        "OBJECTIVE": OBJECTIVE,
+        "G_NAME": G_NAME,
+        "X_NAMES": X_NAMES,
+        "Y_NAMES": Y_NAMES,
+        "SKIP_ROWS": SKIP_ROWS,
+        "results_path": results_path,
+    }
 
-    # Create results directory ------------------------------------------------
-    create_dir(path_to_results)
+    # --- Load data ---
+    try:
+        # Load groups data from excel file
+        G = pd.read_excel(
+            task["PATH_TO_DATA"],
+            sheet_name=task["SHEET_NAME"],
+            header=0,
+            usecols=task["G_NAME"],
+            dtype="int",
+            skiprows=task["SKIP_ROWS"],
+        )
+    except FileNotFoundError as e:
+        # Raise error
+        raise e
+    try:
+        # Load predictors from excel file
+        X = pd.read_excel(
+            task["PATH_TO_DATA"],
+            sheet_name=task["SHEET_NAME"],
+            header=0,
+            usecols=task["X_NAMES"],
+            dtype="float",
+            skiprows=task["SKIP_ROWS"],
+        )
+    except FileNotFoundError as e:
+        # Raise error
+        raise e
+    # Reindex X to X_NAMES
+    X = X.reindex(task["X_NAMES"], axis=1)
+    try:
+        # Load targets from excel file
+        Y = pd.read_excel(
+            task["PATH_TO_DATA"],
+            sheet_name=task["SHEET_NAME"],
+            header=0,
+            usecols=task["Y_NAMES"],
+            dtype="float",
+            skiprows=task["SKIP_ROWS"],
+        )
+    except FileNotFoundError as e:
+        # Raise error
+        raise e
 
-    # Copy this python script to results directory ----------------------------
-    shutil.copy('iml_1_eda.py', path_to_results+'/iml_1_eda.py')
-
-    # Load data ---------------------------------------------------------------
-    # Load groups from excel file
-    G = pd.read_excel(
-        task['PATH_TO_DATA'],
-        sheet_name=task['SHEET_NAME'],
-        header=0,
-        usecols=task['G_NAME'],
-        dtype=np.float64,
-        skiprows=task['SKIP_ROWS'])
-    # Load predictors from excel file
-    X = pd.read_excel(
-        task['PATH_TO_DATA'],
-        sheet_name=task['SHEET_NAME'],
-        header=0,
-        usecols=task['x_names'],
-        dtype=np.float64,
-        skiprows=task['SKIP_ROWS'])
-    # Reindex x to x_names
-    X = X.reindex(task['x_names'], axis=1)
-    # Load targets from excel file
-    Y = pd.read_excel(
-        task['PATH_TO_DATA'],
-        sheet_name=task['SHEET_NAME'],
-        header=0,
-        usecols=task['Y_NAMES'],
-        dtype=np.float64,
-        skiprows=task['SKIP_ROWS'])
-
-    # Prepare data ------------------------------------------------------------
+    # --- Prepare data ---
     # Iterate over prediction targets (Y_NAMES)
     for i_y, y_name in enumerate(Y_NAMES):
         # Add prediction target index to task
-        task['i_y'] = i_y
+        task["i_y"] = i_y
         # Add prediction target name to task
-        task['y_name'] = [y_name]
+        task["y_name"] = y_name
+        # Make save path
+        save_path = f"{task['results_path']}/iml_1_eda_{task['y_name']}"
+        # Add save path to task
+        task["save_path"] = save_path
 
-        # Deal with NaNs in the target ----------------------------------------
+        # --- Deal with NaNs in the target ---
         # Get current target and remove NaNs
         y = Y[y_name].to_frame().dropna()
         # Use y index for groups and reset index
@@ -1212,13 +1111,20 @@ def main() -> None:
         x = X.reindex(index=y.index).reset_index(drop=True)
         # Reset index of target
         y = y.reset_index(drop=True)
+        # Log warning if samples were dropped because of NaNs in target
+        if y.shape[0] < Y.shape[0]:
+            # Lof warning
+            logging.warning(
+                f"{Y.shape[0] - y.shape[0]} samples were dropped due to NaNs in {y_name}."  # noqa
+            )
 
-        # Limit number of samples ---------------------------------------------
+        # --- Limit number of samples ---
         # Subsample predictors
         x = x.sample(
-            n=min(x.shape[0], task['MAX_SAMPLES']),
+            n=min(x.shape[0], task["MAX_SAMPLES"]),
             random_state=None,
-            ignore_index=False)
+            ignore_index=False,
+        )
         # Slice group to fit subsampled predictors
         g = g.loc[x.index, :].reset_index(drop=True)
         # Slice targets to fit subsampled predictors
@@ -1226,27 +1132,46 @@ def main() -> None:
         # Reset index of predictors
         x = x.reset_index(drop=True)
 
-        # Store data ----------------------------------------------------------
-        # Save groups
-        g.to_excel(
-            path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
-            '_data_g.xlsx')
-        # Save predictors
-        x.to_excel(
-            path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
-            '_data_x.xlsx')
-        # Save targets
-        y.to_excel(
-            path_to_results+'/'+ANALYSIS_NAME+'_'+task['y_name'][0] +
-            '_data_y.xlsx')
+        # --- Save data ---
+        try:
+            # Save group data
+            g.to_excel(f"{task['save_path']}_data_g.xlsx", index=False)
+        except OSError as e:
+            # Raise error
+            raise e
+        try:
+            # Save predictor data
+            x.to_excel(f"{task['save_path']}_data_x.xlsx", index=False)
+        except OSError as e:
+            # Raise error
+            raise e
+        try:
+            # Save target data
+            y.to_excel(f"{task['save_path']}_data_y.xlsx", index=False)
+        except OSError as e:
+            # Raise error
+            raise e
 
-        # Exploratory data analysis (EDA) -------------------------------------
-        # Run EDA
+        # --- Run Exploratory Data Analysis (EDA) ---
         eda(task, g, x, y)
 
-    # Return ------------------------------------------------------------------
-    return
+    # --- Save log file to results directory ---
+    # Log success
+    logging.info(f"Exploratory Data Analysis (EDA) of {ANALYSIS_NAME} finished.")
+    try:
+        # Copy log file to results directory
+        shutil.copy(
+            f"iml_1_eda_{ANALYSIS_NAME}.log",
+            f"{results_path}/iml_1_eda_{ANALYSIS_NAME}.log",
+        )
+    except OSError as e:
+        # Raise error
+        raise e
+    # Stop logging
+    logging.shutdown()
+    # Delete the original log file
+    os.remove(f"iml_1_eda_{ANALYSIS_NAME}.log")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

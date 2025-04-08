@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 Scikit-learn compatible Repeated Group KFold Cross-Validation
 v2
 Source: https://github.com/BbChip0103/sklearn_repeated_group_k_fold/blob/
 main/sklearn_repeated_group_k_fold.py
 @author: Dr. David Steyrl david.steyrl@gmail.com
-'''
+"""
 
 import numpy as np
 from sklearn.utils.validation import check_array
@@ -14,7 +14,7 @@ from sklearn.model_selection._split import _BaseKFold, _RepeatedSplits
 
 
 class GroupKFold(_BaseKFold):
-    '''
+    """
     K-fold iterator variant with non-overlapping groups.
     The same group will not appear in two different folds (the number of
     distinct groups has to be at least equal to the number of folds).
@@ -69,11 +69,10 @@ class GroupKFold(_BaseKFold):
     --------
     LeaveOneGroupOut : For splitting the data according to explicit
         domain-specific stratification of the dataset.
-    '''
+    """
 
     def __init__(self, n_splits=5, *, shuffle=False, random_state=None):
-        super().__init__(n_splits=n_splits, shuffle=shuffle,
-                         random_state=random_state)
+        super().__init__(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
 
     def _iter_test_indices(self, X, y, groups):
         if groups is None:
@@ -84,9 +83,10 @@ class GroupKFold(_BaseKFold):
         n_groups = len(unique_groups)
 
         if self.n_splits > n_groups:
-            raise ValueError("Cannot have number of splits n_splits=%d greater"
-                             " than the number of groups: %d."
-                             % (self.n_splits, n_groups))
+            raise ValueError(
+                "Cannot have number of splits n_splits=%d greater"
+                " than the number of groups: %d." % (self.n_splits, n_groups)
+            )
 
         # Weight groups by their number of occurrences
         n_samples_per_group = np.bincount(groups.squeeze())
@@ -97,8 +97,7 @@ class GroupKFold(_BaseKFold):
         if self.shuffle:
             rng = check_random_state(self.random_state)
             for n_sample in np.unique(n_samples_per_group):
-                same_n_indices_index = np.where(
-                    n_samples_per_group == n_sample)[0]
+                same_n_indices_index = np.where(n_samples_per_group == n_sample)[0]
                 target_chunk = indices[same_n_indices_index]
                 rng.shuffle(target_chunk)
                 indices[same_n_indices_index] = target_chunk
@@ -123,7 +122,7 @@ class GroupKFold(_BaseKFold):
             yield np.where(indices == f)[0]
 
     def split(self, X, y=None, groups=None):
-        '''
+        """
         Generate indices to split data into training and test set.
 
         Parameters
@@ -143,13 +142,13 @@ class GroupKFold(_BaseKFold):
             The training set indices for that split.
         test : ndarray
             The testing set indices for that split.
-        '''
+        """
 
         return super().split(X, y, groups)
 
 
 class RepeatedGroupKFold(_RepeatedSplits):
-    '''
+    """
     Repeated Group K-Fold cross validator. Repeats Group K-Fold n times with
     different randomization in each repetition.
     Read more in the :ref:`User Guide <repeated_group_k_fold>`.
@@ -192,15 +191,18 @@ class RepeatedGroupKFold(_RepeatedSplits):
     See Also
     --------
     RepeatedStratifiedKFold : Repeats Stratified K-Fold n times.
-    '''
+    """
 
     def __init__(self, *, n_splits=5, n_repeats=10, random_state=None):
         super().__init__(
-            GroupKFold, n_repeats=n_repeats,
-            random_state=random_state, n_splits=n_splits)
+            GroupKFold,
+            n_repeats=n_repeats,
+            random_state=random_state,
+            n_splits=n_splits,
+        )
 
     def split(self, X, y=None, groups=None):
-        '''
+        """
         Generates indices to split data into training and test set.
 
         Parameters
@@ -220,7 +222,7 @@ class RepeatedGroupKFold(_RepeatedSplits):
             The training set indices for that split.
         test : ndarray
             The testing set indices for that split.
-        '''
+        """
 
         n_repeats = self.n_repeats
         rng = check_random_state(self.random_state)
