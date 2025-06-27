@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Interpretable Machine-Learning - Modelling (MDL-lgbm)
-v893
+Interpretable Machine-Learning 2 - Modelling (MDL-lgbm)
+v903
 @author: david.steyrl@univie.ac.at
 """
 
@@ -1179,13 +1179,14 @@ def main() -> None:
 
     Raises
     ------
-    OSError: If create results directory failed.
-    OSError: If copy iml_2_mdl script to results path failed.
-    FileNotFoundError: If load G, X, or Y failed.
+    OSError: If create store directory failed.
+    OSError: If save pip requirements to store failed.
+    OSError: If copy iml_2_mdl_lgbm script to store failed.
+    FileNotFoundError: If load G, X, or Y to store failed.
     OSError: If save g, x, or y failed.
     ValueError: If OBJECTIVE is not regression and classification.
     ValueError: If TYPE is not CV and TT.
-    OSError: If copy log file to results directory failed.
+    OSError: If copy log file to store failed.
     """
 
     ####################################################################################
@@ -1210,23 +1211,25 @@ def main() -> None:
     N_PRED_INNER_CV = 1000
     # Number of samples SHAP. int (default: 1000).
     N_SAMPLES_SHAP = 1000
+    # Store prefix (where results go). str
+    STORE_PREFIX = "iml_2_mdl_lgbm_"
 
     # --- Specify data ---
 
     # Concentration data - regression
     # Specifiy an analysis name
     ANALYSIS_NAME = "concentration"
-    # Specify path to data. string
+    # Specify path to data. str
     PATH_TO_DATA = "sample_data/concentration_20250122.xlsx"
-    # Specify sheet name. string
+    # Specify sheet name. str
     SHEET_NAME = "data_nan"
-    # Specify task OBJECTIVE. string (classification, regression)
+    # Specify task OBJECTIVE. str (classification, regression)
     OBJECTIVE = "regression"
-    # Specify grouping for CV split. list of string
+    # Specify grouping for CV split. list of str
     G_NAME = [
         "sample_id",
     ]
-    # Specify predictor name(s). list of strings
+    # Specify predictor name(s). list of str
     X_NAMES = [
         "chloride",
         "compound_8",
@@ -1241,7 +1244,7 @@ def main() -> None:
     ]
     # Specify indices for X_NAMES to target encode. list of int (default: [])
     TARGET_ENCODING_IND = []
-    # Specify target name(s). list of strings
+    # Specify target name(s). list of str
     Y_NAMES = [
         "concentration_a1",
         "concentration_a2",
@@ -1254,17 +1257,17 @@ def main() -> None:
     # # Diabetes data - regression
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "diabetes"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/diabetes_20240806.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "regression"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor name(s). list of strings
+    # # Specify predictor name(s). list of str
     # X_NAMES = [
     #     "age",
     #     "bmi",
@@ -1279,7 +1282,7 @@ def main() -> None:
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
     # TARGET_ENCODING_IND = []
-    # # Specify target name(s). list of strings
+    # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "progression",
     # ]
@@ -1291,17 +1294,17 @@ def main() -> None:
     # # Drug data - classification 5 class
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "drug"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/drug_20250116.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data_nan"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "classification"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor name(s). list of strings
+    # # Specify predictor name(s). list of str
     # X_NAMES = [
     #     "age",
     #     "bp_lnh",
@@ -1311,7 +1314,7 @@ def main() -> None:
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
     # TARGET_ENCODING_IND = []
-    # # Specify target name(s). list of strings
+    # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "drug",
     # ]
@@ -1323,17 +1326,17 @@ def main() -> None:
     # # Employee data - classification 2 class
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "employee"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/employee_20240806.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "classification"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor name(s). list of strings
+    # # Specify predictor name(s). list of str
     # X_NAMES = [
     #     "age",
     #     "distance_from_home",
@@ -1354,7 +1357,7 @@ def main() -> None:
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
     # TARGET_ENCODING_IND = []
-    # # Specify target name(s). list of strings
+    # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "attrition",
     # ]
@@ -1366,17 +1369,17 @@ def main() -> None:
     # # Housing data - regression
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "housing"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/housing_20240806.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "regression"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor name(s). list of strings
+    # # Specify predictor name(s). list of str
     # X_NAMES = [
     #     "median_income",
     #     "house_age",
@@ -1390,7 +1393,7 @@ def main() -> None:
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
     # TARGET_ENCODING_IND = []
-    # # Specify target name(s). list of strings
+    # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "median_house_value",
     # ]
@@ -1402,17 +1405,17 @@ def main() -> None:
     # # Radon data - regression
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "radon"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/radon_20250116.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data_nan"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "regression"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor name(s). list of strings
+    # # Specify predictor name(s). list of str
     # X_NAMES = [
     #     "uppm",
     #     "basement",
@@ -1423,7 +1426,7 @@ def main() -> None:
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
     # TARGET_ENCODING_IND = [5]
-    # # Specify target name(s). list of strings
+    # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "log_radon",
     # ]
@@ -1435,17 +1438,17 @@ def main() -> None:
     # # Wine data - classification 3 class
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "wine"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/wine_20240806.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "classification"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor names. list of strings
+    # # Specify predictor names. list of str
     # X_NAMES = [
     #     "alcohol",
     #     "malic_acid",
@@ -1463,7 +1466,7 @@ def main() -> None:
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
     # TARGET_ENCODING_IND = []
-    # # Specify target name(s). list of strings
+    # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "maker",
     # ]
@@ -1475,12 +1478,18 @@ def main() -> None:
     ####################################################################################
 
     # --- Configure logging ---
+    # Make log filename
+    log_filename = f"{STORE_PREFIX}{ANALYSIS_NAME}.log"
     # Basic configuration
     logging.basicConfig(
-        filename=f"iml_2_mdl_lgbm_{ANALYSIS_NAME}.log",  # Log file path
-        filemode="w",  # Open the file in write mode to overwrite its content
-        level=logging.INFO,  # Set the minimum log level
-        format="%(asctime)s - %(levelname)s - %(message)s",  # Log format
+        # Log file path
+        filename=log_filename,
+        # Open the file in write mode to overwrite its content
+        filemode="w",
+        # Set the minimum log level
+        level=logging.INFO,
+        # Log format
+        format="%(asctime)s - %(levelname)s - %(message)s",
         force=True,
     )
     # Create a console handler for output to the terminal
@@ -1494,36 +1503,40 @@ def main() -> None:
     # Add the console handler to the root logger
     logging.getLogger().addHandler(console_handler)
     logging.info(
-        f"Interpretable Machine Learning - Modelling (MDL-lgbm) of {ANALYSIS_NAME}."
+        f"Interpretable Machine Learning - Modelling (MDL-lgbm) of {ANALYSIS_NAME} started."  # noqa
     )
 
-    # --- Create results directory ---
-    # Create results path
-    results_path = f"iml_2_mdl_lgbm_{ANALYSIS_NAME}"
+    # --- Store directory ---
+    # Make store path (where results go)
+    store_path = f"{STORE_PREFIX}{ANALYSIS_NAME}"
     try:
         # Create results directory
-        os.makedirs(results_path, exist_ok=True)  # Supress FileExistsError
+        os.makedirs(store_path, exist_ok=True)  # Supress FileExistsError
     except OSError as e:
         # Raise error
         raise e
 
-    # --- Save pip requirements ---
-    # Get pip requirements
-    pip_requirements = get_pip_requirements()
-    # Open file in write mode
-    with open(f"{results_path}/iml_2_mdl_lgbm_pip_requirements.txt", "w") as file:
-        # Write pip requirements
-        file.write(pip_requirements)
-
-    # --- Save this python script ---
+    # --- Pip requirements ---
     try:
-        # Copy iml_2_mdl script to results path
-        shutil.copy("iml_2_mdl_lgbm.py", f"{results_path}/iml_2_mdl_lgbm.py")
+        # Get pip requirements
+        pip_requirements = get_pip_requirements()
+        # Open file in write mode
+        with open(f"{store_path}/{STORE_PREFIX}pip_requirements.txt", "w") as file:
+            # Write pip requirements
+            file.write(pip_requirements)
     except OSError as e:
         # Raise error
         raise e
 
-    # --- Create task dictionary ---
+    # --- Python script ---
+    try:
+        # Copy iml_2_mdl script to store path
+        shutil.copy("iml_2_mdl_lgbm.py", f"{store_path}/iml_2_mdl_lgbm.py")
+    except OSError as e:
+        # Raise error
+        raise e
+
+    # --- Task dictionary ---
     task = {
         "TYPE": TYPE,
         "N_JOBS": N_JOBS,
@@ -1532,6 +1545,7 @@ def main() -> None:
         "N_PRED_INNER_CV": N_PRED_INNER_CV,
         "N_SAMPLES_RS": N_SAMPLES_RS,
         "N_SAMPLES_SHAP": N_SAMPLES_SHAP,
+        "STORE_PREFIX": STORE_PREFIX,
         "ANALYSIS_NAME": ANALYSIS_NAME,
         "PATH_TO_DATA": PATH_TO_DATA,
         "SHEET_NAME": SHEET_NAME,
@@ -1542,7 +1556,7 @@ def main() -> None:
         "Y_NAMES": Y_NAMES,
         "SKIP_ROWS": SKIP_ROWS,
         "TEST_SET_IND": TEST_SET_IND,
-        "results_path": results_path,
+        "store_path": store_path,
     }
 
     # --- Load data ---
@@ -1598,11 +1612,11 @@ def main() -> None:
         # Add prediction target name to task
         task["y_name"] = y_name
         # Make save path
-        save_path = f"{task['results_path']}/iml_2_mdl_lgbm_{task['y_name']}"
+        save_path = f"{task['store_path']}/{STORE_PREFIX}{task['y_name']}"
         # Add save path to task
         task["save_path"] = save_path
 
-        # --- Deal with NaNs in the target ---
+        # --- NaNs in target ---
         # Get current target and remove NaNs
         y = Y[y_name].to_frame().dropna()
         # Use y index for groups and reset index
@@ -1636,7 +1650,7 @@ def main() -> None:
             # Raise error
             raise e
 
-        # --- Get num classes ---
+        # --- Num classes ---
         # If classification
         if task["OBJECTIVE"] == "classification":
             # Get number of unique classes in prediction target
@@ -1652,16 +1666,16 @@ def main() -> None:
         # --- Run modelling ---
         run_modelling(task, g, x, y)
 
-    # --- Save log file to results directory ---
+    # --- Save log file ---
     # Log success
     logging.info(
-        f"Interpretable Machine-Learning - Modelling (MDL) of {ANALYSIS_NAME} finished."
+        f"Interpretable Machine Learning - Modelling (MDL-lgbm) of {ANALYSIS_NAME} finished."  # noqa
     )
     try:
-        # Copy log file to results directory
+        # Copy log file to store directory
         shutil.copy(
-            f"iml_2_mdl_lgbm_{ANALYSIS_NAME}.log",
-            f"{results_path}/iml_2_mdl_lgbm_{ANALYSIS_NAME}.log",
+            log_filename,
+            f"{store_path}/{log_filename}",
         )
     except OSError as e:
         # Raise error
@@ -1669,7 +1683,7 @@ def main() -> None:
     # Stop logging
     logging.shutdown()
     # Delete the original log file
-    os.remove(f"iml_2_mdl_lgbm_{ANALYSIS_NAME}.log")
+    os.remove(log_filename)
 
 
 if __name__ == "__main__":

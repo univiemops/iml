@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Interpretable Machine-Learning - Plotting (PLT)
-v371
+Interpretable Machine-Learning 3 - Plotting (PLT)
+v380
 @author: david.steyrl@univie.ac.at
 """
 
@@ -13,6 +13,7 @@ import pandas as pd
 import pickle as pkl
 import seaborn as sns
 import shutil
+import subprocess
 from scipy.stats import t
 from shap import Explanation
 from shap.plots import beeswarm
@@ -21,6 +22,44 @@ from sklearn.metrics import confusion_matrix
 
 # Set plot log level to Warning (Info not shown anymore)
 plt.set_loglevel("WARNING")
+
+
+def get_pip_requirements() -> str:
+    """
+    Retrieve the current pip requirements as a string.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    str: The YAML-formatted configuration of the current pip requirements.
+
+    Raises
+    ------
+    RuntimeError: If the subprocess fails to run the `pip freeze` command.
+    Exception: If unexpected error occurred.
+    """
+    try:
+        # Run the 'pip freeze' command
+        pip_requirements = subprocess.run(
+            ["pip", "freeze"],
+            capture_output=True,  # Capture stdout and stderr
+            text=True,  # Decode output as a string
+            shell=True,
+        )
+        # If command was successful
+        if pip_requirements.returncode == 0:
+            # Return the pip requirements string
+            return pip_requirements.stdout
+        # If command was not successful
+        else:
+            # Raise error
+            raise RuntimeError(f"Failed to run 'pip freeze': {pip_requirements.stderr}")
+    except Exception as e:
+        # Raise exception
+        raise e
 
 
 def corrected_std(differences: np.ndarray, n_tst_over_n_trn: float = 0.25) -> float:
@@ -100,7 +139,7 @@ def corrected_ttest(differences: np.ndarray, n_tst_over_n_trn: float = 0.25) -> 
     return t_stat, p_val
 
 
-def plot_parameter_distributions(task: dict, results: dict, plots_path: str) -> None:
+def plot_parameter_distributions(task: dict, results: dict, store_path: str) -> None:
     """
     Print model parameter distributions in histogram.
 
@@ -110,7 +149,7 @@ def plot_parameter_distributions(task: dict, results: dict, plots_path: str) -> 
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -167,7 +206,7 @@ def plot_parameter_distributions(task: dict, results: dict, plots_path: str) -> 
 
         # --- Save figure ---
         # Make save path
-        save_path = f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_0_{idx}_parameter_{name}"[  # noqa
+        save_path = f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_0_{idx}_parameter_{name}"[  # noqa
             :150
         ]
         # Save figure
@@ -180,7 +219,7 @@ def plot_parameter_distributions(task: dict, results: dict, plots_path: str) -> 
         plt.show()
 
 
-def plot_regression_scatter(task: dict, results: dict, plots_path: str) -> None:
+def plot_regression_scatter(task: dict, results: dict, store_path: str) -> None:
     """
     Model fit in a scatter plot (regression).
 
@@ -190,7 +229,7 @@ def plot_regression_scatter(task: dict, results: dict, plots_path: str) -> None:
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -354,7 +393,7 @@ def plot_regression_scatter(task: dict, results: dict, plots_path: str) -> None:
     # --- Save figure ---
     # Make save path
     save_path = (
-        f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_1_0_predictions"[:150]
+        f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_1_0_predictions"[:150]
     )  # noqa
     # Save figure
     plt.savefig(f"{save_path}.png", dpi=300, bbox_inches="tight")
@@ -366,7 +405,7 @@ def plot_regression_scatter(task: dict, results: dict, plots_path: str) -> None:
     plt.show()
 
 
-def plot_regression_violin(task: dict, results: dict, plots_path: str) -> None:
+def plot_regression_violin(task: dict, results: dict, store_path: str) -> None:
     """
     Model fit in a violin plot (regression).
 
@@ -376,7 +415,7 @@ def plot_regression_violin(task: dict, results: dict, plots_path: str) -> None:
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -487,7 +526,7 @@ def plot_regression_violin(task: dict, results: dict, plots_path: str) -> None:
 
     # --- Save figure ---
     # Make save path
-    save_path = f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_1_1_predictions_distribution"[  # noqa
+    save_path = f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_1_1_predictions_distribution"[  # noqa
         :150
     ]
     # Save figure
@@ -500,7 +539,7 @@ def plot_regression_violin(task: dict, results: dict, plots_path: str) -> None:
     plt.show()
 
 
-def plot_classification_confusion(task: dict, results: dict, plots_path: str) -> None:
+def plot_classification_confusion(task: dict, results: dict, store_path: str) -> None:
     """
     Model fit as confusion matrix plot (classification).
 
@@ -510,7 +549,7 @@ def plot_classification_confusion(task: dict, results: dict, plots_path: str) ->
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -678,7 +717,7 @@ def plot_classification_confusion(task: dict, results: dict, plots_path: str) ->
     # --- Save figure ---
     # Make save path
     save_path = (
-        f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_1_0_predictions"[:150]
+        f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_1_0_predictions"[:150]
     )
     # Save figure
     plt.savefig(save_path + ".png", dpi=300, bbox_inches="tight")
@@ -690,7 +729,7 @@ def plot_classification_confusion(task: dict, results: dict, plots_path: str) ->
     plt.show()
 
 
-def plot_classification_violin(task: dict, results: dict, plots_path: str) -> None:
+def plot_classification_violin(task: dict, results: dict, store_path: str) -> None:
     """
     Model fit in a violin plot (classification).
 
@@ -700,7 +739,7 @@ def plot_classification_violin(task: dict, results: dict, plots_path: str) -> No
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -800,7 +839,7 @@ def plot_classification_violin(task: dict, results: dict, plots_path: str) -> No
 
     # --- Save figure ---
     # Make save path
-    save_path = f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_1_1_predictions_distribution"[  # noqa
+    save_path = f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_1_1_predictions_distribution"[  # noqa
         :150
     ]
     # Save figure
@@ -885,7 +924,7 @@ def get_avg_shap_values(task: dict, explanations: list, c_class: int = -1) -> tu
     return shap_values_df, base
 
 
-def plot_avg_shap_values(task: dict, results: dict, plots_path: str) -> None:
+def plot_avg_shap_values(task: dict, results: dict, store_path: str) -> None:
     """
     Plot average SHAP values (global effects).
 
@@ -895,7 +934,7 @@ def plot_avg_shap_values(task: dict, results: dict, plots_path: str) -> None:
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -1044,7 +1083,7 @@ def plot_avg_shap_values(task: dict, results: dict, plots_path: str) -> None:
 
         # --- Save plot ---
         # Make save path
-        save_path = f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_2_0_{c_class}_avg_shap_values"[  # noqa
+        save_path = f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_2_0_{c_class}_avg_shap_values"[  # noqa
             :150
         ]
         # Save figure
@@ -1058,7 +1097,7 @@ def plot_avg_shap_values(task: dict, results: dict, plots_path: str) -> None:
 
 
 def plot_avg_shap_values_distributions(
-    task: dict, results: dict, plots_path: str
+    task: dict, results: dict, store_path: str
 ) -> None:
     """
     Plot average SHAP values distributions (global effects distribution).
@@ -1069,7 +1108,7 @@ def plot_avg_shap_values_distributions(
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -1224,7 +1263,7 @@ def plot_avg_shap_values_distributions(
 
         # --- Save plots and results ---
         # Make save path
-        save_path = f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_2_1_{c_class}_avg_shap_values_distributions"[  # noqa
+        save_path = f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_2_1_{c_class}_avg_shap_values_distributions"[  # noqa
             :150
         ]
         # Save figure
@@ -1345,7 +1384,7 @@ def get_single_shap_values(task: dict, explanations: list, c_class: int = -1) ->
     return shap_explanations, base
 
 
-def plot_single_shap_values(task: dict, results: dict, plots_path: str) -> None:
+def plot_single_shap_values(task: dict, results: dict, store_path: str) -> None:
     """
     Plot single SHAP values.
 
@@ -1355,7 +1394,7 @@ def plot_single_shap_values(task: dict, results: dict, plots_path: str) -> None:
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -1466,7 +1505,7 @@ def plot_single_shap_values(task: dict, results: dict, plots_path: str) -> None:
 
         # --- Save plot ---
         # Make save path
-        save_path = f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_2_2_{c_class}_shap_values"[  # noqa
+        save_path = f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_2_2_{c_class}_shap_values"[  # noqa
             :150
         ]
         # Save figure
@@ -1480,7 +1519,7 @@ def plot_single_shap_values(task: dict, results: dict, plots_path: str) -> None:
 
 
 def plot_single_shap_values_dependences(
-    task: dict, results: dict, plots_path: str
+    task: dict, results: dict, store_path: str
 ) -> None:
     """
     Plot single SHAP values dependences.
@@ -1491,7 +1530,7 @@ def plot_single_shap_values_dependences(
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -1594,7 +1633,7 @@ def plot_single_shap_values_dependences(
 
             # --- Save plot ---
             # Make save path
-            save_path = f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_3_{c_class}_{idx}_shap_values_dependency_{c_pred}"[  # noqa
+            save_path = f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_3_{c_class}_{idx}_shap_values_dependency_{c_pred}"[  # noqa
                 :150
             ]
             # Save figure
@@ -1662,7 +1701,7 @@ def get_avg_shap_interaction_values(
 
 
 def plot_average_shap_interaction_values(
-    task: dict, results: dict, plots_path: str
+    task: dict, results: dict, store_path: str
 ) -> None:
     """
     Plot average SHAP interaction values (global interaction effects).
@@ -1673,7 +1712,7 @@ def plot_average_shap_interaction_values(
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -1896,7 +1935,7 @@ def plot_average_shap_interaction_values(
 
         # --- Save plot ---
         # Make save path
-        save_path = f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_4_{c_class}_avg_interaction_values"[  # noqa
+        save_path = f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_4_{c_class}_avg_interaction_values"[  # noqa
             :150
         ]
         # Save figure
@@ -1910,7 +1949,7 @@ def plot_average_shap_interaction_values(
 
 
 def plot_single_shap_interaction_values_dependences(
-    task: dict, results: dict, plots_path: str
+    task: dict, results: dict, store_path: str
 ) -> None:
     """
     Plot single SHAP interaction values.
@@ -1921,7 +1960,7 @@ def plot_single_shap_interaction_values_dependences(
         Dictionary holding the task describtion variables.
     results : dictionary
         Dictionary holding the results of the ml analyses.
-    plots_path : string
+    store_path : string
         Path to the plots.
 
     Returns
@@ -2037,7 +2076,7 @@ def plot_single_shap_interaction_values_dependences(
 
                 # --- Save plot ---
                 # Make save path
-                save_path = f"{plots_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_5_{c_class}_{count}_single_shap_values_dependency_{shap_values.feature_names[i]}_{shap_values.feature_names[k]}"[  # noqa
+                save_path = f"{store_path}/{task['ANALYSIS_NAME']}_{task['y_name']}_5_{c_class}_{count}_single_shap_values_dependency_{shap_values.feature_names[i]}_{shap_values.feature_names[k]}"[  # noqa
                     :150
                 ]
                 # Save figure
@@ -2066,8 +2105,13 @@ def main() -> None:
 
     Raises
     ------
-    OSError: If create results directory failed.
-    OSError: If copy log file to results directory failed.
+    FileNotFoundError: If load task failed.
+    FileNotFoundError: If load results failed.
+    OSError: If create store directory failed.
+    OSError: If save pip requirements to store failed.
+    OSError: If copy iml_3_plt script to store failed.
+    ValueError: If OBJECTIVE not found.
+    OSError: If copy log file to store failed.
     """
 
     ####################################################################################
@@ -2078,39 +2122,49 @@ def main() -> None:
     MCC = False
     # Save plots additionally as svg. bool (default: False)
     AS_SVG = False
+    # Load prefix (where results are loaded from). str
+    LOAD_PREFIX = "iml_2_mdl_"
+    # Store prefix (where results go). str
+    STORE_PREFIX = "iml_3_plt_"
 
     ####################################################################################
 
     # --- Load result paths ---
     res_paths = [
-        f.name for f in os.scandir(".") if f.is_dir() and f.name.startswith("iml_2_mdl")
+        f.name for f in os.scandir(".") if f.is_dir() and f.name.startswith(LOAD_PREFIX)
     ]
 
     # --- Loop over result paths ---
     for res_path in res_paths:
         # Get task paths
-        task_paths = [
+        task_file_paths = [
             f.name
             for f in os.scandir(f"./{res_path}/")
             if f.name.endswith("_task.pickle")
         ]
         # Get result paths
-        results_paths = [
+        results_file_paths = [
             f.name
             for f in os.scandir(f"./{res_path}/")
             if f.name.endswith("_results.pickle")
         ]
 
         # --- Loop over tasks ---
-        for i_task, task_path in enumerate(task_paths):
+        for i_task, task_path in enumerate(task_file_paths):
 
             # --- Configure logging ---
+            # Make log filename
+            log_filename = f"{STORE_PREFIX}{task_path.removeprefix(LOAD_PREFIX).removesuffix('_task.pickle')}.log"  # noqa
             # Basic configuration
             logging.basicConfig(
-                filename=f"iml_3_plt_{task_path}.log",  # Log file path
-                filemode="w",  # Open the file in write mode to overwrite its content
-                level=logging.INFO,  # Set the minimum log level
-                format="%(asctime)s - %(levelname)s - %(message)s",  # Log format
+                # Log file path
+                filename=log_filename,
+                # Open the file in write mode to overwrite its content
+                filemode="w",
+                # Set the minimum log level
+                level=logging.INFO,
+                # Log format
+                format="%(asctime)s - %(levelname)s - %(message)s",
                 force=True,
             )
             # Create a console handler for output to the terminal
@@ -2130,86 +2184,120 @@ def main() -> None:
             )
 
             # --- Load task and results ---
-            # Load task description
-            with open(f"{res_path}/{task_path}", "rb") as filehandle:
-                # Load task from binary data stream
-                task = pkl.load(filehandle)
+            try:
+                # Load task description
+                with open(f"{res_path}/{task_path}", "rb") as filehandle:
+                    # Load task from binary data stream
+                    task = pkl.load(filehandle)
+            except FileNotFoundError as e:
+                # Raise error
+                raise e
             # Add multiple comparison correction to task
             task["MCC"] = MCC
             # Add as svg to task
             task["AS_SVG"] = AS_SVG
-            # Load results
-            with open(f"{res_path}/{results_paths[i_task]}", "rb") as filehandle:
-                # Load results from binary data stream
-                results = pkl.load(filehandle)
+            try:
+                # Load results
+                with open(
+                    f"{res_path}/{results_file_paths[i_task]}", "rb"
+                ) as filehandle:
+                    # Load results from binary data stream
+                    results = pkl.load(filehandle)
+            except FileNotFoundError as e:
+                # Raise error
+                raise e
 
-            # --- Create plots directory ---
-            # Plots path
-            plots_path = f"{res_path}/{task['y_name']}_plots"
+            # --- Create store directory ---
+            # Make store path (where plots go)
+            store_path = (
+                f"{STORE_PREFIX}{res_path.removeprefix(LOAD_PREFIX)}/{task['y_name']}"
+            )
             try:
                 # Create plots directory
-                os.makedirs(plots_path, exist_ok=True)  # Supress FileExistsError
+                os.makedirs(store_path, exist_ok=True)  # Supress FileExistsError
+            except OSError as e:
+                # Raise error
+                raise e
+
+            # --- Pip requirements ---
+            try:
+                # Get pip requirements
+                pip_requirements = get_pip_requirements()
+                # Open file in write mode
+                with open(
+                    f"{store_path}/{STORE_PREFIX}pip_requirements.txt", "w"
+                ) as file:
+                    # Write pip requirements
+                    file.write(pip_requirements)
+            except OSError as e:
+                # Raise error
+                raise e
+
+            # --- Python script ---
+            try:
+                # Copy iml_3_plt script to store path
+                shutil.copy("iml_3_plt.py", f"{store_path}/iml_3_plt.py")
             except OSError as e:
                 # Raise error
                 raise e
 
             # --- Plot parameter distributions ---
             logging.info("Plot parameter distribution.")
-            plot_parameter_distributions(task, results, plots_path)
+            plot_parameter_distributions(task, results, store_path)
 
             # --- Plot model fit ---
             # If regression
             if task["OBJECTIVE"] == "regression":
                 logging.info("Plot model fit.")
                 # Print model fit as scatter plot
-                plot_regression_scatter(task, results, plots_path)
+                plot_regression_scatter(task, results, store_path)
                 # Print model fit as violinplot of metrics
-                plot_regression_violin(task, results, plots_path)
+                plot_regression_violin(task, results, store_path)
             # If classification
             elif task["OBJECTIVE"] == "classification":
                 logging.info("Plot model fit.")
                 # Print model fit as confusion matrix
-                plot_classification_confusion(task, results, plots_path)
+                plot_classification_confusion(task, results, store_path)
                 # Print model fit as violinplot of metrics
-                plot_classification_violin(task, results, plots_path)
+                plot_classification_violin(task, results, store_path)
             else:
                 # Raise error
                 raise ValueError("OBJECTIVE not found.")
 
             # --- Plot average SHAP values ---
             logging.info("Plot average SHAP values.")
-            plot_avg_shap_values(task, results, plots_path)
+            plot_avg_shap_values(task, results, store_path)
 
             # --- Plot average SHAP values distribution ---
             logging.info("Plot average SHAP values distribution.")
-            plot_avg_shap_values_distributions(task, results, plots_path)
+            plot_avg_shap_values_distributions(task, results, store_path)
 
             # --- Plot single SHAP values ---
             logging.info("Plot single SHAP values.")
-            plot_single_shap_values(task, results, plots_path)
+            plot_single_shap_values(task, results, store_path)
 
             # --- Plot single SHAP values dependencies ---
             logging.info("Plot single SHAP values dependencies.")
-            plot_single_shap_values_dependences(task, results, plots_path)
+            plot_single_shap_values_dependences(task, results, store_path)
 
             # --- Plot average SHAP values interactions ---
             logging.info("Plot average SHAP values interactions.")
-            plot_average_shap_interaction_values(task, results, plots_path)
+            plot_average_shap_interaction_values(task, results, store_path)
 
             # --- Plot single SHAP values interactions ---
             logging.info("Plot single SHAP values interactions.")
-            plot_single_shap_interaction_values_dependences(task, results, plots_path)
+            plot_single_shap_interaction_values_dependences(task, results, store_path)
 
             # --- Save log file to results directory ---
             # Log success
             logging.info(
-                f"Interpretable Machine-Learning - Plotting (PLT) of {res_path} finished."  # noqa
+                f"Interpretable Machine-Learning - Plotting (PLT) of {store_path} finished."  # noqa
             )
             try:
                 # Copy log file to results directory
                 shutil.copy(
-                    f"iml_3_plt_{task_path}.log",
-                    f"{plots_path}/iml_3_plt_{task_path}.log",
+                    log_filename,
+                    f"{store_path}/{log_filename}",
                 )
             except OSError as e:
                 # Raise error
@@ -2217,7 +2305,7 @@ def main() -> None:
             # Stop logging
             logging.shutdown()
             # Delete the original log file
-            os.remove(f"iml_3_plt_{task_path}.log")
+            os.remove(log_filename)
 
 
 if __name__ == "__main__":

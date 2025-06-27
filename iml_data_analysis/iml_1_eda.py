@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Interpretable Machine-Learning - Exploratory Data Analysis (EDA)
-v249
+Interpretable Machine-Learning 1 - Exploratory Data Analysis (EDA)
+v260
 @author: david.steyrl@univie.ac.at
 """
 
@@ -324,7 +324,7 @@ def eda(task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame) -> None:
         # Call tight layout
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
         # Step 5: Save the figure
-        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_1_distri_1D"  # noqa
+        save_base_path = f"{task['store_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_1_distri_1D"  # noqa
         # Make PNG save path
         png_save_path = f"{save_base_path}.png"
         # Save as PNG
@@ -359,7 +359,7 @@ def eda(task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame) -> None:
         # Step 3: Add KDE plots for lower triangle
         pair_plot.map_lower(sns.kdeplot, levels=3, color=".2")
         # Step 4: Save the figure
-        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_2_distri_2D"  # noqa
+        save_base_path = f"{task['store_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_2_distri_2D"  # noqa
         # Make PNG save path
         png_save_path = f"{save_base_path}.png"
         # Save as PNG
@@ -423,7 +423,7 @@ def eda(task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame) -> None:
         cb_ax.set_ylabel(colorbar_label, fontsize=10)
         cb_ax.set_box_aspect(50)
         # Step 5: Save the figure
-        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_3_joint_lin"  # noqa
+        save_base_path = f"{task['store_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_3_joint_lin"  # noqa
         # Make PNG save path
         png_save_path = f"{save_base_path}.png"
         # Save as PNG
@@ -524,7 +524,7 @@ def eda(task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame) -> None:
         )
         plt.title(title_str, fontsize=10)
         # Step11: Save heatmap figure
-        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_4_joint_nonlin"  # noqa
+        save_base_path = f"{task['store_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_4_joint_nonlin"  # noqa
         # Make PNG save path
         png_save_path = f"{save_base_path}.png"
         # Save as PNG
@@ -612,7 +612,7 @@ def eda(task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame) -> None:
         )
         plt.title(title_str, fontsize=10)
         # Step13: Save the figure
-        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_5_pca"  # noqa
+        save_base_path = f"{task['store_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_5_pca"  # noqa
         # Step14: Save as PNG
         # Make PNG save path
         png_save_path = f"{save_base_path}.png"
@@ -666,7 +666,7 @@ def eda(task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame) -> None:
         plt.title(title_str, fontsize=10)
         # Step8: Save outputs
         # Create save path
-        save_base_path = f"{task['results_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_6_iForest"  # noqa
+        save_base_path = f"{task['store_path']}/{task['ANALYSIS_NAME']}_{task['y_name']}_eda_6_iForest"  # noqa
         # Step9: Save outlier data to an Excel file
         # Make excel save path
         excel_save_path = f"{save_base_path}.xlsx"
@@ -701,9 +701,12 @@ def main() -> None:
 
     Raises
     ------
-    OSError: If create results directory failed.
-    OSError: If copy iml_2_mdl script to results path failed.
+    OSError: If create store directory failed.
+    OSError: If save pip requirements to store failed.
+    OSError: If copy iml_1_eda script to store failed.
     FileNotFoundError: If load G, X, or Y failed.
+    OSError: If save g, x, or y to store failed.
+    OSError: If copy log file to store failed.
     """
 
     ####################################################################################
@@ -735,6 +738,8 @@ def main() -> None:
     N_PRED_CV = 1000
     # Device to run computations. str (default: "cuda", "cpu")
     DEVICE = "cuda"
+    # Store prefix (where results go). str
+    STORE_PREFIX = "iml_1_eda_"
     # Save plots additionally AS_SVG? bool (default: False)
     AS_SVG = False
 
@@ -743,17 +748,17 @@ def main() -> None:
     # Concentration data - regression
     # Specifiy an analysis name
     ANALYSIS_NAME = "concentration"
-    # Specify path to data. string
+    # Specify path to data. str
     PATH_TO_DATA = "sample_data/concentration_20250122.xlsx"
-    # Specify sheet name. string
+    # Specify sheet name. str
     SHEET_NAME = "data_nan"
-    # Specify task OBJECTIVE. string (classification, regression)
+    # Specify task OBJECTIVE. str (classification, regression)
     OBJECTIVE = "regression"
-    # Specify grouping for CV split. list of string
+    # Specify grouping for CV split. list of str
     G_NAME = [
         "sample_id",
     ]
-    # Specify predictor names. list of strings
+    # Specify predictor names. list of str
     X_NAMES = [
         "nitrogen_nitrates",
         "nitrites_ammonia",
@@ -766,7 +771,7 @@ def main() -> None:
         "river_size",
         "fluid_velocity",
     ]
-    # Specify target name(s). list of strings or []
+    # Specify target name(s). list of str or []
     Y_NAMES = [
         "concentration_a1",
         "concentration_a2",
@@ -777,17 +782,17 @@ def main() -> None:
     # # Diabetes data - regression
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "diabetes"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/diabetes_20240806.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "regression"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor names. list of strings
+    # # Specify predictor names. list of str
     # X_NAMES = [
     #     "age",
     #     "bmi",
@@ -800,7 +805,7 @@ def main() -> None:
     #     "s6_glu",
     #     "gender",
     # ]
-    # # Specify target name(s). list of strings or []
+    # # Specify target name(s). list of str or []
     # Y_NAMES = [
     #     "progression",
     # ]
@@ -810,17 +815,17 @@ def main() -> None:
     # # Drug data - classification 5 class
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "drug"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/drug_20250116.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data_nan"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "classification"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor names. list of strings
+    # # Specify predictor names. list of str
     # X_NAMES = [
     #     "age",
     #     "na_to_k",
@@ -828,7 +833,7 @@ def main() -> None:
     #     "cholesterol_nh",
     #     "bp_lnh",
     # ]
-    # # Specify target name(s). list of strings or []
+    # # Specify target name(s). list of str or []
     # Y_NAMES = [
     #     "drug",
     # ]
@@ -838,17 +843,17 @@ def main() -> None:
     # # Employee data - classification 2 class
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "employee"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/employee_20240806.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "classification"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor names. list of strings
+    # # Specify predictor names. list of str
     # X_NAMES = [
     #     "age",
     #     "distance_from_home",
@@ -867,7 +872,7 @@ def main() -> None:
     #     "over_time",
     #     "marital_status",
     # ]
-    # # Specify target name(s). list of strings or []
+    # # Specify target name(s). list of str or []
     # Y_NAMES = [
     #     "attrition",
     # ]
@@ -877,17 +882,17 @@ def main() -> None:
     # # Housing data - regression
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "housing"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/housing_20240806.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "regression"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor names. list of strings
+    # # Specify predictor names. list of str
     # X_NAMES = [
     #     "median_income",
     #     "house_age",
@@ -899,7 +904,7 @@ def main() -> None:
     #     "longitude",
     #     "ocean_proximity",
     # ]
-    # # Specify target name(s). list of strings or []
+    # # Specify target name(s). list of str or []
     # Y_NAMES = [
     #     "median_house_value",
     # ]
@@ -909,17 +914,17 @@ def main() -> None:
     # # Radon data - regression
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "radon"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/radon_20250116.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data_nan"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "regression"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor names. list of strings
+    # # Specify predictor names. list of str
     # X_NAMES = [
     #     "uppm",
     #     "basement",
@@ -928,7 +933,7 @@ def main() -> None:
     #     "room",
     #     "zip",
     # ]
-    # # Specify target name(s). list of strings or []
+    # # Specify target name(s). list of str or []
     # Y_NAMES = [
     #     "log_radon",
     # ]
@@ -938,17 +943,17 @@ def main() -> None:
     # # Wine data - classification 3 class
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "wine"
-    # # Specify path to data. string
+    # # Specify path to data. str
     # PATH_TO_DATA = "sample_data/wine_20240806.xlsx"
-    # # Specify sheet name. string
+    # # Specify sheet name. str
     # SHEET_NAME = "data"
-    # # Specify task OBJECTIVE. string (classification, regression)
+    # # Specify task OBJECTIVE. str (classification, regression)
     # OBJECTIVE = "classification"
-    # # Specify grouping for CV split. list of string
+    # # Specify grouping for CV split. list of str
     # G_NAME = [
     #     "sample_id",
     # ]
-    # # Specify predictor names. list of strings
+    # # Specify predictor names. list of str
     # X_NAMES = [
     #     "alcohol",
     #     "malic_acid",
@@ -964,7 +969,7 @@ def main() -> None:
     #     "od280_od315_of_diluted_wines",
     #     "proline",
     # ]
-    # # Specify target name(s). list of strings or []
+    # # Specify target name(s). list of str or []
     # Y_NAMES = [
     #     "maker",
     # ]
@@ -974,12 +979,18 @@ def main() -> None:
     ####################################################################################
 
     # --- Configure logging ---
+    # Make log filename
+    log_filename = f"{STORE_PREFIX}{ANALYSIS_NAME}.log"
     # Basic configuration
     logging.basicConfig(
-        filename=f"iml_1_eda_{ANALYSIS_NAME}.log",  # Log file path
-        filemode="w",  # Open the file in write mode to overwrite its content
-        level=logging.DEBUG,  # Set the minimum log level
-        format="%(asctime)s - %(levelname)s - %(message)s",  # Log message format
+        # Log file path
+        filename=log_filename,
+        # Open the file in write mode to overwrite its content
+        filemode="w",
+        # Set the minimum log level
+        level=logging.DEBUG,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        # Log message format
         force=True,
     )
     # Create a console handler for output to the terminal
@@ -996,33 +1007,37 @@ def main() -> None:
         f"Interpretable Machine Learning - Exploratory Data Analysis (EDA) of {ANALYSIS_NAME} started."  # noqa
     )
 
-    # --- Savely create results directory ---
-    # Create results path
-    results_path = f"iml_1_eda_{ANALYSIS_NAME}"
+    # --- Store directory ---
+    # Make store path (where results go)
+    store_path = f"{STORE_PREFIX}{ANALYSIS_NAME}"
     try:
         # Create results directory
-        os.makedirs(results_path, exist_ok=True)  # Supress FileExistsError
+        os.makedirs(store_path, exist_ok=True)  # Supress FileExistsError
     except OSError as e:
         # Raise error
         raise e
 
-    # --- Save pip requirements ---
-    # Get pip requirements
-    pip_requirements = get_pip_requirements()
-    # Open file in write mode
-    with open(f"{results_path}/iml_1_eda_pip_requirements.txt", "w") as file:
-        # Write pip requirements
-        file.write(pip_requirements)
-
-    # --- Save this python script ---
+    # --- Pip requirements ---
     try:
-        # Copy iml_2_eda script to results path
-        shutil.copy("iml_1_eda.py", f"{results_path}/iml_1_eda.py")
+        # Get pip requirements
+        pip_requirements = get_pip_requirements()
+        # Open file in write mode
+        with open(f"{store_path}/{STORE_PREFIX}pip_requirements.txt", "w") as file:
+            # Write pip requirements
+            file.write(pip_requirements)
     except OSError as e:
         # Raise error
         raise e
 
-    # --- Create task dictionary ---
+    # --- Python script ---
+    try:
+        # Copy iml_1_eda script to store path
+        shutil.copy("iml_1_eda.py", f"{store_path}/iml_1_eda.py")
+    except OSError as e:
+        # Raise error
+        raise e
+
+    # --- Task dictionary ---
     task = {
         "MAX_SAMPLES": MAX_SAMPLES,
         "N_JOBS": N_JOBS,
@@ -1035,6 +1050,7 @@ def main() -> None:
         "N_PRED_CV": N_PRED_CV,
         "DATA_OUTLIER": DATA_OUTLIER,
         "DEVICE": DEVICE,
+        "STORE_PREFIX": STORE_PREFIX,
         "AS_SVG": AS_SVG,
         "ANALYSIS_NAME": ANALYSIS_NAME,
         "PATH_TO_DATA": PATH_TO_DATA,
@@ -1044,7 +1060,7 @@ def main() -> None:
         "X_NAMES": X_NAMES,
         "Y_NAMES": Y_NAMES,
         "SKIP_ROWS": SKIP_ROWS,
-        "results_path": results_path,
+        "store_path": store_path,
     }
 
     # --- Load data ---
@@ -1098,11 +1114,11 @@ def main() -> None:
         # Add prediction target name to task
         task["y_name"] = y_name
         # Make save path
-        save_path = f"{task['results_path']}/iml_1_eda_{task['y_name']}"
+        save_path = f"{task['store_path']}/{STORE_PREFIX}{task['y_name']}"
         # Add save path to task
         task["save_path"] = save_path
 
-        # --- Deal with NaNs in the target ---
+        # --- NaNs in target ---
         # Get current target and remove NaNs
         y = Y[y_name].to_frame().dropna()
         # Use y index for groups and reset index
@@ -1155,14 +1171,14 @@ def main() -> None:
         # --- Run Exploratory Data Analysis (EDA) ---
         eda(task, g, x, y)
 
-    # --- Save log file to results directory ---
+    # --- Save log file ---
     # Log success
     logging.info(f"Exploratory Data Analysis (EDA) of {ANALYSIS_NAME} finished.")
     try:
         # Copy log file to results directory
         shutil.copy(
-            f"iml_1_eda_{ANALYSIS_NAME}.log",
-            f"{results_path}/iml_1_eda_{ANALYSIS_NAME}.log",
+            log_filename,
+            f"{store_path}/{log_filename}",
         )
     except OSError as e:
         # Raise error
@@ -1170,7 +1186,7 @@ def main() -> None:
     # Stop logging
     logging.shutdown()
     # Delete the original log file
-    os.remove(f"iml_1_eda_{ANALYSIS_NAME}.log")
+    os.remove(log_filename)
 
 
 if __name__ == "__main__":
