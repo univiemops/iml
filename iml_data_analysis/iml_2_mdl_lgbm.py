@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Interpretable Machine-Learning 2 - Modelling (MDL-lgbm)
-v903
+v909
 @author: david.steyrl@univie.ac.at
 """
 
@@ -61,7 +61,7 @@ def get_pip_requirements() -> str:
     try:
         # Run the 'pip freeze' command
         pip_requirements = subprocess.run(
-            ["pip", "freeze"],
+            "pip freeze",
             capture_output=True,  # Capture stdout and stderr
             text=True,  # Decode output as a string
             shell=True,
@@ -754,22 +754,6 @@ def get_explanations(
     shap_explanations = explainer(x_tst_shap, interactions=True, check_additivity=False)
 
     # --- Post process shap_explanations ---
-    # Replace scaled data in shap explanations with original
-    shap_explanations.data = x_tst_shap_orig
-    # If multiclass, aggregate multi categorical predictor shap values
-    if task["OBJECTIVE"] == "classification" and task["n_classes"] > 2:
-        # If multi categorical predictors
-        if task["X_CAT_MULT_NAMES"]:
-            # Loop over multi categorical predictors
-            for name in task["X_CAT_MULT_NAMES"]:
-                # Get names of variables to group
-                group = [n for n in shap_explanations.feature_names if name in n]
-                # Aggregate shap values
-                shap_explanations = aggregate_shap_explanations(
-                    shap_explanations=shap_explanations,
-                    features_to_group=group,
-                    new_feature_name=name,
-                )
     # If regression, undo target transformation effect on base values and shap values
     if task["OBJECTIVE"] == "regression":
         # Get target transformer scale from pipeline
@@ -782,7 +766,22 @@ def get_explanations(
         ) + tf_mean
         # Rescale shap values from scaled data to original space
         shap_explanations.values = shap_explanations.values * tf_scale
-
+    # If multiclass, aggregate multi categorical predictor shap values
+    if task["OBJECTIVE"] == "classification" and task["n_classes"] > 2:
+        # If multi categorical predictors
+        if task["TARGET_ENCODING_IND"]:
+            # Loop over multi categorical predictors
+            for name in [task["X_NAMES"][i] for i in task["TARGET_ENCODING_IND"]]:
+                # Get names of variables to group
+                group = [n for n in shap_explanations.feature_names if name in n]
+                # Aggregate shap values
+                shap_explanations = aggregate_shap_explanations(
+                    shap_explanations=shap_explanations,
+                    features_to_group=group,
+                    new_feature_name=name,
+                )
+    # Replace scaled data in shap explanations with original
+    shap_explanations.data = x_tst_shap_orig[shap_explanations.feature_names]
     # --- Return shap explanations ---
     return shap_explanations
 
@@ -1313,7 +1312,7 @@ def main() -> None:
     #     "na_to_k",
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
-    # TARGET_ENCODING_IND = []
+    # TARGET_ENCODING_IND = [1]
     # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "drug",
@@ -1339,6 +1338,8 @@ def main() -> None:
     # # Specify predictor name(s). list of str
     # X_NAMES = [
     #     "age",
+    #     "gender",
+    #     "marital_status",
     #     "distance_from_home",
     #     "environment_satisfaction",
     #     "job_satisfaction",
@@ -1351,12 +1352,10 @@ def main() -> None:
     #     "years_at_company",
     #     "years_since_last_promotion",
     #     "years_with_curr_manager",
-    #     "gender",
     #     "over_time",
-    #     "marital_status",
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
-    # TARGET_ENCODING_IND = []
+    # TARGET_ENCODING_IND = [2]
     # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "attrition",
@@ -1420,12 +1419,12 @@ def main() -> None:
     #     "uppm",
     #     "basement",
     #     "floor",
-    #     "region",
     #     "room",
     #     "zip",
+    #     "region",
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
-    # TARGET_ENCODING_IND = [5]
+    # TARGET_ENCODING_IND = [4]
     # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "log_radon",
@@ -1465,7 +1464,7 @@ def main() -> None:
     #     "proline",
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
-    # TARGET_ENCODING_IND = []
+    # TARGET_ENCODING_IND = [4]
     # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "maker",

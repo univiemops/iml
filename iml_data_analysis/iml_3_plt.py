@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Interpretable Machine-Learning 3 - Plotting (PLT)
-v380
+v384
 @author: david.steyrl@univie.ac.at
 """
 
@@ -44,7 +44,7 @@ def get_pip_requirements() -> str:
     try:
         # Run the 'pip freeze' command
         pip_requirements = subprocess.run(
-            ["pip", "freeze"],
+            "pip freeze",
             capture_output=True,  # Capture stdout and stderr
             text=True,  # Decode output as a string
             shell=True,
@@ -918,7 +918,7 @@ def get_avg_shap_values(task: dict, explanations: list, c_class: int = -1) -> tu
         # Raise error
         raise ValueError(f"OBJECTIVE is {task['OBJECTIVE']}.")
     # Make SHAP values dataframe
-    shap_values_df = pd.DataFrame(shap_values, columns=task["X_NAMES"])
+    shap_values_df = pd.DataFrame(shap_values, columns=explanations[0].feature_names)
 
     # --- Return shap values ---
     return shap_values_df, base
@@ -988,9 +988,9 @@ def plot_avg_shap_values(task: dict, results: dict, store_path: str) -> None:
 
         # --- Additional info ---
         # x names lengths
-        x_names_max_len = max([len(i) for i in task["X_NAMES"]])
+        x_names_max_len = max([len(i) for i in shap_values_df.columns.to_list()])
         # x names count
-        x_names_count = len(task["X_NAMES"])
+        x_names_count = len(shap_values_df.columns.to_list())
         # Make title string
         title_str = (
             f"{task['ANALYSIS_NAME']}"
@@ -1047,7 +1047,7 @@ def plot_avg_shap_values(task: dict, results: dict, store_path: str) -> None:
             # Add to pval list
             pval.append(np.around(c_pval, decimals=3))
         # Make pval series
-        pval_se = pd.Series(data=pval, index=task["X_NAMES"])
+        pval_se = pd.Series(data=pval, index=shap_values_df.columns.to_list())
         # Multiple comparison correction
         if task["MCC"]:
             # Multiply p value by number of tests
@@ -1194,9 +1194,9 @@ def plot_avg_shap_values_distributions(
 
         # --- Additional info ---
         # x names lengths
-        x_names_max_len = max([len(i) for i in task["X_NAMES"]])
+        x_names_max_len = max([len(i) for i in shap_values_df.columns.to_list()])
         # x names count
-        x_names_count = len(task["X_NAMES"])
+        x_names_count = len(shap_values_df.columns.to_list())
         # Make title string
         title_str = (
             f"{task['ANALYSIS_NAME']}"
@@ -1449,9 +1449,9 @@ def plot_single_shap_values(task: dict, results: dict, store_path: str) -> None:
 
         # --- Additional info ---
         # x names lengths
-        x_names_max_len = max([len(i) for i in task["X_NAMES"]])
+        x_names_max_len = max([len(i) for i in single_shap_values.feature_names])
         # x names count
-        x_names_count = len(task["X_NAMES"])
+        x_names_count = len(single_shap_values.feature_names)
         # Make title string
         title_str = (
             f"{task['ANALYSIS_NAME']}"
@@ -1468,7 +1468,7 @@ def plot_single_shap_values(task: dict, results: dict, store_path: str) -> None:
         # --- Plot SHAP values beeswarm ----
         beeswarm(
             explanations,
-            max_display=len(task["X_NAMES"]),
+            max_display=len(single_shap_values.feature_names),
             order=Explanation.abs.mean(0),
             clustering=None,
             cluster_threshold=0.5,
@@ -1784,8 +1784,8 @@ def plot_average_shap_interaction_values(
         # Make dataframe
         shap_values_inter_df = pd.DataFrame(
             np.mean(shap_values_inter, axis=0),
-            index=task["X_NAMES"],
-            columns=task["X_NAMES"],
+            index=shap_values_df.columns.to_list(),
+            columns=shap_values_df.columns.to_list(),
         )
         # Reindex to sorted index
         shap_values_inter_sort_df = shap_values_inter_df.reindex(
@@ -1804,9 +1804,9 @@ def plot_average_shap_interaction_values(
 
         # --- Additional info ---
         # x names lengths
-        x_names_max_len = max([len(i) for i in task["X_NAMES"]])
+        x_names_max_len = max([len(i) for i in shap_values_df.columns.to_list()])
         # x names count
-        x_names_count = len(task["X_NAMES"])
+        x_names_count = len(shap_values_df.columns.to_list())
         # Make title string
         title_str = (
             f"{task['ANALYSIS_NAME']}"

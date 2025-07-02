@@ -59,7 +59,7 @@ def get_pip_requirements() -> str:
     try:
         # Run the 'pip freeze' command
         pip_requirements = subprocess.run(
-            ["pip", "freeze"],
+            "pip freeze",
             capture_output=True,  # Capture stdout and stderr
             text=True,  # Decode output as a string
             shell=True,
@@ -846,7 +846,7 @@ def main() -> None:
     #     "na_to_k",
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [])
-    # TARGET_ENCODING_IND = []
+    # TARGET_ENCODING_IND = [1]
     # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "drug",
@@ -954,11 +954,11 @@ def main() -> None:
     #     "basement",
     #     "floor",
     #     "region",
-    #     "room",
     #     "zip",
+    #     "room",
     # ]
     # # Specify indices for X_NAMES to target encode. list of int (default: [5])
-    # TARGET_ENCODING_IND = [5]
+    # TARGET_ENCODING_IND = [4]
     # # Specify target name(s). list of str
     # Y_NAMES = [
     #     "log_radon",

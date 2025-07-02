@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Interpretable Machine-Learning 1 - Exploratory Data Analysis (EDA)
-v260
+v261
 @author: david.steyrl@univie.ac.at
 """
 
@@ -50,7 +50,7 @@ def get_pip_requirements() -> str:
     try:
         # Run the 'pip freeze' command
         pip_requirements = subprocess.run(
-            ["pip", "freeze"],
+            "pip freeze",
             capture_output=True,  # Capture stdout and stderr
             text=True,  # Decode output as a string
             shell=True,
