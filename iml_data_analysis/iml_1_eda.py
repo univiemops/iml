@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Interpretable Machine-Learning 1 - Exploratory Data Analysis (EDA)
-v261
+v264
 @author: david.steyrl@univie.ac.at
 """
 
@@ -233,7 +233,7 @@ def compute_pair_predictions(
 
     # --- Final score processing ---
     # Limit pairwise predictions scores to be bigger than or equal to 0
-    pair_pred = max(0, np.mean(scores))
+    pair_pred = max(0, np.nanmean(scores))
 
     # --- Return pairwise predictions ---
     return pair_pred

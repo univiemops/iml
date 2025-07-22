@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Interpretable Machine-Learning 3 - Plotting (PLT)
-v384
+v400
 @author: david.steyrl@univie.ac.at
 """
 
@@ -18,7 +18,11 @@ from scipy.stats import t
 from shap import Explanation
 from shap.plots import beeswarm
 from shap.plots import scatter
+from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import r2_score
+from typing import Callable
 
 # Set plot log level to Warning (Info not shown anymore)
 plt.set_loglevel("WARNING")
@@ -128,7 +132,7 @@ def corrected_ttest(differences: np.ndarray, n_tst_over_n_trn: float = 0.25) -> 
     None
     """
     # Get mean of differences
-    mean = np.mean(differences)
+    mean = np.nanmean(differences)
     # Get corrected standard deviation, make sure std is not exactly zero
     std = max(1e-6, corrected_std(differences, n_tst_over_n_trn))
     # Compute t statistics
@@ -219,7 +223,13 @@ def plot_parameter_distributions(task: dict, results: dict, store_path: str) -> 
         plt.show()
 
 
-def plot_regression_scatter(task: dict, results: dict, store_path: str) -> None:
+def plot_regression_scatter(
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
+) -> None:
     """
     Model fit in a scatter plot (regression).
 
@@ -231,6 +241,10 @@ def plot_regression_scatter(task: dict, results: dict, store_path: str) -> None:
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -241,11 +255,54 @@ def plot_regression_scatter(task: dict, results: dict, store_path: str) -> None:
     None
     """
 
+    # --- Get masks ---
+    # If divide variable is in prediction target
+    if DIVIDE_DATA_BY == task["y_name"]:
+        # Masks are based in laberls
+        masks = [pd.Series(k["y_true"]).map(RULE) for k in results["scores"]]
+    # If divide variable is in predictors
+    elif DIVIDE_DATA_BY in task["X_NAMES"]:
+        # Masks are based on data
+        masks = [k["x_tst"][DIVIDE_DATA_BY].map(RULE) for k in results["scores"]]
+    else:
+        # Masks are all True to pass all data
+        masks = [
+            pd.Series(k["y_true"]).map(lambda item: True) for k in results["scores"]
+        ]
+
     # --- Prepare results ---
     # True values
-    true_values = np.concatenate([i["y_true"] for i in results["scores"]])
+    true_values_per_fold = [k["y_true"][m] for k, m in zip(results["scores"], masks)]
     # Predicted values
-    pred_values = np.concatenate([i["y_pred"] for i in results["scores"]])
+    pred_values_per_fold = [k["y_pred"][m] for k, m in zip(results["scores"], masks)]
+    # True values
+    true_values = np.concatenate(true_values_per_fold)
+    # Predicted values
+    pred_values = np.concatenate(pred_values_per_fold)
+    # True values shuffle
+    true_values_per_fold_sh = [
+        k["y_true"][m] for k, m in zip(results["scores_sh"], masks)
+    ]
+    # Predicted values shuffle
+    pred_values_per_fold_sh = [
+        k["y_pred"][m] for k, m in zip(results["scores_sh"], masks)
+    ]
+    # Compute MAE
+    mae = [
+        mean_absolute_error(i, j)
+        for i, j in zip(true_values_per_fold, pred_values_per_fold)
+    ]
+    # Extract MAE shuffle
+    mae_sh = [
+        mean_absolute_error(i, j)
+        for i, j in zip(true_values_per_fold_sh, pred_values_per_fold_sh)
+    ]
+    # Extract R²
+    r2 = [r2_score(i, j) for i, j in zip(true_values_per_fold, pred_values_per_fold)]
+    # Extract R² shuffle
+    r2_sh = [
+        r2_score(i, j) for i, j in zip(true_values_per_fold_sh, pred_values_per_fold_sh)
+    ]
 
     # --- Make plot ---
     # Make figure
@@ -313,17 +370,13 @@ def plot_regression_scatter(task: dict, results: dict, store_path: str) -> None:
     plt.yticks(fontsize=10)
 
     # --- Add MAE ---
-    # Extract MAE
-    mae = [i["mae"] for i in results["scores"]]
-    # Extract MAE shuffle
-    mae_sh = [i["mae"] for i in results["scores_sh"]]
     # Calculate p-value between MAE and shuffle MAE
     _, pval_mae = corrected_ttest(np.array(mae_sh) - np.array(mae))
     # Add original outcome MAE results to plot
     ax.text(
         0.3,
         0.09,
-        f"Original data: MAE mean{r'$\pm$'}std {np.mean(mae):.2f}{r'$\pm$'}{np.std(mae):.2f} | med {np.median(mae):.2f}",  # noqa
+        f"Original data: MAE mean{r'$\pm$'}std {np.nanmean(mae):.2f}{r'$\pm$'}{np.std(mae):.2f} | med {np.nanmedian(mae):.2f}",  # noqa
         transform=ax.transAxes,
         fontsize=10,
     )
@@ -331,7 +384,7 @@ def plot_regression_scatter(task: dict, results: dict, store_path: str) -> None:
     ax.text(
         0.3,
         0.055,
-        f"Shuffled data: MAE mean{r'$\pm$'}std {np.mean(mae_sh):.2f}{r'$\pm$'}{np.std(mae_sh):.2f} | med {np.median(mae_sh):.2f}",  # noqa
+        f"Shuffled data: MAE mean{r'$\pm$'}std {np.nanmean(mae_sh):.2f}{r'$\pm$'}{np.std(mae_sh):.2f} | med {np.nanmedian(mae_sh):.2f}",  # noqa
         transform=ax.transAxes,
         fontsize=10,
     )
@@ -352,17 +405,13 @@ def plot_regression_scatter(task: dict, results: dict, store_path: str) -> None:
     )
 
     # --- Add R² ---
-    # Extract R²
-    r2 = [i["r2"] for i in results["scores"]]
-    # Extract R² shuffle
-    r2_sh = [i["r2"] for i in results["scores_sh"]]
     # Calculate p-value between R² and shuffle R²
     _, pval_r2 = corrected_ttest(np.array(r2) - np.array(r2_sh))
     # Add original outcome R² results to plot
     ax.text(
         0.02,
         0.96,
-        f"Original data: R² mean{r'$\pm$'}std {np.mean(r2):.3f}{r'$\pm$'}{np.std(r2):.3f} | med {np.median(r2):.3f}",  # noqa
+        f"Original data: R² mean{r'$\pm$'}std {np.nanmean(r2):.3f}{r'$\pm$'}{np.std(r2):.3f} | med {np.nanmedian(r2):.3f}",  # noqa
         transform=ax.transAxes,
         fontsize=10,
     )
@@ -370,7 +419,7 @@ def plot_regression_scatter(task: dict, results: dict, store_path: str) -> None:
     ax.text(
         0.02,
         0.925,
-        f"Shuffled data: R² mean{r'$\pm$'}std {np.mean(r2_sh):.3f}{r'$\pm$'}{np.std(r2_sh):.3f} | med {np.median(r2_sh):.3f}",  # noqa
+        f"Shuffled data: R² mean{r'$\pm$'}std {np.nanmean(r2_sh):.3f}{r'$\pm$'}{np.std(r2_sh):.3f} | med {np.nanmedian(r2_sh):.3f}",  # noqa
         transform=ax.transAxes,
         fontsize=10,
     )
@@ -405,7 +454,13 @@ def plot_regression_scatter(task: dict, results: dict, store_path: str) -> None:
     plt.show()
 
 
-def plot_regression_violin(task: dict, results: dict, store_path: str) -> None:
+def plot_regression_violin(
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
+) -> None:
     """
     Model fit in a violin plot (regression).
 
@@ -417,6 +472,10 @@ def plot_regression_violin(task: dict, results: dict, store_path: str) -> None:
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -427,15 +486,50 @@ def plot_regression_violin(task: dict, results: dict, store_path: str) -> None:
     None
     """
 
+    # --- Get masks ---
+    # If divide variable is in prediction target
+    if DIVIDE_DATA_BY == task["y_name"]:
+        # Masks are based in laberls
+        masks = [pd.Series(k["y_true"]).map(RULE) for k in results["scores"]]
+    # If divide variable is in predictors
+    elif DIVIDE_DATA_BY in task["X_NAMES"]:
+        # Masks are based on data
+        masks = [k["x_tst"][DIVIDE_DATA_BY].map(RULE) for k in results["scores"]]
+    else:
+        # Masks are all True to pass all data
+        masks = [
+            pd.Series(k["y_true"]).map(lambda item: True) for k in results["scores"]
+        ]
+
     # --- Prepare results ---
-    # Extract MAE
-    mae = [i["mae"] for i in results["scores"]]
+    # True values
+    true_values_per_fold = [k["y_true"][m] for k, m in zip(results["scores"], masks)]
+    # Predicted values
+    pred_values_per_fold = [k["y_pred"][m] for k, m in zip(results["scores"], masks)]
+    # True values shuffle
+    true_values_per_fold_sh = [
+        k["y_true"][m] for k, m in zip(results["scores_sh"], masks)
+    ]
+    # Predicted values shuffle
+    pred_values_per_fold_sh = [
+        k["y_pred"][m] for k, m in zip(results["scores_sh"], masks)
+    ]
+    # Compute MAE
+    mae = [
+        mean_absolute_error(i, j)
+        for i, j in zip(true_values_per_fold, pred_values_per_fold)
+    ]
     # Extract MAE shuffle
-    mae_sh = [i["mae"] for i in results["scores_sh"]]
+    mae_sh = [
+        mean_absolute_error(i, j)
+        for i, j in zip(true_values_per_fold_sh, pred_values_per_fold_sh)
+    ]
     # Extract R²
-    r2 = [i["r2"] for i in results["scores"]]
+    r2 = [r2_score(i, j) for i, j in zip(true_values_per_fold, pred_values_per_fold)]
     # Extract R² shuffle
-    r2_sh = [i["r2"] for i in results["scores_sh"]]
+    r2_sh = [
+        r2_score(i, j) for i, j in zip(true_values_per_fold_sh, pred_values_per_fold_sh)
+    ]
     # Compose scores dataframe
     scores_df = pd.DataFrame(
         {
@@ -539,7 +633,13 @@ def plot_regression_violin(task: dict, results: dict, store_path: str) -> None:
     plt.show()
 
 
-def plot_classification_confusion(task: dict, results: dict, store_path: str) -> None:
+def plot_classification_confusion(
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
+) -> None:
     """
     Model fit as confusion matrix plot (classification).
 
@@ -551,6 +651,10 @@ def plot_classification_confusion(task: dict, results: dict, store_path: str) ->
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -561,22 +665,54 @@ def plot_classification_confusion(task: dict, results: dict, store_path: str) ->
     None
     """
 
+    # --- Get masks ---
+    # If divide variable is in prediction target
+    if DIVIDE_DATA_BY == task["y_name"]:
+        # Masks are based in laberls
+        masks = [pd.Series(k["y_true"]).map(RULE) for k in results["scores"]]
+    # If divide variable is in predictors
+    elif DIVIDE_DATA_BY in task["X_NAMES"]:
+        # Masks are based on data
+        masks = [k["x_tst"][DIVIDE_DATA_BY].map(RULE) for k in results["scores"]]
+    else:
+        # Masks are all True to pass all data
+        masks = [
+            pd.Series(k["y_true"]).map(lambda item: True) for k in results["scores"]
+        ]
+
     # --- Prepare results ---
     # True values
-    true_values = [i["y_true"] for i in results["scores"]]
+    true_values_per_fold = [k["y_true"][m] for k, m in zip(results["scores"], masks)]
     # Predicted values
-    pred_values = [i["y_pred"] for i in results["scores"]]
+    pred_values_per_fold = [k["y_pred"][m] for k, m in zip(results["scores"], masks)]
+    # True values
+    true_values = np.concatenate(true_values_per_fold)
+    # Predicted values
+    pred_values = np.concatenate(pred_values_per_fold)
+    # True values shuffle
+    true_values_per_fold_sh = [
+        k["y_true"][m] for k, m in zip(results["scores_sh"], masks)
+    ]
+    # Predicted values shuffle
+    pred_values_per_fold_sh = [
+        k["y_pred"][m] for k, m in zip(results["scores_sh"], masks)
+    ]
     # Accuracy
-    acc = [i["acc"] for i in results["scores"]]
+    acc = [
+        balanced_accuracy_score(i, j)
+        for i, j in zip(true_values_per_fold, pred_values_per_fold)
+    ]
     # Schuffle accuracy
-    acc_sh = [i["acc"] for i in results["scores_sh"]]
+    acc_sh = [
+        balanced_accuracy_score(i, j)
+        for i, j in zip(true_values_per_fold_sh, pred_values_per_fold_sh)
+    ]
     # Get classes
-    class_labels = np.unique(np.concatenate(true_values)).tolist()
+    class_labels = np.unique(true_values)
 
     # --- Get count confusion matrix ---
     # Loop over single results
-    # for true, pred, w in zip(true_values, pred_values, sample_weights):
-    for true, pred in zip(true_values, pred_values):
+    for true, pred in zip(true_values_per_fold, pred_values_per_fold):
         if "con_mat_count" not in locals():
             # Compute confusion matrix
             con_mat_count = confusion_matrix(
@@ -601,8 +737,7 @@ def plot_classification_confusion(task: dict, results: dict, store_path: str) ->
 
     # --- Get normalized confusion matrix ---
     # Loop over single results
-    # for true, pred, w in zip(true_values, pred_values, sample_weights):
-    for true, pred in zip(true_values, pred_values):
+    for true, pred in zip(true_values_per_fold, pred_values_per_fold):
         if "con_mat" not in locals():
             # Compute confusion matrix
             con_mat = confusion_matrix(
@@ -625,7 +760,7 @@ def plot_classification_confusion(task: dict, results: dict, store_path: str) ->
                 ),
             )
     # Normalize confusion matrix
-    con_mat_norm = con_mat / len(true_values)
+    con_mat_norm = con_mat / len(true_values_per_fold)
 
     # --- Plot confusion matrix ---
     # Create figure
@@ -707,8 +842,8 @@ def plot_classification_confusion(task: dict, results: dict, store_path: str) ->
     title_str = (
         f"{task['ANALYSIS_NAME']}"
         + f"\nPredicting {task['y_name']}"
-        + f"\nOriginal data acc: mean{r'$\pm$'}std {np.mean(acc):.3f}{r'$\pm$'}{np.std(acc):.3f} | med {np.median(acc):.3f}"  # noqa
-        + f"\nShuffled data acc: mean{r'$\pm$'}std {np.mean(acc_sh):.3f}{r'$\pm$'}{np.std(acc_sh):.3f} | med {np.median(acc_sh):.3f}"  # noqa
+        + f"\nOriginal data acc: mean{r'$\pm$'}std {np.nanmean(acc):.3f}{r'$\pm$'}{np.std(acc):.3f} | med {np.nanmedian(acc):.3f}"  # noqa
+        + f"\nShuffled data acc: mean{r'$\pm$'}std {np.nanmean(acc_sh):.3f}{r'$\pm$'}{np.std(acc_sh):.3f} | med {np.nanmedian(acc_sh):.3f}"  # noqa
         + f"\nOriginal vs. shuffled: {pval_string}"
     )
     # Set title
@@ -729,7 +864,13 @@ def plot_classification_confusion(task: dict, results: dict, store_path: str) ->
     plt.show()
 
 
-def plot_classification_violin(task: dict, results: dict, store_path: str) -> None:
+def plot_classification_violin(
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
+) -> None:
     """
     Model fit in a violin plot (classification).
 
@@ -741,6 +882,11 @@ def plot_classification_violin(task: dict, results: dict, store_path: str) -> No
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
+
 
     Returns
     -------
@@ -751,11 +897,44 @@ def plot_classification_violin(task: dict, results: dict, store_path: str) -> No
     None
     """
 
+    # --- Get masks ---
+    # If divide variable is in prediction target
+    if DIVIDE_DATA_BY == task["y_name"]:
+        # Masks are based in laberls
+        masks = [pd.Series(k["y_true"]).map(RULE) for k in results["scores"]]
+    # If divide variable is in predictors
+    elif DIVIDE_DATA_BY in task["X_NAMES"]:
+        # Masks are based on data
+        masks = [k["x_tst"][DIVIDE_DATA_BY].map(RULE) for k in results["scores"]]
+    else:
+        # Masks are all True to pass all data
+        masks = [
+            pd.Series(k["y_true"]).map(lambda item: True) for k in results["scores"]
+        ]
+
     # --- Prepare results ---
-    # Extract accuracy
-    acc = [i["acc"] for i in results["scores"]]
-    # Extract shuffle accuracy
-    acc_sh = [i["acc"] for i in results["scores_sh"]]
+    # True values
+    true_values_per_fold = [k["y_true"][m] for k, m in zip(results["scores"], masks)]
+    # Predicted values
+    pred_values_per_fold = [k["y_pred"][m] for k, m in zip(results["scores"], masks)]
+    # True values shuffle
+    true_values_per_fold_sh = [
+        k["y_true"][m] for k, m in zip(results["scores_sh"], masks)
+    ]
+    # Predicted values shuffle
+    pred_values_per_fold_sh = [
+        k["y_pred"][m] for k, m in zip(results["scores_sh"], masks)
+    ]
+    # Accuracy
+    acc = [
+        balanced_accuracy_score(i, j)
+        for i, j in zip(true_values_per_fold, pred_values_per_fold)
+    ]
+    # Schuffle accuracy
+    acc_sh = [
+        balanced_accuracy_score(i, j)
+        for i, j in zip(true_values_per_fold_sh, pred_values_per_fold_sh)
+    ]
     # Compose scores dataframe
     scores_df = pd.DataFrame(
         {
@@ -852,7 +1031,13 @@ def plot_classification_violin(task: dict, results: dict, store_path: str) -> No
     plt.show()
 
 
-def get_avg_shap_values(task: dict, explanations: list, c_class: int = -1) -> tuple:
+def get_avg_shap_values(
+    task: dict,
+    explanations: list,
+    c_class: int = -1,
+    DIVIDE_DATA_BY: str = "",
+    RULE: Callable = lambda item: True,
+) -> tuple:
     """
     Get average SHAP values (global effects).
 
@@ -864,6 +1049,10 @@ def get_avg_shap_values(task: dict, explanations: list, c_class: int = -1) -> tu
         SHAP explanation holding the results of the ml analyses.
     c_class : integer
         Current class for slicing.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -877,42 +1066,71 @@ def get_avg_shap_values(task: dict, explanations: list, c_class: int = -1) -> tu
     ValueError: If OBJECTIVE is not regression and classification.
     """
 
+    # --- Get masks ---
+    # If divide variable is in prediction target
+    if DIVIDE_DATA_BY == task["y_name"]:
+        # Masks are based in laberls
+        masks = [k.labels[DIVIDE_DATA_BY].map(RULE).values for k in explanations]
+    # If divide variable is in predictors
+    elif DIVIDE_DATA_BY in task["X_NAMES"]:
+        # Masks are based on data
+        masks = [k.data[DIVIDE_DATA_BY].map(RULE).values for k in explanations]
+    else:
+        # Masks are all True to pass all data
+        masks = [k.labels.map(lambda item: True).values.squeeze() for k in explanations]
+
     # --- Get shap values ---
     # If regression
     if task["OBJECTIVE"] == "regression":
+
+        # --- Get Shap values ---
         # If no interactions
         if len(explanations[0].shape) == 2:
             # Get average SHAP values
-            shap_values = [np.mean(np.abs(k.values), axis=0) for k in explanations]
+            shap_values = [
+                np.nanmean(np.abs(k.values[m]), axis=0)
+                for k, m in zip(explanations, masks)
+            ]
         # If interactions
         elif len(explanations[0].shape) == 3:
             # Get average SHAP values
             shap_values = [
-                np.mean(np.abs(np.sum(k.values, axis=2)), axis=0) for k in explanations
+                np.nanmean(np.abs(np.sum(k.values[m], axis=2)), axis=0)
+                for k, m in zip(explanations, masks)
             ]
         # Average base value
-        base = np.mean(np.hstack([k.base_values for k in explanations]))
+        base = np.nanmean(
+            np.hstack([k.base_values[m] for k, m in zip(explanations, masks)])
+        )
     # If classification
     elif task["OBJECTIVE"] == "classification":
         # If no interactions
         if len(explanations[0].shape) == 3:
             # SHAP values
             shap_values = [
-                np.mean(np.abs(k.values[:, :, c_class]), axis=0) for k in explanations
+                np.nanmean(np.abs(k.values[m, :, c_class]), axis=0)
+                for k, m in zip(explanations, masks)
             ]
-            base = np.mean(
-                np.hstack([k[:, :, c_class].base_values for k in explanations])
+            base = np.nanmean(
+                np.hstack(
+                    [k[m, :, c_class].base_values for k, m in zip(explanations, masks)]
+                )
             )
         # If interactions
         elif len(explanations[0].shape) == 4:
             # Get SHAP values
             shap_values = [
-                np.mean(np.abs(np.sum(k.values[:, :, :, c_class], axis=2)), axis=0)
-                for k in explanations
+                np.nanmean(np.abs(np.sum(k.values[m, :, :, c_class], axis=2)), axis=0)
+                for k, m in zip(explanations, masks)
             ]
             # Base value
-            base = np.mean(
-                np.hstack([k[:, :, :, c_class].base_values for k in explanations])
+            base = np.nanmean(
+                np.hstack(
+                    [
+                        k[m, :, :, c_class].base_values
+                        for k, m in zip(explanations, masks)
+                    ]
+                )
             )
     else:
         # Raise error
@@ -924,7 +1142,13 @@ def get_avg_shap_values(task: dict, explanations: list, c_class: int = -1) -> tu
     return shap_values_df, base
 
 
-def plot_avg_shap_values(task: dict, results: dict, store_path: str) -> None:
+def plot_avg_shap_values(
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
+) -> None:
     """
     Plot average SHAP values (global effects).
 
@@ -936,6 +1160,10 @@ def plot_avg_shap_values(task: dict, results: dict, store_path: str) -> None:
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -948,7 +1176,7 @@ def plot_avg_shap_values(task: dict, results: dict, store_path: str) -> None:
     # Check if explanations in results
     if "explanations" not in results.keys():
         # Log warning
-        logging.warning("No explainations found in results. Skip plot.")
+        logging.warning("No explanations found in results. Skip plot.")
         # Return
         return
 
@@ -973,12 +1201,16 @@ def plot_avg_shap_values(task: dict, results: dict, store_path: str) -> None:
             task,
             results["explanations"],
             c_class,
+            DIVIDE_DATA_BY,
+            RULE,
         )
         # Get current shuffle shap values
         shap_values_sh_df, _ = get_avg_shap_values(
             task,
             results["explanations_sh"],
             c_class,
+            DIVIDE_DATA_BY,
+            RULE,
         )
         # --- Process SHAP values ---
         # Mean shap values
@@ -1097,7 +1329,11 @@ def plot_avg_shap_values(task: dict, results: dict, store_path: str) -> None:
 
 
 def plot_avg_shap_values_distributions(
-    task: dict, results: dict, store_path: str
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
 ) -> None:
     """
     Plot average SHAP values distributions (global effects distribution).
@@ -1110,6 +1346,10 @@ def plot_avg_shap_values_distributions(
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -1122,7 +1362,7 @@ def plot_avg_shap_values_distributions(
     # Check if explanations is in results
     if "explanations" not in results.keys():
         # Log warning
-        logging.warning("No explainations found in results. Skip plot.")
+        logging.warning("No explanations found in results. Skip plot.")
         # Return
         return
 
@@ -1276,7 +1516,13 @@ def plot_avg_shap_values_distributions(
         plt.show()
 
 
-def get_single_shap_values(task: dict, explanations: list, c_class: int = -1) -> tuple:
+def get_single_shap_values(
+    task: dict,
+    explanations: list,
+    c_class: int = -1,
+    DIVIDE_DATA_BY: str = "",
+    RULE: Callable = lambda item: True,
+) -> tuple:
     """
     Get single SHAP values.
 
@@ -1288,6 +1534,10 @@ def get_single_shap_values(task: dict, explanations: list, c_class: int = -1) ->
         SHAP explanation holding the results of the ml analyses.
     c_class : integer
         Current class for slicing.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -1300,13 +1550,30 @@ def get_single_shap_values(task: dict, explanations: list, c_class: int = -1) ->
     ------
     ValueError: If OBJECTIVE is not regression and classification.
     """
+
+    # --- Get masks ---
+    # If divide variable is in prediction target
+    if DIVIDE_DATA_BY == task["y_name"]:
+        # Masks are based in laberls
+        masks = [k.labels[DIVIDE_DATA_BY].map(RULE).values for k in explanations]
+    # If divide variable is in predictors
+    elif DIVIDE_DATA_BY in task["X_NAMES"]:
+        # Masks are based on data
+        masks = [k.data[DIVIDE_DATA_BY].map(RULE).values for k in explanations]
+    else:
+        # Masks are all True to pass all data
+        masks = [k.labels.map(lambda item: True).values.squeeze() for k in explanations]
+
+    # --- Get shap values ---
     # If regression
     if task["OBJECTIVE"] == "regression":
         # Explainer object
         shap_explanations = Explanation(
-            np.vstack([k.values for k in explanations]),
-            base_values=np.hstack([k.base_values for k in explanations]),
-            data=np.vstack([k.data for k in explanations]),
+            np.vstack([k.values[m] for k, m in zip(explanations, masks)]),
+            base_values=np.hstack(
+                [k.base_values[m] for k, m in zip(explanations, masks)]
+            ),
+            data=np.vstack([k.data[m] for k, m in zip(explanations, masks)]),
             display_data=None,
             instance_names=None,
             feature_names=explanations[0].feature_names,
@@ -1321,18 +1588,24 @@ def get_single_shap_values(task: dict, explanations: list, c_class: int = -1) ->
             compute_time=None,
         )
         # Base value
-        base = np.mean(np.hstack([k.base_values for k in explanations]))
+        base = np.nanmean(
+            np.hstack([k.base_values[m] for k, m in zip(explanations, masks)])
+        )
     # If classification
     elif task["OBJECTIVE"] == "classification":
         # If no interactions
         if len(explanations[0].shape) == 3:
             # Explainer object
             shap_explanations = Explanation(
-                np.vstack([k[:, :, c_class].values for k in explanations]),
-                base_values=np.hstack(
-                    [k[:, :, c_class].base_values for k in explanations]
+                np.vstack(
+                    [k[m, :, c_class].values for k, m in zip(explanations, masks)]
                 ),
-                data=np.vstack([k[:, :, c_class].data for k in explanations]),
+                base_values=np.hstack(
+                    [k[m, :, c_class].base_values for k, m in zip(explanations, masks)]
+                ),
+                data=np.vstack(
+                    [k[m, :, c_class].data for k, m in zip(explanations, masks)]
+                ),
                 display_data=None,
                 instance_names=None,
                 feature_names=explanations[0].feature_names,
@@ -1347,18 +1620,27 @@ def get_single_shap_values(task: dict, explanations: list, c_class: int = -1) ->
                 compute_time=None,
             )
             # Base value
-            base = np.mean(
-                np.hstack([k[:, :, c_class].base_values for k in explanations])
+            base = np.nanmean(
+                np.hstack(
+                    [k[m, :, c_class].base_values for k, m in zip(explanations, masks)]
+                )
             )
         # If no interactions
         elif len(explanations[0].shape) == 4:
             # Explainer object
             shap_explanations = Explanation(
-                np.vstack([k[:, :, :, c_class].values for k in explanations]),
-                base_values=np.hstack(
-                    [k[:, :, :, c_class].base_values for k in explanations]
+                np.vstack(
+                    [k[m, :, :, c_class].values for k, m in zip(explanations, masks)]
                 ),
-                data=np.vstack([k[:, :, :, c_class].data for k in explanations]),
+                base_values=np.hstack(
+                    [
+                        k[m, :, :, c_class].base_values
+                        for k, m in zip(explanations, masks)
+                    ]
+                ),
+                data=np.vstack(
+                    [k[m, :, :, c_class].data for k, m in zip(explanations, masks)]
+                ),
                 display_data=None,
                 instance_names=None,
                 feature_names=explanations[0].feature_names,
@@ -1373,8 +1655,13 @@ def get_single_shap_values(task: dict, explanations: list, c_class: int = -1) ->
                 compute_time=None,
             )
             # Base value
-            base = np.mean(
-                np.hstack([k[:, :, :, c_class].base_values for k in explanations])
+            base = np.nanmean(
+                np.hstack(
+                    [
+                        k[m, :, :, c_class].base_values
+                        for k, m in zip(explanations, masks)
+                    ]
+                )
             )
     else:
         # Raise error
@@ -1384,7 +1671,13 @@ def get_single_shap_values(task: dict, explanations: list, c_class: int = -1) ->
     return shap_explanations, base
 
 
-def plot_single_shap_values(task: dict, results: dict, store_path: str) -> None:
+def plot_single_shap_values(
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
+) -> None:
     """
     Plot single SHAP values.
 
@@ -1396,6 +1689,10 @@ def plot_single_shap_values(task: dict, results: dict, store_path: str) -> None:
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -1408,7 +1705,7 @@ def plot_single_shap_values(task: dict, results: dict, store_path: str) -> None:
     # Check if explanations is in results
     if "explanations" not in results.keys():
         # Log warning
-        logging.warning("No explainations found in results. Skip plot.")
+        logging.warning("No explanations found in results. Skip plot.")
         # Return
         return
 
@@ -1433,6 +1730,8 @@ def plot_single_shap_values(task: dict, results: dict, store_path: str) -> None:
             task,
             results["explanations"],
             c_class,
+            DIVIDE_DATA_BY,
+            RULE,
         )
         # If no interactions
         if len(single_shap_values.shape) == 2:
@@ -1519,7 +1818,11 @@ def plot_single_shap_values(task: dict, results: dict, store_path: str) -> None:
 
 
 def plot_single_shap_values_dependences(
-    task: dict, results: dict, store_path: str
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
 ) -> None:
     """
     Plot single SHAP values dependences.
@@ -1532,6 +1835,10 @@ def plot_single_shap_values_dependences(
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -1544,7 +1851,7 @@ def plot_single_shap_values_dependences(
     # Check if explanations is in results
     if "explanations" not in results.keys():
         # Log warning
-        logging.warning("No explainations found in results. Skip plot.")
+        logging.warning("No explanations found in results. Skip plot.")
         # Return
         return
 
@@ -1569,6 +1876,8 @@ def plot_single_shap_values_dependences(
             task,
             results["explanations"],
             c_class,
+            DIVIDE_DATA_BY,
+            RULE,
         )
         # If no interactions
         if len(single_shap_values.shape) == 2:
@@ -1647,7 +1956,11 @@ def plot_single_shap_values_dependences(
 
 
 def get_avg_shap_interaction_values(
-    task: dict, explanations: list, c_class: int = -1
+    task: dict,
+    explanations: list,
+    c_class: int = -1,
+    DIVIDE_DATA_BY: str = "",
+    RULE: Callable = lambda item: True,
 ) -> tuple:
     """
     Get average SHAP interaction values (global interaction effects).
@@ -1660,6 +1973,10 @@ def get_avg_shap_interaction_values(
         SHAP explanation holding the results of the ml analyses.
     c_class : integer
         Current class for slicing.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -1673,24 +1990,47 @@ def get_avg_shap_interaction_values(
     ValueError: If OBJECTIVE is not regression and classification.
     """
 
+    # --- Get masks ---
+    # If divide variable is in prediction target
+    if DIVIDE_DATA_BY == task["y_name"]:
+        # Masks are based in laberls
+        masks = [k.labels[DIVIDE_DATA_BY].map(RULE).values for k in explanations]
+    # If divide variable is in predictors
+    elif DIVIDE_DATA_BY in task["X_NAMES"]:
+        # Masks are based on data
+        masks = [k.data[DIVIDE_DATA_BY].map(RULE).values for k in explanations]
+    else:
+        # Masks are all True to pass all data
+        masks = [k.labels.map(lambda item: True).values.squeeze() for k in explanations]
+
     # --- Get shap interaction values ---
     # If regression
     if task["OBJECTIVE"] == "regression":
         # Get SHAP interaction values
         shap_values_inter = np.array(
-            [np.mean(np.abs(k.values), axis=0) for k in explanations]
+            [
+                np.nanmean(np.abs(k.values[m]), axis=0)
+                for k, m in zip(explanations, masks)
+            ]
         )
         # Base value
-        base = np.mean(np.hstack([k.base_values for k in explanations]))
+        base = np.nanmean(
+            np.hstack([k.base_values[m] for k, m in zip(explanations, masks)])
+        )
     # If classification
     elif task["OBJECTIVE"] == "classification":
         # Get SHAP interaction values
         shap_values_inter = np.array(
-            [np.mean(np.abs(k[:, :, :, c_class].values), axis=0) for k in explanations]
+            [
+                np.nanmean(np.abs(k[m, :, :, c_class].values), axis=0)
+                for k, m in zip(explanations, masks)
+            ]
         )
         # Base value
-        base = np.mean(
-            np.hstack([k[:, :, :, c_class].base_values for k in explanations])
+        base = np.nanmean(
+            np.hstack(
+                [k[m, :, :, c_class].base_values for k, m in zip(explanations, masks)]
+            )
         )
     else:
         # Raise error
@@ -1701,7 +2041,11 @@ def get_avg_shap_interaction_values(
 
 
 def plot_average_shap_interaction_values(
-    task: dict, results: dict, store_path: str
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
 ) -> None:
     """
     Plot average SHAP interaction values (global interaction effects).
@@ -1714,6 +2058,10 @@ def plot_average_shap_interaction_values(
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -1726,7 +2074,7 @@ def plot_average_shap_interaction_values(
     # Check if explanations is in results
     if "explanations" not in results.keys():
         # Log warning
-        logging.warning("No explainations found in results. Skip plot.")
+        logging.warning("No explanations found in results. Skip plot.")
         # Return
         return
     # If regression
@@ -1783,7 +2131,7 @@ def plot_average_shap_interaction_values(
         )
         # Make dataframe
         shap_values_inter_df = pd.DataFrame(
-            np.mean(shap_values_inter, axis=0),
+            np.nanmean(shap_values_inter, axis=0),
             index=shap_values_df.columns.to_list(),
             columns=shap_values_df.columns.to_list(),
         )
@@ -1949,7 +2297,11 @@ def plot_average_shap_interaction_values(
 
 
 def plot_single_shap_interaction_values_dependences(
-    task: dict, results: dict, store_path: str
+    task: dict,
+    results: dict,
+    store_path: str,
+    DIVIDE_DATA_BY: str,
+    RULE: Callable,
 ) -> None:
     """
     Plot single SHAP interaction values.
@@ -1962,6 +2314,10 @@ def plot_single_shap_interaction_values_dependences(
         Dictionary holding the results of the ml analyses.
     store_path : string
         Path to the plots.
+    DIVIDE_DATA_BY: str
+        Column to divida data on.
+    RULE: str
+        Rule to divide data.
 
     Returns
     -------
@@ -1974,7 +2330,7 @@ def plot_single_shap_interaction_values_dependences(
     # Check if explanations is in results
     if "explanations" not in results.keys():
         # Log warning
-        logging.warning("No explainations found in results. Skip plot.")
+        logging.warning("No explanations found in results. Skip plot.")
         # Return
         return
     # If regression
@@ -2015,6 +2371,8 @@ def plot_single_shap_interaction_values_dependences(
             task,
             results["explanations"],
             c_class,
+            DIVIDE_DATA_BY,
+            RULE,
         )
 
         # --- Print shap value interaction dependencies ---
@@ -2126,6 +2484,12 @@ def main() -> None:
     LOAD_PREFIX = "iml_2_mdl_"
     # Store prefix (where results go). str
     STORE_PREFIX = "iml_3_plt_"
+    # Store suffix (to differenciate where results go). str
+    STORE_SUFFIX = ""
+    # Column to divida data on. str (default: "")
+    DIVIDE_DATA_BY = ""
+    # Rule to divide data. lambda (default: lambda item: True)
+    RULE = lambda item: True  # noqa
 
     ####################################################################################
 
@@ -2154,7 +2518,7 @@ def main() -> None:
 
             # --- Configure logging ---
             # Make log filename
-            log_filename = f"{STORE_PREFIX}{task_path.removeprefix(LOAD_PREFIX).removesuffix('_task.pickle')}.log"  # noqa
+            log_filename = f"{STORE_PREFIX}{task_path.removeprefix(LOAD_PREFIX).removesuffix('_task.pickle')}{STORE_SUFFIX}.log"  # noqa
             # Basic configuration
             logging.basicConfig(
                 # Log file path
@@ -2209,9 +2573,7 @@ def main() -> None:
 
             # --- Create store directory ---
             # Make store path (where plots go)
-            store_path = (
-                f"{STORE_PREFIX}{res_path.removeprefix(LOAD_PREFIX)}/{task['y_name']}"
-            )
+            store_path = f"{STORE_PREFIX}{res_path.removeprefix(LOAD_PREFIX)}{STORE_SUFFIX}/{task['y_name']}"  # noqa
             try:
                 # Create plots directory
                 os.makedirs(store_path, exist_ok=True)  # Supress FileExistsError
@@ -2225,7 +2587,8 @@ def main() -> None:
                 pip_requirements = get_pip_requirements()
                 # Open file in write mode
                 with open(
-                    f"{store_path}/{STORE_PREFIX}pip_requirements.txt", "w"
+                    f"{store_path}/{STORE_PREFIX}pip_requirements{STORE_SUFFIX}.txt",
+                    "w",
                 ) as file:
                     # Write pip requirements
                     file.write(pip_requirements)
@@ -2250,43 +2613,55 @@ def main() -> None:
             if task["OBJECTIVE"] == "regression":
                 logging.info("Plot model fit.")
                 # Print model fit as scatter plot
-                plot_regression_scatter(task, results, store_path)
+                plot_regression_scatter(task, results, store_path, DIVIDE_DATA_BY, RULE)
                 # Print model fit as violinplot of metrics
-                plot_regression_violin(task, results, store_path)
+                plot_regression_violin(task, results, store_path, DIVIDE_DATA_BY, RULE)
             # If classification
             elif task["OBJECTIVE"] == "classification":
                 logging.info("Plot model fit.")
                 # Print model fit as confusion matrix
-                plot_classification_confusion(task, results, store_path)
+                plot_classification_confusion(
+                    task, results, store_path, DIVIDE_DATA_BY, RULE
+                )
                 # Print model fit as violinplot of metrics
-                plot_classification_violin(task, results, store_path)
+                plot_classification_violin(
+                    task, results, store_path, DIVIDE_DATA_BY, RULE
+                )
             else:
                 # Raise error
                 raise ValueError("OBJECTIVE not found.")
 
             # --- Plot average SHAP values ---
             logging.info("Plot average SHAP values.")
-            plot_avg_shap_values(task, results, store_path)
+            plot_avg_shap_values(task, results, store_path, DIVIDE_DATA_BY, RULE)
 
             # --- Plot average SHAP values distribution ---
             logging.info("Plot average SHAP values distribution.")
-            plot_avg_shap_values_distributions(task, results, store_path)
+            plot_avg_shap_values_distributions(
+                task, results, store_path, DIVIDE_DATA_BY, RULE
+            )
 
             # --- Plot single SHAP values ---
             logging.info("Plot single SHAP values.")
-            plot_single_shap_values(task, results, store_path)
+            plot_single_shap_values(task, results, store_path, DIVIDE_DATA_BY, RULE)
 
             # --- Plot single SHAP values dependencies ---
             logging.info("Plot single SHAP values dependencies.")
-            plot_single_shap_values_dependences(task, results, store_path)
+            plot_single_shap_values_dependences(
+                task, results, store_path, DIVIDE_DATA_BY, RULE
+            )
 
             # --- Plot average SHAP values interactions ---
             logging.info("Plot average SHAP values interactions.")
-            plot_average_shap_interaction_values(task, results, store_path)
+            plot_average_shap_interaction_values(
+                task, results, store_path, DIVIDE_DATA_BY, RULE
+            )
 
             # --- Plot single SHAP values interactions ---
             logging.info("Plot single SHAP values interactions.")
-            plot_single_shap_interaction_values_dependences(task, results, store_path)
+            plot_single_shap_interaction_values_dependences(
+                task, results, store_path, DIVIDE_DATA_BY, RULE
+            )
 
             # --- Save log file to results directory ---
             # Log success

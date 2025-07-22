@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Interpretable Machine-Learning 2 - Modelling (MDL-lgbm)
-v909
+v922
 @author: david.steyrl@univie.ac.at
 """
 
@@ -21,7 +21,6 @@ from scipy.stats import randint
 from scipy.stats import uniform
 from shap import Explanation
 from shap.explainers import Tree as TreeExplainer
-from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.metrics import mean_absolute_error
@@ -159,8 +158,8 @@ def prepare_pipeline(task: dict) -> tuple:
             n_estimators=1000,
             subsample_for_bin=100000,
             objective="huber",
-            min_split_gain=0.0001,
-            min_child_weight=0.0001,
+            min_split_gain=0.0,
+            min_child_weight=0.00001,
             min_child_samples=1,
             subsample=1.0,
             subsample_freq=0,
@@ -171,8 +170,9 @@ def prepare_pipeline(task: dict) -> tuple:
             n_jobs=1,
             importance_type="gain",
             **{
+                "bagging_seed": None,
                 "data_random_seed": None,
-                "data_sample_strategy": "bagging",
+                "data_sample_strategy": "goss",
                 "extra_seed": None,
                 "feature_fraction_seed": None,
                 "feature_pre_filter": False,
@@ -207,8 +207,8 @@ def prepare_pipeline(task: dict) -> tuple:
             subsample_for_bin=100000,
             objective="multiclass",
             class_weight="balanced",
-            min_split_gain=0.0001,
-            min_child_weight=0.0001,
+            min_split_gain=0.0,
+            min_child_weight=0.00001,
             min_child_samples=1,
             subsample=1.0,
             subsample_freq=0,
@@ -219,8 +219,9 @@ def prepare_pipeline(task: dict) -> tuple:
             n_jobs=1,
             importance_type="gain",
             **{
+                "bagging_seed": None,
                 "data_random_seed": None,
-                "data_sample_strategy": "bagging",
+                "data_sample_strategy": "goss",
                 "extra_seed": None,
                 "feature_fraction_seed": None,
                 "feature_pre_filter": False,
@@ -510,6 +511,7 @@ def score_predictions(
         r2 = r2_score(y_tst, y_pred)
         # Results
         scores = {
+            "x_tst": x_tst,
             "y_true": y_tst.squeeze().to_numpy(),
             "y_pred": y_pred,
             "y_ind": i_tst,
@@ -522,6 +524,7 @@ def score_predictions(
         acc = balanced_accuracy_score(y_tst, y_pred)
         # Results
         scores = {
+            "x_tst": x_tst,
             "y_true": y_tst.squeeze().to_numpy(),
             "y_pred": y_pred,
             "y_ind": i_tst,
@@ -536,7 +539,7 @@ def score_predictions(
 
 
 def aggregate_shap_explanations(
-    shap_explanations: Explanation, features_to_group: list, new_feature_name: str
+    explanations: Explanation, features_to_group: list, new_feature_name: str
 ) -> Explanation:
     """
     Aggregates the SHAP values of a given list of features into a new aggregated
@@ -544,7 +547,7 @@ def aggregate_shap_explanations(
 
     Parameters
     ----------
-    shap_explanations: SHAP explanation object
+    explanations: SHAP explanation object
         Assumed to have attributes:
           - values: a numpy array of shape (n_samples, n_features, n_classes)
             or (n_samples, n_features, n_features, n_classes) for interaction values.
@@ -566,7 +569,7 @@ def aggregate_shap_explanations(
 
     # --- Prepare ---
     # Get original feature names
-    orig_feature_names = shap_explanations.feature_names
+    orig_feature_names = explanations.feature_names
     # Find indices of features to group
     group_indices = [orig_feature_names.index(f) for f in features_to_group]
     # Determine remaining feature indices
@@ -578,7 +581,7 @@ def aggregate_shap_explanations(
         new_feature_name
     ]
     # Get shap values, could be 3D or 4D
-    shap_vals = shap_explanations.values
+    shap_vals = explanations.values
     # Get shap values dimensions
     ndim = shap_vals.ndim
 
@@ -636,8 +639,8 @@ def aggregate_shap_explanations(
     # --- Return explainer object ---
     return Explanation(
         new_vals,
-        base_values=shap_explanations.base_values,
-        data=shap_explanations.data,
+        base_values=explanations.base_values,
+        data=explanations.data,
         display_data=None,
         instance_names=None,
         feature_names=new_feature_names,
@@ -654,7 +657,10 @@ def aggregate_shap_explanations(
 
 
 def get_explanations(
-    task: dict, pipe: Pipeline, x_trn: np.ndarray, x_tst: np.ndarray
+    task: dict,
+    pipe: Pipeline,
+    x_tst: np.ndarray,
+    y_tst: np.ndarray,
 ) -> Explanation:
     """
     Generate SHAP (SHapley Additive exPlanations) model explanations for feature
@@ -686,12 +692,12 @@ def get_explanations(
     pipe: Pipeline
         Fitted scikit-learn compatible pipeline with tuned parameters for generating
         predictions.
-    x_trn: np.ndarray
-        Background dataset (n_samples, n_features) used by SHAP to establish a baseline
-        for feature contribution analysis.
     x_tst: np.ndarray
         Test dataset (n_samples, n_features) on which SHAP values are computed to
         explain the model's predictions.
+    y_tst: np.ndarray
+        Test labels (n_samples, n_features) included in explainer object to be stored
+        along with x_tst_shap.
 
     Returns
     -------
@@ -723,9 +729,11 @@ def get_explanations(
         # Raise error
         raise ValueError(f"TYPE is {task['TYPE']}.")
     # Subsample test data
-    x_tst_shap_orig = x_tst.sample(
-        n=task["max_samples_shap"], random_state=1000, ignore_index=True
-    )
+    x_tst_shap_orig = x_tst.sample(n=task["max_samples_shap"], random_state=1000)
+    # Slice targets to fit subsampled predictors
+    y_tst_shap = y_tst.loc[x_tst_shap_orig.index, :].reset_index(drop=True)
+    # Reset index of predictors
+    x_tst_shap_orig = x_tst_shap_orig.reset_index(drop=True)
     # Transform shap test data
     x_tst_shap = pipe[0].transform(x_tst_shap_orig)
 
@@ -750,8 +758,8 @@ def get_explanations(
         feature_names=None,
         approximate=False,
     )
-    # Get shap explainations
-    shap_explanations = explainer(x_tst_shap, interactions=True, check_additivity=False)
+    # Get explanations
+    explanations = explainer(x_tst_shap, interactions=True, check_additivity=False)
 
     # --- Post process shap_explanations ---
     # If regression, undo target transformation effect on base values and shap values
@@ -761,11 +769,9 @@ def get_explanations(
         # Get target transformer mean from pipeline
         tf_mean = pipe["predictor"].transformer_.mean_[0]
         # Rescale shap base values from transformed target to original space
-        shap_explanations.base_values = (
-            shap_explanations.base_values * tf_scale
-        ) + tf_mean
+        explanations.base_values = (explanations.base_values * tf_scale) + tf_mean
         # Rescale shap values from scaled data to original space
-        shap_explanations.values = shap_explanations.values * tf_scale
+        explanations.values = explanations.values * tf_scale
     # If multiclass, aggregate multi categorical predictor shap values
     if task["OBJECTIVE"] == "classification" and task["n_classes"] > 2:
         # If multi categorical predictors
@@ -773,17 +779,20 @@ def get_explanations(
             # Loop over multi categorical predictors
             for name in [task["X_NAMES"][i] for i in task["TARGET_ENCODING_IND"]]:
                 # Get names of variables to group
-                group = [n for n in shap_explanations.feature_names if name in n]
+                group = [n for n in explanations.feature_names if name in n]
                 # Aggregate shap values
-                shap_explanations = aggregate_shap_explanations(
-                    shap_explanations=shap_explanations,
+                explanations = aggregate_shap_explanations(
+                    explanations=explanations,
                     features_to_group=group,
                     new_feature_name=name,
                 )
-    # Replace scaled data in shap explanations with original
-    shap_explanations.data = x_tst_shap_orig[shap_explanations.feature_names]
-    # --- Return shap explanations ---
-    return shap_explanations
+    # Replace scaled data in explanations with original
+    explanations.data = x_tst_shap_orig[explanations.feature_names]
+    # Add labels to explanations
+    explanations.labels = y_tst_shap
+
+    # --- Return explanations ---
+    return explanations
 
 
 def log_current_results(
@@ -821,11 +830,11 @@ def log_current_results(
         )  # noqa
         # Log running mean R2
         logging.info(
-            f"Running mean R²: {np.round(np.mean([i['r2'] for i in scores]), decimals=4)}"  # noqa
+            f"Running mean R²: {np.round(np.nanmean([i['r2'] for i in scores]), decimals=4)}"  # noqa
         )
         # Log running mean shuffle R2
         logging.info(
-            f"Running shuffle mean R²: {np.round(np.mean([i['r2'] for i in scores_sh]), decimals=4)}"  # noqa
+            f"Running shuffle mean R²: {np.round(np.nanmean([i['r2'] for i in scores_sh]), decimals=4)}"  # noqa
         )
         # Log elapsed time
         logging.info(f"Elapsed time: {np.round(time() - t_start, decimals=1)}\n")
@@ -835,129 +844,17 @@ def log_current_results(
         logging.info(f"Current CV loop acc: {np.round(scores[-1]['acc'], decimals=4)}")
         # Log running mean acc
         logging.info(
-            f"Running mean acc: {np.round(np.mean([i['acc'] for i in scores]), decimals=4)}"  # noqa
+            f"Running mean acc: {np.round(np.nanmean([i['acc'] for i in scores]), decimals=4)}"  # noqa
         )
         # Log running mean shuffle acc
         logging.info(
-            f"Running shuffle mean acc: {np.round(np.mean([i['acc'] for i in scores_sh]), decimals=4)}"  # noqa
+            f"Running shuffle mean acc: {np.round(np.nanmean([i['acc'] for i in scores_sh]), decimals=4)}"  # noqa
         )
         # Log elapsed time
         logging.info(f"Elapsed time: {np.round(time() - t_start, decimals=1)}\n")
     else:
         # Raise error
         raise ValueError(f"OBJECTIVE is {task['OBJECTIVE']}.")
-
-
-def cross_validation(
-    task: dict, g: pd.DataFrame, x: pd.DataFrame, y: pd.DataFrame
-) -> dict:
-    """
-    Perform cross-validation analysis and save results to pickle files.
-
-    References
-    ----------
-    1. Hastie T, Tibshirani R, Friedman JH. The elements of statistical learning:
-       data mining, inference, and prediction. 2nd ed. Springer, 2009.
-    2. Cawley GC, Talbot NLC. On Over-fitting in Model Selection and Subsequent
-       Selection Bias in Performance Evaluation. 2010;(11):2079–107.
-
-    Parameters
-    ----------
-    task: Dict
-        Dictionary containing task configuration variables.
-    g: pd.DataFrame
-        DataFrame with group identifiers for cross-validation splits.
-    x: pd.DataFrame
-        DataFrame containing predictors.
-    y: pd.DataFrame
-        DataFrame containing target values.
-
-    Returns
-    -------
-    None
-
-    Raises
-    ------
-    None
-    """
-
-    # --- Initialize ---
-    # Initialize results containers
-    results = {
-        "best_params": [],
-        "best_pipe": [],
-        "scores": [],
-        "explanations": [],
-        "scores_sh": [],
-        "explanations_sh": [],
-    }
-    # Prepare pipeline and search space
-    pipe, space = prepare_pipeline(task)
-    # Choose n_rep_outer_cv to approx N_PRED_OUTER_CV (min 2).
-    task["n_rep_outer_cv"] = max(2, mth.ceil(task["N_PRED_OUTER_CV"] / g.shape[0]))
-    # Instatiate main cv splitter
-    cv = RepeatedGroupKFold(
-        n_splits=task["N_CV_FOLDS"], n_repeats=task["n_rep_outer_cv"], random_state=1000
-    )
-
-    # --- Main (outer) cross validation ---
-    # Loop over cv splits and repetitions
-    for i_cv, (i_trn, i_tst) in enumerate(cv.split(g, groups=g)):
-        # Save loop start time
-        t_start = time()
-
-        # --- Split data ---
-        # Split groups
-        g_trn, g_tst = split_data(g, i_trn, i_tst)
-        # Split targets
-        y_trn, y_tst = split_data(y, i_trn, i_tst)
-        # Split predictors
-        x_trn, x_tst = split_data(x, i_trn, i_tst)
-
-        # --- Tune and fit ---
-        # Get optimized and fitted pipe
-        best_pipe, best_params = optimize_pipeline(
-            task, i_cv, pipe, space, g_trn, x_trn, y_trn
-        )
-        # Store best params
-        results["best_params"].append(best_params)
-        # Store best pipe
-        results["best_pipe"].append(best_pipe)
-
-        # --- Get predictions and explanations ---
-        # Score predictions
-        results["scores"].append(
-            score_predictions(task, best_pipe, x_tst, y_tst, i_tst, y)
-        )
-        # SHAP explanations
-        results["explanations"].append(get_explanations(task, best_pipe, x_trn, x_tst))
-
-        # --- Get shuffle predictions and explanations ---
-        # Clone pipe
-        pipe_sh = clone(pipe)
-        # Refit pipe with shuffled targets
-        pipe_sh.fit(x_trn, shuffle(y_trn).squeeze())
-        # Score predictions
-        results["scores_sh"].append(
-            score_predictions(task, pipe_sh, x_tst, y_tst, i_tst, y)
-        )
-        # SHAP explanations
-        results["explanations_sh"].append(get_explanations(task, pipe_sh, x_trn, x_tst))
-
-        # --- Save intermediate results and task configuration ---
-        # Save results as pickle file
-        with open(f"{task['save_path']}_results.pickle", "wb") as filehandle:
-            # store the data as binary data stream
-            pkl.dump(results, filehandle)
-        # Save task as pickle file
-        with open(f"{task['save_path']}_task.pickle", "wb") as filehandle:
-            # store the data as binary data stream
-            pkl.dump(task, filehandle)
-
-        # --- Log current results ---
-        log_current_results(
-            task, t_start, results["scores"], results["scores_sh"], i_cv
-        )
 
 
 def single_train_test_split_predictions(
@@ -1052,19 +949,22 @@ def single_train_test_split_predictions(
     # Score predictions
     results["scores"].append(score_predictions(task, best_pipe, x_tst, y_tst, i_tst, y))
     # SHAP explanations
-    results["explanations"].append(get_explanations(task, best_pipe, x_trn, x_tst))
+    results["explanations"].append(
+        get_explanations(task, best_pipe, x_tst, y_tst)
+    )
 
     # --- Get shuffle predictions and explanations ---
-    # Clone pipe
-    pipe_sh = clone(pipe)
+
     # Refit pipe with shuffled targets
-    pipe_sh.fit(x_trn, shuffle(y_trn).squeeze())
+    pipe_sh = best_pipe.fit(x_trn, shuffle(y_trn).squeeze())
     # Score predictions
     results["scores_sh"].append(
         score_predictions(task, pipe_sh, x_tst, y_tst, i_tst, y)
     )
     # SHAP explanations
-    results["explanations_sh"].append(get_explanations(task, pipe_sh, x_trn, x_tst))
+    results["explanations_sh"].append(
+        get_explanations(task, pipe_sh, x_tst, y_tst)
+    )
 
     # --- Save intermediate results and task configuration ---
     # Save results as pickle file
@@ -1401,7 +1301,7 @@ def main() -> None:
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 20640, size=4128, random_state=1000))
 
-    # # Radon data - regression
+    # # # Radon data - regression
     # # Specifiy an analysis name
     # ANALYSIS_NAME = "radon"
     # # Specify path to data. str

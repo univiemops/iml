@@ -262,6 +262,7 @@ def score_predictions(
         r2 = r2_score(y_tst, y_pred)
         # Results
         scores = {
+            "x_tst": x_tst,
             "y_true": y_tst.squeeze().to_numpy(),
             "y_pred": y_pred,
             "y_ind": i_tst,
@@ -278,6 +279,7 @@ def score_predictions(
         acc = balanced_accuracy_score(y_tst, y_pred)
         # Results
         scores = {
+            "x_tst": x_tst,
             "y_true": y_tst.squeeze().to_numpy(),
             "y_pred": y_pred,
             "y_pred_proba": y_pred_proba,
@@ -332,6 +334,7 @@ def get_explanations(
     estimator: Union[TabPFNRegressor, TabPFNClassifier],
     x_trn: np.ndarray,
     x_tst: np.ndarray,
+    y_tst: np.ndarray,
 ) -> Explanation:
     """
     Generate SHAP (SHapley Additive exPlanations) model explanations for feature
@@ -368,6 +371,9 @@ def get_explanations(
     x_tst: np.ndarray
         Test dataset (n_samples, n_features) on which SHAP values are computed to
         explain the model's predictions.
+    y_tst: np.ndarray
+        Test labels (n_samples, n_features) included in explainer object to be stored
+        along with x_tst_shap.
 
     Returns
     -------
@@ -397,9 +403,11 @@ def get_explanations(
         # Raise error
         raise ValueError(f"TYPE is {task['TYPE']}.")
     # Subsample test data
-    x_tst_shap = x_tst.sample(
-        n=task["max_samples_shap"], random_state=1000, ignore_index=True
-    )
+    x_tst_shap = x_tst.sample(n=task["max_samples_shap"], random_state=1000)
+    # Slice targets to fit subsampled predictors
+    y_tst_shap = y_tst.loc[x_tst_shap.index, :].reset_index(drop=True)
+    # Reset index of predictors
+    x_tst_shap = x_tst_shap.reset_index(drop=True)
 
     # --- Explainer and Explanations ---
     # If regression
@@ -433,6 +441,10 @@ def get_explanations(
         max_evals=2 * len(task["X_NAMES"]) + 1,
         silent=True,
     )
+    # Replace data in explanations with data in dataframe
+    explanations.data = x_tst_shap
+    # Add labels to explanations
+    explanations.labels = y_tst_shap
 
     # --- Return shap explanations ---
     return explanations
@@ -481,11 +493,11 @@ def log_current_results(
         )  # noqa
         # Log running mean R2
         logging.info(
-            f"Running mean R²: {np.round(np.mean([i['r2'] for i in scores]), decimals=4)}"  # noqa
+            f"Running mean R²: {np.round(np.nanmean([i['r2'] for i in scores]), decimals=4)}"  # noqa
         )
         # Log running mean shuffle R2
         logging.info(
-            f"Running shuffle mean R²: {np.round(np.mean([i['r2'] for i in scores_sh]), decimals=4)}"  # noqa
+            f"Running shuffle mean R²: {np.round(np.nanmean([i['r2'] for i in scores_sh]), decimals=4)}"  # noqa
         )
         # Log elapsed time
         logging.info(f"Elapsed time: {np.round(time() - t_start, decimals=1)}\n")
@@ -495,11 +507,11 @@ def log_current_results(
         logging.info(f"Current CV loop acc: {np.round(scores[-1]['acc'], decimals=4)}")
         # Log running mean acc
         logging.info(
-            f"Running mean acc: {np.round(np.mean([i['acc'] for i in scores]), decimals=4)}"  # noqa
+            f"Running mean acc: {np.round(np.nanmean([i['acc'] for i in scores]), decimals=4)}"  # noqa
         )
         # Log running mean shuffle acc
         logging.info(
-            f"Running shuffle mean acc: {np.round(np.mean([i['acc'] for i in scores_sh]), decimals=4)}"  # noqa
+            f"Running shuffle mean acc: {np.round(np.nanmean([i['acc'] for i in scores_sh]), decimals=4)}"  # noqa
         )
         # Log elapsed time
         logging.info(f"Elapsed time: {np.round(time() - t_start, decimals=1)}\n")
@@ -592,7 +604,9 @@ def single_train_test_split_predictions(
     # Score predictions
     results["scores"].append(score_predictions(task, estimator, x_tst, y_tst, i_tst, y))
     # SHAP explanations
-    results["explanations"].append(get_explanations(task, estimator, x_trn, x_tst))
+    results["explanations"].append(
+        get_explanations(task, estimator, x_trn, x_tst, y_tst)
+    )
 
     # --- Shuffle fit, score, and explain ---
     # Refit estimator with shuffled targets
@@ -603,7 +617,7 @@ def single_train_test_split_predictions(
     )
     # SHAP explanations
     results["explanations_sh"].append(
-        get_explanations(task, estimator_sh, x_trn, x_tst)
+        get_explanations(task, estimator_sh, x_trn, x_tst, y_tst)
     )
 
     # --- Save results and task configuration ---
