@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Interpretable Machine-Learning 3 - Plotting (PLT)
-v400
+v401
 @author: david.steyrl@univie.ac.at
 """
 
@@ -185,7 +185,7 @@ def plot_parameter_distributions(task: dict, results: dict, store_path: str) -> 
             bins=30,
             kde=True,
             color="#777777",
-            log_scale=True if name.endswith("reg_lambda") else False,
+            log_scale=True if name.endswith("path_smooth") else False,
             ax=ax,
         )
         # Remove top, right and left frame elements
@@ -2568,7 +2568,7 @@ def main() -> None:
                     # Load results from binary data stream
                     results = pkl.load(filehandle)
             except FileNotFoundError as e:
-                # Raise error
+                # Raise error 
                 raise e
 
             # --- Create store directory ---

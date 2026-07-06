@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Interpretable Machine-Learning 1 - Exploratory Data Analysis (EDA)
-v264
+v265
 @author: david.steyrl@univie.ac.at
 """
 
@@ -191,8 +191,8 @@ def compute_pair_predictions(
     g = g[~nan_mask]
     x = x[~nan_mask]
     y = y[~nan_mask]
-    # Choose n_rep_cv to approx N_PRED_CV (min 2, max 5 reps).
-    task["n_rep_cv"] = max(2, min(5, mth.ceil(task["N_PRED_CV"] / g.shape[0])))
+    # Choose n_rep_cv to approx N_PRED_CV (min 3, max 10 reps).
+    task["n_rep_cv"] = max(3, min(10, mth.ceil(task["N_PRED_CV"] / g.shape[0])))
     # Instatiate cv splitter
     cv = RepeatedGroupKFold(
         n_splits=task["N_CV_FOLDS"],
@@ -734,7 +734,7 @@ def main() -> None:
     # Number of folds in CV. int (default: 5)
     N_CV_FOLDS = 5
     # Number of predictions in 5 fold CV. int (default: 1000)
-    # Be aware of hardcoded min. 2 and max. 5 repetitions.
+    # Be aware of hardcoded min. 3 and max. 10 repetitions.
     N_PRED_CV = 1000
     # Device to run computations. str (default: "cuda", "cpu")
     DEVICE = "cuda"

@@ -686,8 +686,8 @@ def run_modelling(
     }
     # If cross-validation
     if task["TYPE"] == "CV":
-        # Choose n_rep_cv to approx N_PRED_CV (min 2).
-        task["n_rep_cv"] = max(2, mth.ceil(task["N_PRED_CV"] / g.shape[0]))
+        # Choose n_rep_cv to approx N_PRED_CV (min 3).
+        task["n_rep_cv"] = max(3, mth.ceil(task["N_PRED_CV"] / g.shape[0]))
         # Instatiate cv splitter
         cv = RepeatedGroupKFold(
             n_splits=task["N_CV_FOLDS"], n_repeats=task["n_rep_cv"], random_state=1000
@@ -752,54 +752,54 @@ def main() -> None:
     # Number of folds in CV. int (default: 5)
     N_CV_FOLDS = 5
     # Number of predictions in 5 fold CV (if TYPE='CV'). int (default: 10000)
-    # Be aware of hardcoded min. 2 repetition.
+    # Be aware of hardcoded min. 3 repetition.
     N_PRED_CV = 10000
     # Number of samples SHAP. int (default: 1000).
     N_SAMPLES_SHAP = 1000
     # Device to run computations. str (default: "cuda", "cpu")
-    DEVICE = "cuda"
+    DEVICE = "cpu"
     # Store prefix (where results go). str
     STORE_PREFIX = "iml_2_mdl_tabpfn_"
 
     # --- Specify data ---
 
-    # Concentration data - regression
-    # Specifiy an analysis name
-    ANALYSIS_NAME = "concentration"
-    # Specify path to data. str
-    PATH_TO_DATA = "sample_data/concentration_20250122.xlsx"
-    # Specify sheet name. str
-    SHEET_NAME = "data_nan"
-    # Specify task OBJECTIVE. str (classification, regression)
-    OBJECTIVE = "regression"
-    # Specify grouping for CV split. list of str
-    G_NAME = [
-        "sample_id",
-    ]
-    # Specify predictor name(s). list of str
-    X_NAMES = [
-        "chloride",
-        "compound_8",
-        "fluid_velocity",
-        "nitrogen_nitrates",
-        "nitrites_ammonia",
-        "oxygen",
-        "phosphate",
-        "pH",
-        "river_size",
-        "season",
-    ]
-    # Specify indices for X_NAMES to target encode. list of int (default: [])
-    TARGET_ENCODING_IND = []
-    # Specify target name(s). list of str
-    Y_NAMES = [
-        "concentration_a1",
-        "concentration_a2",
-    ]
-    # Rows to skip. list of int or []
-    SKIP_ROWS = []
-    # Specify index of rows for test set if TT. list of int or []
-    TEST_SET_IND = list(randint.rvs(0, 199, size=40, random_state=1))
+    # # Concentration data - regression
+    # # Specifiy an analysis name
+    # ANALYSIS_NAME = "concentration"
+    # # Specify path to data. str
+    # PATH_TO_DATA = "sample_data/concentration_20250122.xlsx"
+    # # Specify sheet name. str
+    # SHEET_NAME = "data_nan"
+    # # Specify task OBJECTIVE. str (classification, regression)
+    # OBJECTIVE = "regression"
+    # # Specify grouping for CV split. list of str
+    # G_NAME = [
+    #     "sample_id",
+    # ]
+    # # Specify predictor name(s). list of str
+    # X_NAMES = [
+    #     "chloride",
+    #     "compound_8",
+    #     "fluid_velocity",
+    #     "nitrogen_nitrates",
+    #     "nitrites_ammonia",
+    #     "oxygen",
+    #     "phosphate",
+    #     "pH",
+    #     "river_size",
+    #     "season",
+    # ]
+    # # Specify indices for X_NAMES to target encode. list of int (default: [])
+    # TARGET_ENCODING_IND = []
+    # # Specify target name(s). list of str
+    # Y_NAMES = [
+    #     "concentration_a1",
+    #     "concentration_a2",
+    # ]
+    # # Rows to skip. list of int or []
+    # SKIP_ROWS = []
+    # # Specify index of rows for test set if TT. list of int or []
+    # TEST_SET_IND = list(randint.rvs(0, 199, size=40, random_state=1))
 
     # # Diabetes data - regression
     # # Specifiy an analysis name
@@ -949,38 +949,38 @@ def main() -> None:
     # # Specify index of rows for test set if TT. list of int or []
     # TEST_SET_IND = list(randint.rvs(0, 20640, size=4128, random_state=1000))
 
-    # # Radon data - regression
-    # # Specifiy an analysis name
-    # ANALYSIS_NAME = "radon"
-    # # Specify path to data. str
-    # PATH_TO_DATA = "sample_data/radon_20250116.xlsx"
-    # # Specify sheet name. str
-    # SHEET_NAME = "data_nan"
-    # # Specify task OBJECTIVE. str (classification, regression)
-    # OBJECTIVE = "regression"
-    # # Specify grouping for CV split. list of str
-    # G_NAME = [
-    #     "sample_id",
-    # ]
-    # # Specify predictor name(s). list of str
-    # X_NAMES = [
-    #     "uppm",
-    #     "basement",
-    #     "floor",
-    #     "region",
-    #     "zip",
-    #     "room",
-    # ]
-    # # Specify indices for X_NAMES to target encode. list of int (default: [5])
-    # TARGET_ENCODING_IND = [4]
-    # # Specify target name(s). list of str
-    # Y_NAMES = [
-    #     "log_radon",
-    # ]
-    # # Rows to skip. list of int or []
-    # SKIP_ROWS = []
-    # # Specify index of rows for test set if TT. list of int or []
-    # TEST_SET_IND = list(randint.rvs(0, 918, size=184, random_state=1000))
+    # Radon data - regression
+    # Specifiy an analysis name
+    ANALYSIS_NAME = "radon"
+    # Specify path to data. str
+    PATH_TO_DATA = "sample_data/radon_20250116.xlsx"
+    # Specify sheet name. str
+    SHEET_NAME = "data_nan"
+    # Specify task OBJECTIVE. str (classification, regression)
+    OBJECTIVE = "regression"
+    # Specify grouping for CV split. list of str
+    G_NAME = [
+        "sample_id",
+    ]
+    # Specify predictor name(s). list of str
+    X_NAMES = [
+        "uppm",
+        "basement",
+        "floor",
+        "region",
+        "zip",
+        "room",
+    ]
+    # Specify indices for X_NAMES to target encode. list of int (default: [5])
+    TARGET_ENCODING_IND = [4]
+    # Specify target name(s). list of str
+    Y_NAMES = [
+        "log_radon",
+    ]
+    # Rows to skip. list of int or []
+    SKIP_ROWS = []
+    # Specify index of rows for test set if TT. list of int or []
+    TEST_SET_IND = list(randint.rvs(0, 918, size=184, random_state=1000))
 
     # # Wine data - classification 3 class
     # # Specifiy an analysis name
@@ -1063,17 +1063,17 @@ def main() -> None:
         # Raise error
         raise e
 
-    # --- Pip requirements ---
-    try:
-        # Get pip requirements
-        pip_requirements = get_pip_requirements()
-        # Open file in write mode
-        with open(f"{store_path}/{STORE_PREFIX}pip_requirements.txt", "w") as file:
-            # Write pip requirements
-            file.write(pip_requirements)
-    except OSError as e:
-        # Raise error
-        raise e
+    # # --- Pip requirements ---
+    # try:
+    #     # Get pip requirements
+    #     pip_requirements = get_pip_requirements()
+    #     # Open file in write mode
+    #     with open(f"{store_path}/{STORE_PREFIX}pip_requirements.txt", "w") as file:
+    #         # Write pip requirements
+    #         file.write(pip_requirements)
+    # except OSError as e:
+    #     # Raise error
+    #     raise e
 
     # --- Python script ---
     try:
